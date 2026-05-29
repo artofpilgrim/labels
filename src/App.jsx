@@ -159,13 +159,30 @@ function NumberInput({ value, onChange, min, max, step = 1, suffix, ariaLabel })
     </div>
   );
 }
+// Standard safety / signage colours offered as one-click swatches in every
+// colour picker (severity bands, ISO green, fire red, and neutrals).
+const STANDARD_COLORS = [
+  '#C8102E', '#F36F21', '#FFD200', '#1057A8', '#0E7C4E', '#237F52',
+  '#9B2423', '#000000', '#1a1814', '#6b7280', '#FFFFFF',
+];
+
 function ColorInput({ value, onChange, ariaLabel = 'Color' }) {
+  const cur = (value || '').toLowerCase();
   return (
     <div className="color-input">
-      <input type="color" value={value || '#000000'} aria-label={`${ariaLabel} swatch`}
-             onChange={e => onChange(e.target.value)} />
-      <input type="text" value={value || ''} aria-label={`${ariaLabel} hex value`}
-             onChange={e => onChange(e.target.value)} spellCheck={false} />
+      <div className="color-input-row">
+        <input type="color" value={value || '#000000'} aria-label={`${ariaLabel} swatch`}
+               onChange={e => onChange(e.target.value)} />
+        <input type="text" value={value || ''} aria-label={`${ariaLabel} hex value`}
+               onChange={e => onChange(e.target.value)} spellCheck={false} />
+      </div>
+      <div className="color-swatches">
+        {STANDARD_COLORS.map(c => (
+          <button key={c} type="button" title={c} aria-label={`Set colour ${c}`}
+                  className={`swatch${cur === c.toLowerCase() ? ' on' : ''}`}
+                  style={{ background: c }} onClick={() => onChange(c)} />
+        ))}
+      </div>
     </div>
   );
 }
@@ -426,7 +443,22 @@ const KIND_LABEL = Object.fromEntries(PICTO_GROUPS);
 // Grouped pictogram picker, shared by the Symbols tab and the image-layer
 // properties panel. activeId highlights the current symbol; onPick(id) applies.
 // A search box filters by symbol name, ISO code, or category label.
-function SymbolPicker({ activeId, onPick, cache }) {
+// Read an image file (PNG/JPG/SVG) as a base64 data URL, then probe its natural
+// size; cb(dataUrl, naturalW, naturalH). Used for custom-image upload.
+function readImageFile(file, cb) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    const src = reader.result;
+    const probe = new Image();
+    probe.onload = () => cb(src, probe.naturalWidth || 0, probe.naturalHeight || 0);
+    probe.onerror = () => cb(src, 0, 0);
+    probe.src = src;
+  };
+  reader.readAsDataURL(file);
+}
+
+function SymbolPicker({ activeId, onPick, cache, onUpload }) {
   const [q, setQ] = useState('');
   const query = q.trim().toLowerCase();
   const match = (id) => {
@@ -448,6 +480,13 @@ function SymbolPicker({ activeId, onPick, cache }) {
         aria-label="Search symbols"
         spellCheck={false}
       />
+      {onUpload && (
+        <label className="ghost dashed picto-upload">
+          Upload image (PNG / JPG / SVG)
+          <input type="file" accept="image/*,.svg" style={{ display: 'none' }}
+                 onChange={e => { const f = e.target.files && e.target.files[0]; if (f) onUpload(f); e.target.value = ''; }} />
+        </label>
+      )}
       <div className="picto-groups">
         {PICTO_GROUPS.map(([kind, label]) => {
           const group = ids.filter(id => PICTOGRAMS[id].kind === kind);
@@ -523,7 +562,7 @@ const HANDLE_POSITIONS = [
   ['sw', 0, 1], ['w', 0, 0.5],
 ];
 
-function Handles({ box, fit, onHandleDown, kind, rotation = 0 }) {
+function Handles({ box, fit, onHandleDown, kind, rotation = 0, onRotateDown }) {
   // box in label coords {x,y,w,h}; positions in DOM coords (×fit). Everything
   // lives in a box-sized wrapper rotated about its centre so the outline and
   // handles track a rotated layer's edges. The wrapper is pointer-events:none
@@ -552,6 +591,13 @@ function Handles({ box, fit, onHandleDown, kind, rotation = 0 }) {
           onMouseDown={e => onHandleDown(e, name)}
         />
       ))}
+      {onRotateDown && (
+        <>
+          <div className="rotate-stem" style={{ left: pw / 2, top: -22 }} />
+          <div className="handle-rotate" style={{ left: pw / 2, top: -22 }}
+               onMouseDown={onRotateDown} title="Rotate (hold Shift for 15°)" />
+        </>
+      )}
     </div>
   );
 }
@@ -987,6 +1033,14 @@ export function App() {
   const [exportOpen, setExportOpen] = useState(false);      // export popover
   const [preview, setPreview] = useState(false);            // chrome-free preview toggle
   const [helpOpen, setHelpOpen] = useState(false);          // help / workflows dialog
+  const [ctxMenu, setCtxMenu] = useState(null);             // right-click menu { x, y }
+  const [theme, setTheme] = useState(() => {                // editor 'light' | 'dark'
+    try {
+      const saved = localStorage.getItem('hazardLabelStudio.theme');
+      if (saved === 'dark' || saved === 'light') return saved;
+      return (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+    } catch { return 'light'; }
+  });
   const [query, setQuery] = useState('');                   // template search filter
   // Save status shown in the top bar; flips to 'saving' on edit, back after autosave.
   const [saveState, setSaveState] = useState('saved');      // 'saved' | 'saving'
@@ -1159,6 +1213,7 @@ export function App() {
   function applyUserPreset(id) {
     const p = userPresets.find(x => x.id === id);
     if (!p) return;
+    forceCommit();   // make the current design a clean undo point before replacing it
     // Fresh layer IDs so nothing reuses stale references.
     const layers = p.design.layers.map(l => ({
       ...l,
@@ -1175,6 +1230,8 @@ export function App() {
     setActivePresetId(id);
     setSelectedIds([]);
     setWrapOffset({ x: 0, y: 0 });
+    setExportMsg('Preset applied — press Ctrl+Z to undo');
+    setTimeout(() => setExportMsg(''), 3000);
   }
   function deleteUserPreset(id) {
     persistUserPresets(userPresets.filter(p => p.id !== id));
@@ -1216,6 +1273,27 @@ export function App() {
     setSelectedIds([nl.id]);
     setRightTab('properties');
   }, [design.width, design.height]);
+
+  // Add an uploaded image as a new image layer (sized to fit, aspect preserved).
+  const addImageFromFile = useCallback((file) => {
+    readImageFile(file, (src, nw, nh) => {
+      const maxDim = Math.min(design.width, design.height) * 0.5;
+      let w = nw || 160, h = nh || 160;
+      const s = Math.min(1, maxDim / Math.max(w, h)) || 1;
+      w = Math.round(w * s) || 160; h = Math.round(h * s) || 160;
+      const nl = newLayer('image', design.width, design.height);
+      if (!nl) return;
+      nl.symbol = undefined;
+      nl.src = src;
+      nl.name = (file.name || 'Image').replace(/\.[^.]+$/, '');
+      nl.w = w; nl.h = h;
+      nl.x = Math.round(design.width / 2 - w / 2);
+      nl.y = Math.round(design.height / 2 - h / 2);
+      setDesign(d => ({ ...d, layers: [...d.layers, nl] }));
+      setSelectedIds([nl.id]);
+      setRightTab('properties');
+    });
+  }, [design.width, design.height, setDesign]);
 
   // Align selected layers. With one selection we align to the canvas; with two
   // or more we align each layer to the selection's bounding box.
@@ -1303,6 +1381,92 @@ export function App() {
     setDesign(d => ({ ...d, layers: d.layers.filter(l => !(selectedIds.includes(l.id) && !l.locked)) }));
   }, [selectedIds, setDesign]);
 
+  // Live ref to the current design so keyboard handlers read fresh layers
+  // without re-binding the listener on every edit.
+  const designRef = useRef(design);
+  designRef.current = design;
+  // In-memory clipboard for copy/paste of layers (deep-cloned objects).
+  const clipboardRef = useRef([]);
+
+  const copySelected = useCallback(() => {
+    const copied = designRef.current.layers
+      .filter(l => selectedIds.includes(l.id) && !l.locked)
+      .map(l => JSON.parse(JSON.stringify(l)));
+    if (copied.length) clipboardRef.current = copied;
+  }, [selectedIds]);
+
+  const pasteClipboard = useCallback(() => {
+    const clip = clipboardRef.current;
+    if (!clip || !clip.length) return;
+    const newIds = [];
+    setDesign(d => {
+      const added = clip.map(src => {
+        const id = uid();
+        newIds.push(id);
+        return { ...JSON.parse(JSON.stringify(src)), id, x: (src.x || 0) + 16, y: (src.y || 0) + 16 };
+      });
+      return { ...d, layers: [...d.layers, ...added] };
+    });
+    if (newIds.length) { setSelectedIds(newIds); setRightTab('properties'); }
+  }, [setDesign]);
+
+  const selectAll = useCallback(() => {
+    const ids = designRef.current.layers.filter(l => !l.locked && !l.hidden).map(l => l.id);
+    if (ids.length) { setSelectedIds(ids); setRightTab('properties'); }
+  }, []);
+
+  // Reorder the selected (unlocked) layers within the stack. 'forward'/'backward'
+  // move one step; 'front'/'back' move as far as possible. Never crosses a locked
+  // layer (e.g. the canvas-fill background) and never swaps within the selection.
+  const reorderSelected = useCallback((mode) => {
+    setDesign(d => {
+      const selSet = new Set(selectedIds);
+      const layers = d.layers.slice();
+      const idxOf = id => layers.findIndex(l => l.id === id);
+      const movable = selectedIds.filter(id => { const l = layers.find(x => x.id === id); return l && !l.locked; });
+      if (!movable.length) return d;
+      const stepOnce = (dir) => {
+        const sorted = movable.slice().sort((a, b) => idxOf(a) - idxOf(b));
+        const seq = dir === 'up' ? sorted.reverse() : sorted;
+        let moved = false;
+        for (const id of seq) {
+          const i = idxOf(id);
+          const j = dir === 'up' ? i + 1 : i - 1;
+          if (j < 0 || j >= layers.length) continue;
+          if (layers[j].locked || selSet.has(layers[j].id)) continue;
+          [layers[i], layers[j]] = [layers[j], layers[i]];
+          moved = true;
+        }
+        return moved;
+      };
+      if (mode === 'forward') stepOnce('up');
+      else if (mode === 'backward') stepOnce('down');
+      else if (mode === 'front') { let g = 0; while (stepOnce('up') && g++ < 2000) { /* climb */ } }
+      else if (mode === 'back') { let g = 0; while (stepOnce('down') && g++ < 2000) { /* sink */ } }
+      return { ...d, layers };
+    });
+  }, [selectedIds, setDesign]);
+
+  // Move a single layer to an absolute index (used by drag-to-reorder in the
+  // layer list). Clamps so it can't move below/above a locked boundary layer.
+  const moveLayerToIndex = useCallback((id, targetId) => {
+    setDesign(d => {
+      const from = d.layers.findIndex(l => l.id === id);
+      const to = d.layers.findIndex(l => l.id === targetId);
+      if (from < 0 || to < 0 || from === to) return d;
+      if (d.layers[from].locked) return d;
+      const layers = d.layers.slice();
+      const [moved] = layers.splice(from, 1);
+      let insertAt = layers.findIndex(l => l.id === targetId);
+      if (insertAt < 0) return d;
+      // Keep above any locked bottom layer (e.g. background) and below a locked top one.
+      const lockedBottom = layers.findIndex(l => l.locked);
+      if (lockedBottom === 0) insertAt = Math.max(insertAt, 1);
+      layers.splice(insertAt, 0, moved);
+      return { ...d, layers };
+    });
+  }, [setDesign]);
+
   // Drag-move every layer in `ids` together (no per-edge snap for groups).
   function startGroupDrag(e, ids, clickedId) {
     const snaps = new Map();
@@ -1364,6 +1528,8 @@ export function App() {
 
   function applyPreset(formatId) {
     const f = FORMATS.find(x => x.id === formatId);
+    if (!f) return;
+    forceCommit();   // make the current design a clean undo point before replacing it
     const [W, H] = f.default;
     setDesign(d => ({
       width: W, height: H,
@@ -1374,6 +1540,8 @@ export function App() {
     setActivePresetId(null);   // a template replaces the design — no longer "your preset"
     setSelectedIds([]);
     setWrapOffset({ x: 0, y: 0 });
+    setExportMsg('Template applied — press Ctrl+Z to undo');
+    setTimeout(() => setExportMsg(''), 3000);
   }
 
   function setSeverity(id) {
@@ -1481,6 +1649,39 @@ export function App() {
       setLayer(layer.id, { x: next.x, y: next.y, w: next.w, h: next.h });
     });
   }
+  // Drag the rotate grip: set rotation from the angle between the box centre and
+  // the cursor (grip points up = 0°). Shift snaps to 15°.
+  function startRotate(e) {
+    e.preventDefault(); e.stopPropagation();
+    const layer = design.layers.find(l => l.id === selectedId);
+    const wrap = wrapRef.current;
+    if (!layer || !wrap) return;
+    forceCommit();
+    inDragRef.current = true;
+    const r = wrap.getBoundingClientRect();
+    const cx = r.left + (layer.x + layer.w / 2) * fit;
+    const cy = r.top + (layer.y + layer.h / 2) * fit;
+    function move(ev) {
+      let deg = Math.atan2(ev.clientY - cy, ev.clientX - cx) * 180 / Math.PI + 90;
+      if (ev.shiftKey) deg = Math.round(deg / 15) * 15;
+      deg = Math.round(deg);
+      while (deg > 180) deg -= 360;
+      while (deg < -180) deg += 360;
+      setLayer(layer.id, { rotation: deg });
+    }
+    function up() {
+      document.removeEventListener('mousemove', move);
+      document.removeEventListener('mouseup', up);
+      document.removeEventListener('pointercancel', up);
+      window.removeEventListener('blur', up);
+      inDragRef.current = false;
+      setTimeout(forceCommit, 0);
+    }
+    document.addEventListener('mousemove', move);
+    document.addEventListener('mouseup', up);
+    document.addEventListener('pointercancel', up);
+    window.addEventListener('blur', up);
+  }
   function startCanvasResize(e, mode) {
     const snap = { w: design.width, h: design.height, fit };
     const startOffset = wrapOffset;
@@ -1578,6 +1779,17 @@ export function App() {
   function onCanvasPointerDown(e) {
     startMarquee(e);
   }
+  // Right-click a layer → select it (if not already) and open the context menu.
+  function onLayerContextMenu(layerId, e) {
+    e.preventDefault();
+    const layer = design.layers.find(l => l.id === layerId);
+    if (!layer || layer.locked) return;
+    if (!selectedIds.includes(layerId)) { setSelectedIds([layerId]); setRightTab('properties'); }
+    setCtxMenu({
+      x: Math.min(e.clientX, window.innerWidth - 210),
+      y: Math.min(e.clientY, window.innerHeight - 360),
+    });
+  }
 
   // ----- keyboard -----
   useEffect(() => {
@@ -1589,6 +1801,7 @@ export function App() {
       // the user can undo their last typed character) — match standard
       // editor shortcuts on both Win/Linux (Ctrl) and macOS (Cmd).
       const mod = e.ctrlKey || e.metaKey;
+      // Undo / redo work even while a field is focused (undo the typed char).
       if (mod && (e.key === 'z' || e.key === 'Z')) {
         e.preventDefault();
         if (e.shiftKey) redo(); else undo();
@@ -1597,9 +1810,16 @@ export function App() {
       if (mod && (e.key === 'y' || e.key === 'Y')) {
         e.preventDefault(); redo(); return;
       }
-
+      if (inField) return;   // below: editor shortcuts, suppressed while typing
+      // Work regardless of selection:
+      if (mod && (e.key === 'a' || e.key === 'A')) { e.preventDefault(); selectAll(); return; }
+      if (mod && (e.key === 'v' || e.key === 'V')) { e.preventDefault(); pasteClipboard(); return; }
       if (selectedIds.length === 0) return;
-      if (inField) return;
+      // Need a selection:
+      if (mod && (e.key === 'c' || e.key === 'C')) { e.preventDefault(); copySelected(); return; }
+      if (mod && (e.key === 'd' || e.key === 'D')) { e.preventDefault(); duplicateLayer(); return; }
+      if (mod && e.key === ']') { e.preventDefault(); reorderSelected(e.shiftKey ? 'front' : 'forward'); return; }
+      if (mod && e.key === '[') { e.preventDefault(); reorderSelected(e.shiftKey ? 'back' : 'backward'); return; }
       if (e.key === 'Escape') { setSelectedIds([]); return; }
       if (e.key === 'Delete' || e.key === 'Backspace') {
         e.preventDefault(); deleteSelected();
@@ -1616,7 +1836,7 @@ export function App() {
     }
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [selectedIds, deleteSelected, undo, redo]);
+  }, [selectedIds, deleteSelected, undo, redo, duplicateLayer, copySelected, pasteClipboard, selectAll, reorderSelected]);
 
   // If undo/redo restores a design that no longer contains a selected layer,
   // prune the selection so handles + property panel don't dangle.
@@ -1796,6 +2016,20 @@ export function App() {
     };
   }, []);
 
+  // Apply + persist the editor theme (the label artwork keeps its own colours).
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    try { localStorage.setItem('hazardLabelStudio.theme', theme); } catch { /* ignore */ }
+  }, [theme]);
+
+  // Close the right-click context menu on Escape (click-away is handled by its backdrop).
+  useEffect(() => {
+    if (!ctxMenu) return;
+    const onEsc = (e) => { if (e.key === 'Escape') setCtxMenu(null); };
+    window.addEventListener('keydown', onEsc);
+    return () => window.removeEventListener('keydown', onEsc);
+  }, [ctxMenu]);
+
   // ----- export -----
   function doExport(kind, scale) {
     const svg = labelRef.current && labelRef.current.getSvg();
@@ -1812,7 +2046,7 @@ export function App() {
     // from the export. Detect it so we don't report a clean success for a
     // hazard label that's missing its (safety-critical) pictograms.
     const missing = design.layers.filter(
-      l => l.type === 'image' && !l.hidden && l.symbol && !symbolCache[l.symbol]
+      l => l.type === 'image' && !l.hidden && !l.src && l.symbol && !symbolCache[l.symbol]
     ).length;
     const note = missing
       ? ` — ${missing} symbol${missing > 1 ? 's' : ''} failed to load; reload and re-export`
@@ -1981,13 +2215,21 @@ export function App() {
     </>
   );
 
+  const dragLayerRef = useRef(null);
+  const [dropTargetId, setDropTargetId] = useState(null);
   const layerStackField = (
-    <Field label="Layer stack" hint="Top of list = front of label. Click to select.">
+    <Field label="Layer stack" hint="Top of list = front. Click to select, drag to reorder.">
       <div className="layer-list">
         {design.layers.slice().reverse().map((l) => (
           <div
             key={l.id}
-            className={`layer-row ${selectedIds.includes(l.id) ? 'on' : ''} ${l.hidden ? 'hidden' : ''} ${l.locked ? 'locked' : ''}`}
+            className={`layer-row ${selectedIds.includes(l.id) ? 'on' : ''} ${l.hidden ? 'hidden' : ''} ${l.locked ? 'locked' : ''} ${dropTargetId === l.id ? 'drop-target' : ''}`}
+            draggable={!l.locked}
+            onDragStart={e => { dragLayerRef.current = l.id; e.dataTransfer.effectAllowed = 'move'; }}
+            onDragOver={e => { if (dragLayerRef.current && dragLayerRef.current !== l.id) { e.preventDefault(); if (dropTargetId !== l.id) setDropTargetId(l.id); } }}
+            onDragLeave={() => { setDropTargetId(t => (t === l.id ? null : t)); }}
+            onDrop={e => { e.preventDefault(); const from = dragLayerRef.current; dragLayerRef.current = null; setDropTargetId(null); if (from && from !== l.id) moveLayerToIndex(from, l.id); }}
+            onDragEnd={() => { dragLayerRef.current = null; setDropTargetId(null); }}
             onClick={e => {
               if (e.shiftKey) setSelectedIds(ids => ids.includes(l.id) ? ids.filter(i => i !== l.id) : [...ids, l.id]);
               else setSelectedIds([l.id]);
@@ -2024,9 +2266,10 @@ export function App() {
       <SymbolPicker
         activeId={selectedLayer && selectedLayer.type === 'image' ? selectedLayer.symbol : null}
         cache={symbolCache}
+        onUpload={addImageFromFile}
         onPick={(id) => {
           if (selectedLayer && selectedLayer.type === 'image') {
-            setLayer(selectedLayer.id, { symbol: id });
+            setLayer(selectedLayer.id, { symbol: id, src: undefined });
           } else {
             const nl = newLayer('image', design.width, design.height);
             if (nl) {
@@ -2153,6 +2396,11 @@ export function App() {
             <button className="icon-btn" title="Redo (Ctrl+Shift+Z)" onClick={redo}
                     disabled={editor.future.length === 0}>↷</button>
           </div>
+          <button className="icon-btn" aria-pressed={theme === 'dark'}
+                  title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+                  onClick={() => setTheme(t => (t === 'dark' ? 'light' : 'dark'))}>
+            {theme === 'dark' ? '☀' : '☾'}
+          </button>
           <button className={`btn-lg${preview ? ' on' : ''}`} onClick={() => setPreview(p => !p)}>
             {preview ? 'Exit preview' : 'Preview'}
           </button>
@@ -2240,6 +2488,7 @@ export function App() {
                 symbolsReady={!!symbolCache}
                 onLayerPointerDown={onLayerPointerDown}
                 onCanvasPointerDown={onCanvasPointerDown}
+                onLayerContextMenu={onLayerContextMenu}
               />
             </div>
 
@@ -2283,6 +2532,7 @@ export function App() {
                   fit={fit}
                   rotation={selectedLayer.rotation || 0}
                   onHandleDown={(e, mode) => startLayerResize(e, mode)}
+                  onRotateDown={startRotate}
                 />
               </div>
             )}
@@ -2418,6 +2668,29 @@ export function App() {
 
       {exportMsg && <div className="export-msg toast">{exportMsg}</div>}
       {helpOpen && <HelpModal onClose={() => setHelpOpen(false)} />}
+
+      {ctxMenu && (
+        <>
+          <div className="ctx-backdrop"
+               onMouseDown={() => setCtxMenu(null)}
+               onContextMenu={e => { e.preventDefault(); setCtxMenu(null); }} />
+          <div className="ctx-menu" style={{ left: ctxMenu.x, top: ctxMenu.y }}>
+            <button onClick={() => { duplicateLayer(); setCtxMenu(null); }}>Duplicate <span>Ctrl+D</span></button>
+            <button onClick={() => { copySelected(); setCtxMenu(null); }}>Copy <span>Ctrl+C</span></button>
+            <button onClick={() => { pasteClipboard(); setCtxMenu(null); }}>Paste <span>Ctrl+V</span></button>
+            <div className="ctx-sep" />
+            <button onClick={() => { reorderSelected('front'); setCtxMenu(null); }}>Bring to front</button>
+            <button onClick={() => { reorderSelected('forward'); setCtxMenu(null); }}>Bring forward <span>Ctrl+]</span></button>
+            <button onClick={() => { reorderSelected('backward'); setCtxMenu(null); }}>Send backward <span>Ctrl+[</span></button>
+            <button onClick={() => { reorderSelected('back'); setCtxMenu(null); }}>Send to back</button>
+            <div className="ctx-sep" />
+            <button onClick={() => { setDesign(d => ({ ...d, layers: d.layers.map(l => selectedIds.includes(l.id) ? { ...l, locked: !l.locked } : l) })); setCtxMenu(null); }}>Lock / Unlock</button>
+            <button onClick={() => { setDesign(d => ({ ...d, layers: d.layers.map(l => selectedIds.includes(l.id) ? { ...l, hidden: !l.hidden } : l) })); setCtxMenu(null); }}>Hide / Show</button>
+            <div className="ctx-sep" />
+            <button className="danger" onClick={() => { deleteSelected(); setCtxMenu(null); }}>Delete <span>Del</span></button>
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -2677,8 +2950,10 @@ function RectProps({ layer, onChange }) {
 function ImageProps({ layer, onChange, cache }) {
   return (
     <>
-      <Field label="Symbol" hint="Official ISO 7010 plates.">
-        <SymbolPicker activeId={layer.symbol} cache={cache} onPick={(id) => onChange({ symbol: id })} />
+      <Field label={layer.src ? 'Image' : 'Symbol'} hint={layer.src ? 'Custom uploaded image. Pick a symbol to replace it.' : 'Built-in plates, or upload your own.'}>
+        <SymbolPicker activeId={layer.src ? null : layer.symbol} cache={cache}
+          onPick={(id) => onChange({ symbol: id, src: undefined })}
+          onUpload={(file) => readImageFile(file, (src) => onChange({ src, symbol: undefined }))} />
       </Field>
       <Field label="Aspect">
         <Seg

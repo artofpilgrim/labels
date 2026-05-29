@@ -205,7 +205,8 @@ function renderLayer(l, sev, symbolsReady) {
       return <g transform={transform}>{out}</g>;
     }
     case 'image': {
-      const href = pictoHref(l.symbol);
+      // A layer carries either a built-in symbol id or its own uploaded data URL (l.src).
+      const href = l.src || pictoHref(l.symbol);
       if (!href) {
         // No resolved symbol. While symbols are still loading, render nothing
         // (avoids a placeholder flash on first paint). Once loading is done an
@@ -848,7 +849,7 @@ function newLayer(type, W, H) {
 // ----------- Label component -----------
 // Renders all layers and attaches per-layer mousedown handlers so the parent
 // can drive selection + drag.
-const Label = forwardRef(function Label({ design, selectedId, symbolsReady, onLayerPointerDown, onCanvasPointerDown }, ref) {
+const Label = forwardRef(function Label({ design, selectedId, symbolsReady, onLayerPointerDown, onCanvasPointerDown, onLayerContextMenu }, ref) {
   const svgRef = useRef(null);
   useImperativeHandle(ref, () => ({ getSvg: () => svgRef.current }));
 
@@ -895,6 +896,7 @@ const Label = forwardRef(function Label({ design, selectedId, symbolsReady, onLa
             style={{ cursor: interactive ? 'move' : 'default', pointerEvents: l.hidden ? 'none' : 'auto' }}
             clipPath={clip}
             onMouseDown={(e) => onLayerPointerDown && onLayerPointerDown(l.id, e)}
+            onContextMenu={(e) => onLayerContextMenu && onLayerContextMenu(l.id, e)}
           >
             {/* Invisible hit rect so the whole layer box is clickable
                 (text/line glyphs don't fill their box on their own). For
