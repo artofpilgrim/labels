@@ -365,8 +365,9 @@ function FormatIcon({ id, active }) {
 function PictoTile({ id, active, onClick, cache }) {
   const p = PICTOGRAMS[id];
   const src = cache && cache[id];
+  const ref = p.kind === 'ghs' ? p.code : `ISO 7010 ${p.code}`;
   return (
-    <button className={`picto-tile ${active ? 'on' : ''}`} aria-pressed={active} onClick={onClick} title={`${p.name} · ISO 7010 ${p.code}`}>
+    <button className={`picto-tile ${active ? 'on' : ''}`} aria-pressed={active} onClick={onClick} title={`${p.name} · ${ref}`}>
       {src ? <img src={src} alt={p.name} width="44" height="44" style={{ objectFit: 'contain' }} />
            : <div style={{ width: 44, height: 44 }} />}
       <span>{p.name}</span>
@@ -382,6 +383,7 @@ const PICTO_GROUPS = [
   ['mandatory', 'Mandatory'],
   ['safe', 'Safe condition'],
   ['fire', 'Fire equipment'],
+  ['ghs', 'GHS chemical'],
 ];
 
 const KIND_LABEL = Object.fromEntries(PICTO_GROUPS);

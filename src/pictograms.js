@@ -131,4 +131,15 @@ export const PICTOGRAMS = {
   F007:        { name: 'Fire protection door',  file: 'F007.svg', code: 'F007', kind: 'fire' },
   F016:        { name: 'Fire blanket',          file: 'F016.svg', code: 'F016', kind: 'fire' },
   F017:        { name: "Firefighters' lift",    file: 'F017.svg', code: 'F017', kind: 'fire' },
+
+  // ---------- GHS chemical hazard (diamond) ----------
+  GHS01:       { name: 'Explosive',             file: 'GHS01.svg', code: 'GHS01', kind: 'ghs' },
+  GHS02:       { name: 'Flammable',             file: 'GHS02.svg', code: 'GHS02', kind: 'ghs' },
+  GHS03:       { name: 'Oxidizing',             file: 'GHS03.svg', code: 'GHS03', kind: 'ghs' },
+  GHS04:       { name: 'Gas under pressure',    file: 'GHS04.svg', code: 'GHS04', kind: 'ghs' },
+  GHS05:       { name: 'Corrosive',             file: 'GHS05.svg', code: 'GHS05', kind: 'ghs' },
+  GHS06:       { name: 'Acute toxicity',        file: 'GHS06.svg', code: 'GHS06', kind: 'ghs' },
+  GHS07:       { name: 'Harmful / irritant',    file: 'GHS07.svg', code: 'GHS07', kind: 'ghs' },
+  GHS08:       { name: 'Health hazard',         file: 'GHS08.svg', code: 'GHS08', kind: 'ghs' },
+  GHS09:       { name: 'Environmental hazard',  file: 'GHS09.svg', code: 'GHS09', kind: 'ghs' },
 };
