@@ -582,20 +582,35 @@ function makeTag(W, H, severity) {
 
 function makeStrip(W, H, severity) {
   const sev = SEVERITY[severity];
-  const wordSize = H * 0.55;
-  return [
+  const wordSize = H * 0.5;
+  // Diagonal hazard stripes: white parallelograms over the severity colour,
+  // clipped to the canvas. k is the 45° skew (equal px shift top-to-bottom);
+  // each white stripe and the colour gap between are ~the same width.
+  const k = H / W;
+  const stripeW = (H * 0.55) / W;
+  const period = stripeW * 2;
+  const layers = [
     L({ name: 'Background', type: 'rect', x: 0, y: 0, w: W, h: H,
         fill: sev.band, bindSeverity: 'band',
         locked: true, syncCanvas: 'fill' }),
-    L({ name: 'Center band', type: 'rect', x: 0, y: H * 0.22, w: W, h: H * 0.56, fill: '#FFFFFF',
-        pinSides: { top: true, left: true, right: true, bottom: true } }),
-    L({ name: 'Signal word', type: 'text',
-        x: 0, y: H / 2 - wordSize / 2 + wordSize * 0.04,
-        w: W, h: wordSize * 1.2,
-        text: sev.word, fontSize: wordSize, fontWeight: 900,
-        fill: '#000000', align: 'middle', uppercase: true, letterSpacing: 0.08,
-        pinSides: { top: true, left: true, right: true, bottom: true } }),
   ];
+  for (let a = -k; a < 1 + period; a += period) {
+    layers.push(L({ name: 'Stripe', type: 'polygon', x: 0, y: 0, w: W, h: H,
+      points: [
+        { x: a, y: 0 }, { x: a + stripeW, y: 0 },
+        { x: a + stripeW - k, y: 1 }, { x: a - k, y: 1 },
+      ],
+      fill: '#FFFFFF', clipToCanvas: true }));
+  }
+  layers.push(L({ name: 'Center band', type: 'rect', x: 0, y: H * 0.25, w: W, h: H * 0.5, fill: '#FFFFFF',
+      pinSides: { top: true, left: true, right: true, bottom: true } }));
+  layers.push(L({ name: 'Signal word', type: 'text',
+      x: 0, y: H / 2 - wordSize / 2 + wordSize * 0.04,
+      w: W, h: wordSize * 1.2,
+      text: sev.word, fontSize: wordSize, fontWeight: 900,
+      fill: '#000000', align: 'middle', uppercase: true, letterSpacing: 0.08,
+      pinSides: { top: true, left: true, right: true, bottom: true } }));
+  return layers;
 }
 
 function makeBlank(W, H) {
