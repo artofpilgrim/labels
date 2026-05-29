@@ -564,7 +564,7 @@ const HANDLE_POSITIONS = [
   ['sw', 0, 1], ['w', 0, 0.5],
 ];
 
-function Handles({ box, fit, onHandleDown, kind, rotation = 0, onRotateDown }) {
+function Handles({ box, fit, onHandleDown, kind, rotation = 0, onRotateDown, cornersOnly, showOutline = true }) {
   // box in label coords {x,y,w,h}; positions in DOM coords (×fit). Everything
   // lives in a box-sized wrapper rotated about its centre so the outline and
   // handles track a rotated layer's edges. The wrapper is pointer-events:none
@@ -584,8 +584,8 @@ function Handles({ box, fit, onHandleDown, kind, rotation = 0, onRotateDown }) {
         pointerEvents: 'none',
       }}
     >
-      <div className={`sel-outline ${kind}`} style={{ left: 0, top: 0, width: pw, height: ph }} />
-      {HANDLE_POSITIONS.map(([name, fx, fy]) => (
+      {showOutline && <div className={`sel-outline ${kind}`} style={{ left: 0, top: 0, width: pw, height: ph }} />}
+      {(cornersOnly ? HANDLE_POSITIONS.filter(([n]) => n.length === 2) : HANDLE_POSITIONS).map(([name, fx, fy]) => (
         <div
           key={name}
           className={`handle handle-${name} ${kind}`}
@@ -1684,6 +1684,103 @@ export function App() {
     document.addEventListener('pointercancel', up);
     window.addEventListener('blur', up);
   }
+  // ----- group transform (multi-select) -----
+  // Uniform scale of all selected layers about the opposite corner of the group
+  // box. Scales geometry plus size-bound props (fontSize / strokeWidth / radius).
+  function startGroupResize(e, mode) {
+    e.preventDefault(); e.stopPropagation();
+    const g = selBounds;
+    if (!g || g.w < 1 || g.h < 1) return;
+    const snaps = design.layers
+      .filter(l => selectedIds.includes(l.id) && !l.locked)
+      .map(l => ({ id: l.id, x: l.x, y: l.y, w: l.w, h: l.h, fontSize: l.fontSize, strokeWidth: l.strokeWidth, radius: l.radius }));
+    if (!snaps.length) return;
+    const ax = mode.includes('w') ? g.x + g.w : g.x;   // anchor = opposite corner
+    const ay = mode.includes('n') ? g.y + g.h : g.y;
+    const dcx = mode.includes('w') ? g.x : g.x + g.w;  // dragged corner
+    const dcy = mode.includes('n') ? g.y : g.y + g.h;
+    const oldDist = Math.hypot(dcx - ax, dcy - ay) || 1;
+    const scaleR = (r, s) => typeof r === 'number' ? r * s
+      : (r && typeof r === 'object' ? { tl: (r.tl || 0) * s, tr: (r.tr || 0) * s, br: (r.br || 0) * s, bl: (r.bl || 0) * s } : r);
+    forceCommit();
+    inDragRef.current = true;
+    const x0 = e.clientX, y0 = e.clientY, f = fit;
+    function move(ev) {
+      const dx = (ev.clientX - x0) / f, dy = (ev.clientY - y0) / f;
+      let s = Math.hypot(dcx + dx - ax, dcy + dy - ay) / oldDist;
+      if (!isFinite(s) || s < 0.05) s = 0.05;
+      setDesign(d => ({ ...d, layers: d.layers.map(l => {
+        const sn = snaps.find(p => p.id === l.id);
+        if (!sn) return l;
+        const patch = {
+          x: ax + (sn.x - ax) * s, y: ay + (sn.y - ay) * s,
+          w: Math.max(1, sn.w * s), h: Math.max(1, sn.h * s),
+        };
+        if (sn.fontSize != null) patch.fontSize = Math.max(1, sn.fontSize * s);
+        if (sn.strokeWidth != null) patch.strokeWidth = sn.strokeWidth * s;
+        if (sn.radius != null) patch.radius = scaleR(sn.radius, s);
+        return { ...l, ...patch };
+      }) }));
+    }
+    function up() {
+      document.removeEventListener('mousemove', move);
+      document.removeEventListener('mouseup', up);
+      document.removeEventListener('pointercancel', up);
+      window.removeEventListener('blur', up);
+      inDragRef.current = false;
+      setTimeout(forceCommit, 0);
+    }
+    document.addEventListener('mousemove', move);
+    document.addEventListener('mouseup', up);
+    document.addEventListener('pointercancel', up);
+    window.addEventListener('blur', up);
+  }
+
+  // Rotate all selected layers about the group centre: each layer's centre
+  // orbits the group centre and its own rotation gains the same delta.
+  function startGroupRotate(e) {
+    e.preventDefault(); e.stopPropagation();
+    const g = selBounds;
+    const wrap = wrapRef.current;
+    if (!g || !wrap) return;
+    const snaps = design.layers
+      .filter(l => selectedIds.includes(l.id) && !l.locked)
+      .map(l => ({ id: l.id, cx: l.x + l.w / 2, cy: l.y + l.h / 2, w: l.w, h: l.h, rotation: l.rotation || 0 }));
+    if (!snaps.length) return;
+    const gcx = g.x + g.w / 2, gcy = g.y + g.h / 2;
+    const r = wrap.getBoundingClientRect();
+    const scx = r.left + gcx * fit, scy = r.top + gcy * fit;
+    const startAng = Math.atan2(e.clientY - scy, e.clientX - scx);
+    forceCommit();
+    inDragRef.current = true;
+    function move(ev) {
+      let dAng = Math.atan2(ev.clientY - scy, ev.clientX - scx) - startAng;
+      if (ev.shiftKey) { const step = 15 * Math.PI / 180; dAng = Math.round(dAng / step) * step; }
+      const cos = Math.cos(dAng), sin = Math.sin(dAng), deg = dAng * 180 / Math.PI;
+      setDesign(d => ({ ...d, layers: d.layers.map(l => {
+        const sn = snaps.find(p => p.id === l.id);
+        if (!sn) return l;
+        const ncx = gcx + (sn.cx - gcx) * cos - (sn.cy - gcy) * sin;
+        const ncy = gcy + (sn.cx - gcx) * sin + (sn.cy - gcy) * cos;
+        let rot = Math.round(sn.rotation + deg);
+        while (rot > 180) rot -= 360;
+        while (rot < -180) rot += 360;
+        return { ...l, x: ncx - sn.w / 2, y: ncy - sn.h / 2, rotation: rot };
+      }) }));
+    }
+    function up() {
+      document.removeEventListener('mousemove', move);
+      document.removeEventListener('mouseup', up);
+      document.removeEventListener('pointercancel', up);
+      window.removeEventListener('blur', up);
+      inDragRef.current = false;
+      setTimeout(forceCommit, 0);
+    }
+    document.addEventListener('mousemove', move);
+    document.addEventListener('mouseup', up);
+    document.addEventListener('pointercancel', up);
+    window.addEventListener('blur', up);
+  }
   function startCanvasResize(e, mode) {
     const snap = { w: design.width, h: design.height, fit };
     const startOffset = wrapOffset;
@@ -2577,6 +2674,15 @@ export function App() {
                   left: selBounds.x * fit, top: selBounds.y * fit,
                   width: selBounds.w * fit, height: selBounds.h * fit,
                 }} />
+                <Handles
+                  kind="group"
+                  box={selBounds}
+                  fit={fit}
+                  cornersOnly
+                  showOutline={false}
+                  onHandleDown={(e, mode) => startGroupResize(e, mode)}
+                  onRotateDown={startGroupRotate}
+                />
               </div>
             )}
 
