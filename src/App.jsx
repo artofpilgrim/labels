@@ -1,5 +1,5 @@
 // Hazard Label Studio — layer-based editor.
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useId } from 'react';
 import { SEVERITY, FORMATS, PRESETS, newLayer, Label } from './Label.jsx';
 import { PICTOGRAMS } from './pictograms.js';
 import { loadSymbols } from './symbols.js';
@@ -99,11 +99,18 @@ function exportPng(svgEl, name, scale, onDone) {
 
 // ----------- UI primitives -----------
 function Field({ label, hint, children }) {
+  // Expose the field's label/hint to assistive tech as a labelled group, since
+  // the visible label is a <div> (not a <label htmlFor>) and a field can wrap
+  // several controls. Screen readers then announce the field name on entry.
+  const labelId = useId();
+  const hintId = useId();
   return (
-    <div className="field">
-      {label && <div className="field-label">{label}</div>}
+    <div className="field" role="group"
+         aria-labelledby={label ? labelId : undefined}
+         aria-describedby={hint ? hintId : undefined}>
+      {label && <div className="field-label" id={labelId}>{label}</div>}
       {children}
-      {hint && <div className="field-hint">{hint}</div>}
+      {hint && <div className="field-hint" id={hintId}>{hint}</div>}
     </div>
   );
 }
@@ -126,17 +133,19 @@ function Seg({ value, onChange, options }) {
   return (
     <div className="seg">
       {options.map(o => (
-        <button key={o.value} className={value === o.value ? 'on' : ''} onClick={() => onChange(o.value)}>
+        <button key={o.value} className={value === o.value ? 'on' : ''}
+                aria-pressed={value === o.value} onClick={() => onChange(o.value)}>
           {o.label}
         </button>
       ))}
     </div>
   );
 }
-function NumberInput({ value, onChange, min, max, step = 1, suffix }) {
+function NumberInput({ value, onChange, min, max, step = 1, suffix, ariaLabel }) {
   return (
     <div className="num-input">
       <input type="number" value={value} min={min} max={max} step={step}
+             aria-label={ariaLabel || suffix || undefined}
              onChange={e => {
                // Ignore empty / NaN so clearing the field doesn't propagate
                // NaN into layer geometry. The caller's state is preserved
@@ -150,18 +159,21 @@ function NumberInput({ value, onChange, min, max, step = 1, suffix }) {
     </div>
   );
 }
-function ColorInput({ value, onChange }) {
+function ColorInput({ value, onChange, ariaLabel = 'Color' }) {
   return (
     <div className="color-input">
-      <input type="color" value={value || '#000000'} onChange={e => onChange(e.target.value)} />
-      <input type="text" value={value || ''} onChange={e => onChange(e.target.value)} spellCheck={false} />
+      <input type="color" value={value || '#000000'} aria-label={`${ariaLabel} swatch`}
+             onChange={e => onChange(e.target.value)} />
+      <input type="text" value={value || ''} aria-label={`${ariaLabel} hex value`}
+             onChange={e => onChange(e.target.value)} spellCheck={false} />
     </div>
   );
 }
 
 // Range slider with an attached numeric readout/input. Replaces NumberInput
 // where a sweep feels better than typing (radius, opacity-like dials, etc.).
-function Slider({ value, onChange, min = 0, max = 100, step = 1, label }) {
+function Slider({ value, onChange, min = 0, max = 100, step = 1, label, ariaLabel }) {
+  const name = label || ariaLabel || undefined;
   // Safe coercion: preserves a literal 0 (which `Number(value) || 0` would
   // also produce, but distinguishes NaN/undefined explicitly).
   const raw = Number(value);
@@ -180,6 +192,7 @@ function Slider({ value, onChange, min = 0, max = 100, step = 1, label }) {
       <input
         className="slider-range"
         type="range"
+        aria-label={name}
         value={Math.min(max, Math.max(min, v))}
         onChange={e => commit(e.target.value)}
         min={min} max={max} step={step}
@@ -187,6 +200,7 @@ function Slider({ value, onChange, min = 0, max = 100, step = 1, label }) {
       <input
         className="slider-num"
         type="number"
+        aria-label={name ? `${name} value` : undefined}
         value={display}
         onChange={e => commit(e.target.value)}
         min={min} step={step}
@@ -352,7 +366,7 @@ function PictoTile({ id, active, onClick, cache }) {
   const p = PICTOGRAMS[id];
   const src = cache && cache[id];
   return (
-    <button className={`picto-tile ${active ? 'on' : ''}`} onClick={onClick} title={`${p.name} · ISO 7010 ${p.code}`}>
+    <button className={`picto-tile ${active ? 'on' : ''}`} aria-pressed={active} onClick={onClick} title={`${p.name} · ISO 7010 ${p.code}`}>
       {src ? <img src={src} alt={p.name} width="44" height="44" style={{ objectFit: 'contain' }} />
            : <div style={{ width: 44, height: 44 }} />}
       <span>{p.name}</span>
@@ -649,17 +663,38 @@ function niceStep(raw) {
 
 // ----------- Help / workflows dialog -----------
 function HelpModal({ onClose }) {
+  const dialogRef = useRef(null);
+  const titleId = useId();
   useEffect(() => {
-    const onKey = (e) => { if (e.key === 'Escape') { e.stopPropagation(); onClose(); } };
+    // Capture the trigger BEFORE moving focus, so we can restore it on close.
+    const prevFocus = document.activeElement;
+    const dialog = dialogRef.current;
+    if (dialog) dialog.focus();   // move focus into the dialog on open
+    const onKey = (e) => {
+      if (e.key === 'Escape') { e.stopPropagation(); onClose(); return; }
+      // Trap Tab inside the dialog — aria-modal alone doesn't move/confine focus.
+      if (e.key !== 'Tab' || !dialog) return;
+      const f = dialog.querySelectorAll(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      );
+      if (!f.length) return;
+      const first = f[0], last = f[f.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    };
     document.addEventListener('keydown', onKey, true);
-    return () => document.removeEventListener('keydown', onKey, true);
+    return () => {
+      document.removeEventListener('keydown', onKey, true);
+      if (prevFocus && prevFocus.focus) prevFocus.focus();   // restore focus on close
+    };
   }, [onClose]);
   const K = ({ children }) => <kbd>{children}</kbd>;
   return (
     <div className="modal-backdrop" onMouseDown={onClose}>
-      <div className="modal help-modal" onMouseDown={e => e.stopPropagation()} role="dialog" aria-modal="true">
+      <div ref={dialogRef} tabIndex={-1} className="modal help-modal" onMouseDown={e => e.stopPropagation()}
+           role="dialog" aria-modal="true" aria-labelledby={titleId}>
         <div className="modal-head">
-          <h2>Help &amp; workflows</h2>
+          <h2 id={titleId}>Help &amp; workflows</h2>
           <button className="icon-btn" title="Close" onClick={onClose}>✕</button>
         </div>
         <div className="modal-body">
@@ -1652,6 +1687,7 @@ export function App() {
           <button
             key={id}
             className={`severity ${design.severity === id ? 'on' : ''}`}
+            aria-pressed={design.severity === id}
             onClick={() => setSeverity(id)}
             style={{
               background: design.severity === id ? s.band : 'transparent',
@@ -1675,6 +1711,7 @@ export function App() {
             <button
               key={f.id}
               className={`format-tile ${design.format === f.id ? 'on' : ''}`}
+              aria-pressed={design.format === f.id}
               onClick={() => applyPreset(f.id)}>
               <FormatIcon id={f.id} active={design.format === f.id} />
               <span>{f.name}</span>
@@ -1776,7 +1813,7 @@ export function App() {
                   <ColorInput value={bg.stroke || '#000000'} onChange={v => setLayer(bg.id, { stroke: v })} />
                 </Row>
                 <Row>
-                  <Slider value={bg.strokeWidth || 0} onChange={v => setLayer(bg.id, { strokeWidth: v })} min={0} max={40} step={0.5} />
+                  <Slider ariaLabel="Border width" value={bg.strokeWidth || 0} onChange={v => setLayer(bg.id, { strokeWidth: v })} min={0} max={40} step={0.5} />
                 </Row>
               </Field>
               <Field label="Corner radius">
@@ -1942,7 +1979,7 @@ export function App() {
         </div>
 
         <div className="doc-bar">
-          <input className="doc-name" value={docName} onChange={e => setDocName(e.target.value)} spellCheck={false} />
+          <input className="doc-name" aria-label="Document name" value={docName} onChange={e => setDocName(e.target.value)} spellCheck={false} />
           <span className={`save-state ${saveState}`}>{saveState === 'saving' ? 'Saving…' : '✓ Saved'}</span>
         </div>
 
@@ -2163,13 +2200,15 @@ export function App() {
           <span className="dim-readout">{design.width} × {design.height}px</span>
           <span className="canvas-credit">Symbols are official ISO 7010 plates from Wikimedia Commons.</span>
           <div className="canvas-zoom">
-            <button className={`icon-btn${zoomMode === 'fit' ? ' on' : ''}`} title="Fit to viewport" onClick={() => setZoomMode('fit')}>⤢</button>
+            <button className={`icon-btn${zoomMode === 'fit' ? ' on' : ''}`} aria-pressed={zoomMode === 'fit'} title="Fit to viewport" onClick={() => setZoomMode('fit')}>⤢</button>
             <button className="icon-btn" title="Zoom out" onClick={zoomOut}>−</button>
             <input
               className="zoom-slider"
               type="range" min={0.05} max={4} step={0.01}
               value={fit}
               onChange={e => setZoomMode(Number(e.target.value))}
+              aria-label="Zoom level"
+              aria-valuetext={`${Math.round(fit * 100)}%`}
               title="Zoom"
             />
             <button className="icon-btn" title="Zoom in" onClick={zoomIn}>+</button>
@@ -2180,9 +2219,10 @@ export function App() {
 
       {/* ---------- Right panel ---------- */}
       <aside className="rightpanel">
-        <div className="rp-tabs">
+        <div className="rp-tabs" role="tablist" aria-label="Panel">
           {[['properties', 'Properties'], ['layers', 'Layers'], ['symbols', 'Symbols']].map(([k, l]) => (
-            <button key={k} className={rightTab === k ? 'on' : ''} onClick={() => setRightTab(k)}>{l}</button>
+            <button key={k} role="tab" aria-selected={rightTab === k}
+                    className={rightTab === k ? 'on' : ''} onClick={() => setRightTab(k)}>{l}</button>
           ))}
         </div>
         <div className="panel">
@@ -2449,7 +2489,7 @@ function RectProps({ layer, onChange }) {
       </Field>
       <Field label="Stroke">
         <ColorInput value={layer.stroke || '#000000'} onChange={v => onChange({ stroke: v })} />
-        <Row><Slider value={layer.strokeWidth || 0} onChange={v => onChange({ strokeWidth: v })} min={0} max={40} step={0.5} /></Row>
+        <Row><Slider ariaLabel="Stroke width" value={layer.strokeWidth || 0} onChange={v => onChange({ strokeWidth: v })} min={0} max={40} step={0.5} /></Row>
         <Row>
           <Seg
             value={layer.strokeOnTop ? 'top' : 'normal'}
