@@ -721,13 +721,13 @@ function makePpe(W, H, severity) {
   const footerFont = Math.min(W / 28, footerH * 0.5);
   return [
     L({ name: 'Background', type: 'rect', x: 0, y: 0, w: W, h: H, fill: '#FFFFFF', stroke: '#000000', strokeWidth: 3, locked: true, syncCanvas: 'fill', strokeOnTop: true }),
-    L({ name: 'Header band', type: 'rect', x: 0, y: 0, w: W, h: headerH, fill: blue, pinSides: { top: true, left: true, right: true } }),
+    L({ name: 'Header band', type: 'rect', x: 0, y: 0, w: W, h: headerH, fill: blue, clipToCanvas: true, pinSides: { top: true, left: true, right: true } }),
     L({ name: 'Header text', type: 'text', x: padX, y: 0, w: headerW, h: headerH, text: 'Personal Protective Equipment Required', fontSize: headerFont, fontWeight: 900, fill: '#FFFFFF', align: 'middle', uppercase: true, lineHeight: 1.15, pinSides: { top: true, left: true, right: true } }),
     L({ name: 'PPE head', type: 'image', x: gap + 0 * (pictoBox + gap), y: pictoY, w: pictoBox, h: pictoBox, symbol: symbols[0] }),
     L({ name: 'PPE eye', type: 'image', x: gap + 1 * (pictoBox + gap), y: pictoY, w: pictoBox, h: pictoBox, symbol: symbols[1] }),
     L({ name: 'PPE hearing', type: 'image', x: gap + 2 * (pictoBox + gap), y: pictoY, w: pictoBox, h: pictoBox, symbol: symbols[2] }),
     L({ name: 'PPE hands', type: 'image', x: gap + 3 * (pictoBox + gap), y: pictoY, w: pictoBox, h: pictoBox, symbol: symbols[3] }),
-    L({ name: 'Footer band', type: 'rect', x: 0, y: H - footerH, w: W, h: footerH, fill: blue, pinSides: { bottom: true, left: true, right: true } }),
+    L({ name: 'Footer band', type: 'rect', x: 0, y: H - footerH, w: W, h: footerH, fill: blue, clipToCanvas: true, pinSides: { bottom: true, left: true, right: true } }),
     L({ name: 'Footer text', type: 'text', x: padX, y: H - footerH, w: headerW, h: footerH, text: 'Mandatory in this area', fontSize: footerFont, fontWeight: 700, fill: '#FFFFFF', align: 'middle', uppercase: true, letterSpacing: 0.04, pinSides: { bottom: true, left: true, right: true } }),
   ];
 }
@@ -769,7 +769,7 @@ function makeFirstAid(W, H, severity) {
     L({ name: 'Background', type: 'rect', x: 0, y: 0, w: W, h: H, fill: green, stroke: white, strokeWidth: 10, locked: true, syncCanvas: 'fill', strokeOnTop: true }),
     L({ name: 'Pictogram', type: 'image', x: pictoX, y: pictoY, w: pictoBox, h: pictoBox, symbol: 'E003', preserveAspect: true }),
     L({ name: 'Title', type: 'text', x: padX, y: titleY, w: contentW, h: titleSize * 1.2, text: 'First Aid', fontSize: titleSize, fontWeight: 900, fill: white, align: 'middle', uppercase: true, letterSpacing: 0.04, pinSides: { left: true, right: true, bottom: true } }),
-    L({ name: 'Footer band', type: 'rect', x: 0, y: H - footerH, w: W, h: footerH, fill: green, stroke: white, strokeWidth: 2, pinSides: { left: true, right: true, bottom: true } }),
+    L({ name: 'Footer band', type: 'rect', x: 0, y: H - footerH, w: W, h: footerH, fill: green, stroke: white, strokeWidth: 2, clipToCanvas: true, pinSides: { left: true, right: true, bottom: true } }),
     L({ name: 'Footer text', type: 'text', x: padX, y: H - footerH / 2 - (footerH * 0.34) / 2, w: contentW, h: footerH * 0.6, text: 'Location of first aid station', fontSize: Math.min(W * 0.045, 24), fontWeight: 700, fill: white, align: 'middle', uppercase: true, letterSpacing: 0.06, pinSides: { left: true, right: true, bottom: true } }),
   ];
 }

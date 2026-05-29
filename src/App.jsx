@@ -1965,7 +1965,7 @@ export function App() {
             <Section title="Appearance">
               <Field label="Border">
                 <Row>
-                  <ColorInput value={bg.stroke || '#000000'} onChange={v => setLayer(bg.id, { stroke: v })} />
+                  <ColorInput value={bg.stroke || '#000000'} onChange={v => setLayer(bg.id, { stroke: v, strokeWidth: bg.strokeWidth || 2 })} />
                 </Row>
                 <Row>
                   <Slider ariaLabel="Border width" value={bg.strokeWidth || 0} onChange={v => setLayer(bg.id, { strokeWidth: v })} min={0} max={40} step={0.5} />
@@ -2465,9 +2465,9 @@ function PropertiesPanel({ layer, onChange, cache }) {
             <NumberInput value={Math.round(layer.w)} onChange={v => onChange({ w: Math.max(1, v) })} suffix="W" />
             <NumberInput value={Math.round(layer.h)} onChange={v => onChange({ h: Math.max(1, v) })} suffix="H" />
           </Row>
-          <Row>
-            <NumberInput value={layer.rotation || 0} onChange={v => onChange({ rotation: v })} min={-180} max={180} suffix="°" />
-          </Row>
+        </Field>
+        <Field label="Rotation">
+          <Slider ariaLabel="Rotation" value={Math.round(layer.rotation || 0)} onChange={v => onChange({ rotation: v })} min={-180} max={180} step={1} />
         </Field>
       </Section>
 
@@ -2530,19 +2530,19 @@ function TextProps({ layer, onChange }) {
           ]}
         />
       </Field>
-      <Field label="Size · weight">
-        <Row>
-          <NumberInput value={Math.round(layer.fontSize || 16)} onChange={v => onChange({ fontSize: v })} min={4} max={400} suffix="PX" />
-          <Seg
-            value={String(layer.fontWeight || 400)}
-            onChange={v => onChange({ fontWeight: Number(v) })}
-            options={[
-              { value: '400', label: 'R' },
-              { value: '700', label: 'B' },
-              { value: '900', label: 'XB' },
-            ]}
-          />
-        </Row>
+      <Field label="Size">
+        <Slider ariaLabel="Font size" value={Math.round(layer.fontSize || 16)} onChange={v => onChange({ fontSize: v })} min={4} max={200} step={1} />
+      </Field>
+      <Field label="Weight">
+        <Seg
+          value={String(layer.fontWeight || 400)}
+          onChange={v => onChange({ fontWeight: Number(v) })}
+          options={[
+            { value: '400', label: 'Regular' },
+            { value: '700', label: 'Bold' },
+            { value: '900', label: 'Extra' },
+          ]}
+        />
       </Field>
       <Field label="Align">
         <Seg
@@ -2569,11 +2569,11 @@ function TextProps({ layer, onChange }) {
           />
         </Row>
       </Field>
-      <Field label="Tracking · line-height">
-        <Row>
-          <NumberInput value={Number(((layer.letterSpacing || 0)).toFixed(3))} onChange={v => onChange({ letterSpacing: v })} step={0.01} suffix="EM" />
-          <NumberInput value={Number(((layer.lineHeight || 1.2)).toFixed(2))} onChange={v => onChange({ lineHeight: v })} step={0.05} suffix="LH" />
-        </Row>
+      <Field label="Tracking">
+        <Slider ariaLabel="Letter spacing" value={Number(((layer.letterSpacing || 0)).toFixed(2))} onChange={v => onChange({ letterSpacing: v })} min={-0.05} max={0.5} step={0.01} />
+      </Field>
+      <Field label="Line height">
+        <Slider ariaLabel="Line height" value={Number(((layer.lineHeight || 1.2)).toFixed(2))} onChange={v => onChange({ lineHeight: v })} min={0.8} max={2.5} step={0.05} />
       </Field>
       <Field label="Color">
         <ColorInput value={layer.fill || '#000000'} onChange={v => onChange({ fill: v, bindSeverity: null })} />
@@ -2629,7 +2629,7 @@ function BulletsProps({ layer, onChange }) {
         />
       </Field>
       <Field label="Size">
-        <NumberInput value={Math.round(layer.fontSize || 16)} onChange={v => onChange({ fontSize: v })} min={4} max={120} suffix="PX" />
+        <Slider ariaLabel="Font size" value={Math.round(layer.fontSize || 16)} onChange={v => onChange({ fontSize: v })} min={4} max={120} step={1} />
       </Field>
       <Field label="Color">
         <ColorInput value={layer.fill || '#000000'} onChange={v => onChange({ fill: v, bindSeverity: null })} />
@@ -2654,7 +2654,7 @@ function RectProps({ layer, onChange }) {
         </div>
       </Field>
       <Field label="Stroke">
-        <ColorInput value={layer.stroke || '#000000'} onChange={v => onChange({ stroke: v })} />
+        <ColorInput value={layer.stroke || '#000000'} onChange={v => onChange({ stroke: v, strokeWidth: layer.strokeWidth || 2 })} />
         <Row><Slider ariaLabel="Stroke width" value={layer.strokeWidth || 0} onChange={v => onChange({ strokeWidth: v })} min={0} max={40} step={0.5} /></Row>
         <Row>
           <Seg
@@ -2706,8 +2706,8 @@ function PolygonProps({ layer, onChange }) {
         </div>
       </Field>
       <Field label="Stroke">
-        <ColorInput value={layer.stroke || '#000000'} onChange={v => onChange({ stroke: v })} />
-        <Row><NumberInput value={layer.strokeWidth || 0} onChange={v => onChange({ strokeWidth: v })} min={0} max={40} step={0.5} suffix="PX" /></Row>
+        <ColorInput value={layer.stroke || '#000000'} onChange={v => onChange({ stroke: v, strokeWidth: layer.strokeWidth || 2 })} />
+        <Row><Slider ariaLabel="Stroke width" value={layer.strokeWidth || 0} onChange={v => onChange({ strokeWidth: v })} min={0} max={40} step={0.5} /></Row>
       </Field>
     </>
   );
@@ -2720,7 +2720,7 @@ function LineProps({ layer, onChange }) {
         <ColorInput value={layer.stroke || '#000000'} onChange={v => onChange({ stroke: v })} />
       </Field>
       <Field label="Weight">
-        <NumberInput value={layer.strokeWidth || 2} onChange={v => onChange({ strokeWidth: v })} min={0.5} max={40} step={0.5} suffix="PX" />
+        <Slider ariaLabel="Line weight" value={layer.strokeWidth || 2} onChange={v => onChange({ strokeWidth: v })} min={0.5} max={40} step={0.5} />
       </Field>
       <Field label="Dash">
         <Seg
