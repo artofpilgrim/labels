@@ -6,7 +6,7 @@ A browser-based editor for designing industrial hazard, safety, and chemical (GH
 
 ---
 
-## Why I built this
+## Why?
 
 For years, whenever I needed a warning or safety label I'd fire up Photoshop and
 hand-make one from scratch, or put together a made-up one — every single time.
