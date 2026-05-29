@@ -384,26 +384,50 @@ const PICTO_GROUPS = [
   ['fire', 'Fire equipment'],
 ];
 
+const KIND_LABEL = Object.fromEntries(PICTO_GROUPS);
+
 // Grouped pictogram picker, shared by the Symbols tab and the image-layer
 // properties panel. activeId highlights the current symbol; onPick(id) applies.
+// A search box filters by symbol name, ISO code, or category label.
 function SymbolPicker({ activeId, onPick, cache }) {
-  const ids = Object.keys(PICTOGRAMS);
+  const [q, setQ] = useState('');
+  const query = q.trim().toLowerCase();
+  const match = (id) => {
+    if (!query) return true;
+    const p = PICTOGRAMS[id];
+    return p.name.toLowerCase().includes(query)
+        || p.code.toLowerCase().includes(query)
+        || (KIND_LABEL[p.kind] || '').toLowerCase().includes(query);
+  };
+  const ids = Object.keys(PICTOGRAMS).filter(match);
   return (
-    <div className="picto-groups">
-      {PICTO_GROUPS.map(([kind, label]) => {
-        const group = ids.filter(id => PICTOGRAMS[id].kind === kind);
-        if (!group.length) return null;
-        return (
-          <div key={kind} className="picto-group">
-            <div className="picto-group-label">{label}</div>
-            <div className="picto-grid">
-              {group.map(id => (
-                <PictoTile key={id} id={id} active={activeId === id} onClick={() => onPick(id)} cache={cache} />
-              ))}
+    <div className="symbol-picker">
+      <input
+        className="text-input picto-search"
+        type="search"
+        value={q}
+        onChange={e => setQ(e.target.value)}
+        placeholder="Search symbols…"
+        aria-label="Search symbols"
+        spellCheck={false}
+      />
+      <div className="picto-groups">
+        {PICTO_GROUPS.map(([kind, label]) => {
+          const group = ids.filter(id => PICTOGRAMS[id].kind === kind);
+          if (!group.length) return null;
+          return (
+            <div key={kind} className="picto-group">
+              <div className="picto-group-label">{label}</div>
+              <div className="picto-grid">
+                {group.map(id => (
+                  <PictoTile key={id} id={id} active={activeId === id} onClick={() => onPick(id)} cache={cache} />
+                ))}
+              </div>
             </div>
-          </div>
-        );
-      })}
+          );
+        })}
+        {ids.length === 0 && <div className="empty-note">No symbols match “{q}”.</div>}
+      </div>
     </div>
   );
 }
