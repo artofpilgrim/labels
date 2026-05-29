@@ -849,7 +849,7 @@ function newLayer(type, W, H) {
 // ----------- Label component -----------
 // Renders all layers and attaches per-layer mousedown handlers so the parent
 // can drive selection + drag.
-const Label = forwardRef(function Label({ design, selectedId, symbolsReady, onLayerPointerDown, onCanvasPointerDown, onLayerContextMenu }, ref) {
+const Label = forwardRef(function Label({ design, symbolsReady, onLayerPointerDown, onCanvasPointerDown, onLayerContextMenu }, ref) {
   const svgRef = useRef(null);
   useImperativeHandle(ref, () => ({ getSvg: () => svgRef.current }));
 
@@ -953,4 +953,4 @@ const Label = forwardRef(function Label({ design, selectedId, symbolsReady, onLa
   );
 });
 
-export { SEVERITY, FONTS, FORMATS, PRESETS, newLayer, Label };
+export { SEVERITY, FORMATS, PRESETS, newLayer, Label };

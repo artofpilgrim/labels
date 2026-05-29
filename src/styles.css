@@ -10,6 +10,7 @@
   --accent: #dc2626;      /* brand red / primary actions */
   --accent-soft: #fdecec;        /* active/selected tint fill */
   --accent-soft-border: #f5c2c2; /* active/selected tint border */
+  --success: #16a34a;     /* semantic success (saved indicator) */
   --white: #ffffff;       /* input surfaces */
   --sel: #dc2626;         /* selection handles + guides */
 
@@ -34,6 +35,7 @@
   --white: #232932;
   --accent-soft: rgba(220, 38, 38, .20);
   --accent-soft-border: rgba(220, 38, 38, .50);
+  --success: #22c55e;
   --shadow: 0 1px 2px rgba(0, 0, 0, .5), 0 2px 8px rgba(0, 0, 0, .45);
   --ring: 0 0 0 3px rgba(220, 38, 38, .28);
 }
@@ -357,7 +359,8 @@ button.icon-btn:hover { color: var(--ink); border-color: var(--ink); }
 .export-btn.primary {
   background: var(--ink); color: var(--bg); border-color: var(--ink);
 }
-.export-btn.primary:hover { background: #000; }
+.export-btn.primary:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+.export-btn.primary:hover .ext { color: #fff; }
 .export-btn .ext, .export-btn .px {
   font-family: var(--font);
   font-size: 10px; letter-spacing: 1px;
@@ -798,7 +801,7 @@ body.space-pan .overlay * { pointer-events: none !important; }
   font-size: 11px; color: var(--muted);
   display: inline-flex; align-items: center; gap: 4px; white-space: nowrap;
 }
-.save-state.saved { color: #16a34a; }
+.save-state.saved { color: var(--success); }
 
 .topbar-actions { display: flex; align-items: center; gap: 10px; flex: 0 0 auto; }
 .tb-group { display: flex; align-items: center; gap: 2px; }

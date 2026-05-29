@@ -131,6 +131,7 @@ function Section({ title, children, defaultOpen = true }) {
   );
 }
 function Row({ children, gap = 8 }) { return <div className="row" style={{ gap }}>{children}</div>; }
+function K({ children }) { return <kbd>{children}</kbd>; }
 function Seg({ value, onChange, options }) {
   return (
     <div className="seg">
@@ -203,7 +204,9 @@ function Slider({ value, onChange, min = 0, max = 100, step = 1, label, ariaLabe
   const commit = (raw) => {
     if (raw === '' || raw === '-') return;
     const n = Number(raw);
-    if (Number.isFinite(n)) onChange(n);
+    // Clamp to the slider's bounds so the numeric field can't commit a value
+    // the range track can't represent (e.g. typing 9999 into a 0–100 dial).
+    if (Number.isFinite(n)) onChange(Math.min(max, Math.max(min, n)));
   };
   return (
     <div className={`slider${label ? ' has-label' : ''}`}>
@@ -222,7 +225,7 @@ function Slider({ value, onChange, min = 0, max = 100, step = 1, label, ariaLabe
         aria-label={name ? `${name} value` : undefined}
         value={display}
         onChange={e => commit(e.target.value)}
-        min={min} step={step}
+        min={min} max={max} step={step}
       />
     </div>
   );
@@ -869,7 +872,6 @@ function HelpModal({ onClose }) {
       if (prevFocus && prevFocus.focus) prevFocus.focus();   // restore focus on close
     };
   }, [onClose]);
-  const K = ({ children }) => <kbd>{children}</kbd>;
   return (
     <div className="modal-backdrop" onMouseDown={onClose}>
       <div ref={dialogRef} tabIndex={-1} className="modal help-modal" onMouseDown={e => e.stopPropagation()}
@@ -2129,6 +2131,14 @@ export function App() {
     return () => window.removeEventListener('keydown', onEsc);
   }, [ctxMenu]);
 
+  // Close the export popover on Escape (click-away is handled by its backdrop).
+  useEffect(() => {
+    if (!exportOpen) return;
+    const onEsc = (e) => { if (e.key === 'Escape') setExportOpen(false); };
+    window.addEventListener('keydown', onEsc);
+    return () => window.removeEventListener('keydown', onEsc);
+  }, [exportOpen]);
+
   // ----- export -----
   function doExport(kind, scale) {
     const svg = labelRef.current && labelRef.current.getSvg();
@@ -2152,6 +2162,7 @@ export function App() {
       : '';
     const hold = missing ? 4200 : 2200;
     const name = slug(docName);
+    setExportOpen(false);   // commit: close the popover (the toast reports status)
     if (kind === 'svg') {
       exportSvg(svg, name);
       setExportMsg('Exported SVG' + note);
@@ -2174,6 +2185,7 @@ export function App() {
       setTimeout(() => setExportMsg(''), 2800);
       return;
     }
+    setExportOpen(false);   // commit: close the popover (the toast reports status)
     setExportMsg('Copying…');
     svgToPngBlob(svg, 2, (b) => {
       if (!b) { setExportMsg('Copy failed — try Export'); setTimeout(() => setExportMsg(''), 2600); return; }
@@ -2528,8 +2540,12 @@ export function App() {
             {preview ? 'Exit preview' : 'Preview'}
           </button>
           <div className="export-wrap">
-            <button className="btn-lg primary" onClick={() => setExportOpen(o => !o)}>Export ▾</button>
-            {exportOpen && <div className="export-pop">{exportBody}</div>}
+            <button className="btn-lg primary" aria-expanded={exportOpen} aria-haspopup="true"
+                    onClick={() => setExportOpen(o => !o)}>Export ▾</button>
+            {exportOpen && <>
+              <div className="ctx-backdrop" style={{ zIndex: 39 }} onMouseDown={() => setExportOpen(false)} />
+              <div className="export-pop">{exportBody}</div>
+            </>}
           </div>
         </div>
       </header>
@@ -2541,6 +2557,7 @@ export function App() {
             key={b.id}
             className={`rail-btn${b.kind === 'panel' && leftPanel === b.id ? ' on' : ''}`}
             title={b.title}
+            aria-pressed={b.kind === 'panel' ? leftPanel === b.id : undefined}
             onClick={() => b.kind === 'panel' ? setLeftPanel(b.id) : addLayer(b.type)}>
             <svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
               <path d={b.icon} />
@@ -2607,7 +2624,6 @@ export function App() {
               <Label
                 ref={labelRef}
                 design={design}
-                selectedId={selectedId}
                 symbolsReady={!!symbolCache}
                 onLayerPointerDown={onLayerPointerDown}
                 onCanvasPointerDown={onCanvasPointerDown}
