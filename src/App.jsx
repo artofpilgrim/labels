@@ -834,6 +834,10 @@ export function App() {
   const [snapGuides, setSnapGuides] = useState([]);
   const [userPresets, setUserPresets] = useState([]);
   const [newPresetName, setNewPresetName] = useState('');
+  // The preset currently loaded into the canvas (if any). Lets "Update" save
+  // edits back over the preset you applied instead of forcing a new duplicate.
+  // Cleared whenever the design is replaced by a template (applyPreset).
+  const [activePresetId, setActivePresetId] = useState(null);
   // Auto-fit value computed from the viewport; only updated while zoomMode
   // is 'fit'. zoomMode = 'fit' uses autoFit, otherwise it stores the manual
   // scale directly (1.0 = 100%).
@@ -958,7 +962,28 @@ export function App() {
       },
     };
     persistUserPresets([...userPresets, preset]);
+    setActivePresetId(preset.id);   // the just-saved preset becomes the active one
     setNewPresetName('');
+  }
+  // Overwrite an existing preset's stored design with the current canvas, so a
+  // load → edit → save-back round-trip doesn't create a duplicate. Keeps the
+  // preset's name; confirms first since it discards the previously saved layout.
+  function updateUserPreset(id) {
+    const p = userPresets.find(x => x.id === id);
+    if (!p) return;
+    if (!window.confirm(`Update preset “${p.name}” with the current design?`)) return;
+    persistUserPresets(userPresets.map(x => x.id === id ? {
+      ...x,
+      design: {
+        width: design.width,
+        height: design.height,
+        severity: design.severity,
+        layers: JSON.parse(JSON.stringify(design.layers)), // deep clone
+      },
+    } : x));
+    setActivePresetId(id);
+    setExportMsg(`Updated “${p.name}”`);
+    setTimeout(() => setExportMsg(''), 2200);
   }
   function applyUserPreset(id) {
     const p = userPresets.find(x => x.id === id);
@@ -976,11 +1001,13 @@ export function App() {
       layers,
     });
     setDocName(p.name);
+    setActivePresetId(id);
     setSelectedIds([]);
     setWrapOffset({ x: 0, y: 0 });
   }
   function deleteUserPreset(id) {
     persistUserPresets(userPresets.filter(p => p.id !== id));
+    setActivePresetId(a => (a === id ? null : a));
   }
 
   // ----- helpers -----
@@ -1159,6 +1186,7 @@ export function App() {
       format: formatId,
       layers: PRESETS[formatId](W, H, d.severity),
     }));
+    setActivePresetId(null);   // a template replaces the design — no longer "your preset"
     setSelectedIds([]);
     setWrapOffset({ x: 0, y: 0 });
   }
@@ -1675,7 +1703,10 @@ export function App() {
       {userPresets.length > 0 && (
         <div className="layer-list" style={{ marginTop: 8 }}>
           {userPresets.map(p => (
-            <div key={p.id} className="layer-row" onClick={() => applyUserPreset(p.id)} title="Apply preset">
+            <div key={p.id}
+                 className={`layer-row ${p.id === activePresetId ? 'on' : ''}`}
+                 onClick={() => applyUserPreset(p.id)}
+                 title={p.id === activePresetId ? 'Loaded — click to reapply' : 'Apply preset'}>
               <span className="layer-glyph">
                 <svg width="14" height="14" viewBox="0 0 14 14">
                   <path d="M3 2h6l2 2v8H3z" fill="none" stroke="currentColor" strokeWidth="1.2" />
@@ -1683,6 +1714,14 @@ export function App() {
               </span>
               <span className="layer-name">{p.name}</span>
               <span className="layer-meta">{p.design.width}×{p.design.height}</span>
+              <button className="icon-btn" title="Update preset with current design"
+                      onClick={e => { e.stopPropagation(); updateUserPreset(p.id); }}>
+                <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor"
+                     strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M13.6 8a5.6 5.6 0 1 1-1.7-4" />
+                  <path d="M13.8 2.4V5.2h-2.8" />
+                </svg>
+              </button>
               <button className="icon-btn" title="Delete preset"
                       onClick={e => { e.stopPropagation(); deleteUserPreset(p.id); }}>×</button>
             </div>
