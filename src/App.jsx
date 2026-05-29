@@ -63,15 +63,14 @@ function download(blob, filename) {
 function exportSvg(svgEl, name) {
   download(new Blob([svgToString(svgEl)], { type: 'image/svg+xml;charset=utf-8' }), `${name}.svg`);
 }
-function exportPng(svgEl, name, scale, onDone) {
+// Rasterize the live SVG to a PNG blob at `scale`. onBlob(blob|null). Shared by
+// PNG export (download) and copy-to-clipboard. Always revokes the object URL.
+function svgToPngBlob(svgEl, scale, onBlob) {
   const str = svgToString(svgEl);
   const w = parseFloat(svgEl.getAttribute('width'));
   const h = parseFloat(svgEl.getAttribute('height'));
-  const blob = new Blob([str], { type: 'image/svg+xml;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  // Single exit point: always revoke the object URL and report ok/failure so
-  // the caller can surface a message instead of throwing on a null blob.
-  const done = (ok) => { URL.revokeObjectURL(url); if (onDone) onDone(ok); };
+  const url = URL.createObjectURL(new Blob([str], { type: 'image/svg+xml;charset=utf-8' }));
+  const done = (b) => { URL.revokeObjectURL(url); onBlob(b); };
   const img = new Image();
   img.onload = () => {
     try {
@@ -79,22 +78,25 @@ function exportPng(svgEl, name, scale, onDone) {
       canvas.width = Math.round(w * scale);
       canvas.height = Math.round(h * scale);
       const ctx = canvas.getContext('2d');
-      if (!ctx) { done(false); return; }
+      if (!ctx) { done(null); return; }
       ctx.imageSmoothingEnabled = true;
       ctx.imageSmoothingQuality = 'high';
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-      canvas.toBlob(b => {
-        // An over-large canvas (e.g. big label @4×) yields a null blob.
-        if (!b) { done(false); return; }
-        download(b, `${name}@${scale}x.png`);
-        done(true);
-      }, 'image/png');
+      // An over-large canvas (e.g. big label @4×) yields a null blob.
+      canvas.toBlob(b => done(b), 'image/png');
     } catch {
-      done(false);
+      done(null);
     }
   };
-  img.onerror = () => done(false);
+  img.onerror = () => done(null);
   img.src = url;
+}
+function exportPng(svgEl, name, scale, onDone) {
+  svgToPngBlob(svgEl, scale, (b) => {
+    if (!b) { if (onDone) onDone(false); return; }
+    download(b, `${name}@${scale}x.png`);
+    if (onDone) onDone(true);
+  });
 }
 
 // ----------- UI primitives -----------
@@ -2066,6 +2068,24 @@ export function App() {
     }
   }
 
+  // Copy the label to the clipboard as a PNG (2× for crispness).
+  function doCopyImage() {
+    const svg = labelRef.current && labelRef.current.getSvg();
+    if (!svg) return;
+    if (!navigator.clipboard || typeof window.ClipboardItem === 'undefined') {
+      setExportMsg('Clipboard not supported here — use Export instead');
+      setTimeout(() => setExportMsg(''), 2800);
+      return;
+    }
+    setExportMsg('Copying…');
+    svgToPngBlob(svg, 2, (b) => {
+      if (!b) { setExportMsg('Copy failed — try Export'); setTimeout(() => setExportMsg(''), 2600); return; }
+      navigator.clipboard.write([new window.ClipboardItem({ 'image/png': b })])
+        .then(() => { setExportMsg('Copied to clipboard'); setTimeout(() => setExportMsg(''), 2200); })
+        .catch(() => { setExportMsg('Copy failed — try Export'); setTimeout(() => setExportMsg(''), 2600); });
+    });
+  }
+
   // ----- Shared panel blocks (reused across the new 4-zone layout) -----
   const bg = design.layers.find(l => l.syncCanvas === 'fill');
 
@@ -2304,6 +2324,12 @@ export function App() {
             </button>
           ))}
         </div>
+      </Field>
+      <Field label="Clipboard" hint="Paste straight into email, docs or chat.">
+        <button className="export-btn" onClick={doCopyImage}>
+          <span>Copy image (PNG)</span>
+          <span className="ext">@2×</span>
+        </button>
       </Field>
     </>
   );
