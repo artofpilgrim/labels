@@ -880,7 +880,9 @@ const Label = forwardRef(function Label({ design, symbolsReady, onLayerPointerDo
       viewBox={`0 0 ${design.width} ${design.height}`}
       width={design.width}
       height={design.height}
-      style={{ display: 'block' }}
+      // isolate so layer mix-blend-modes blend only within the label, not with
+      // the editor backdrop or the page behind it.
+      style={{ display: 'block', isolation: 'isolate' }}
       onMouseDown={(e) => {
         // Background click → deselect (only if user clicked the SVG itself, not a layer)
         if (e.target === e.currentTarget && onCanvasPointerDown) onCanvasPointerDown(e);
@@ -901,7 +903,12 @@ const Label = forwardRef(function Label({ design, symbolsReady, onLayerPointerDo
         return (
           <g
             key={l.id}
-            style={{ cursor: interactive ? 'move' : 'default', pointerEvents: l.hidden ? 'none' : 'auto' }}
+            style={{
+              cursor: interactive ? 'move' : 'default',
+              pointerEvents: l.hidden ? 'none' : 'auto',
+              mixBlendMode: l.blend || undefined,
+              opacity: l.opacity == null ? undefined : l.opacity,
+            }}
             clipPath={clip}
             onMouseDown={(e) => onLayerPointerDown && onLayerPointerDown(l.id, e)}
             onContextMenu={(e) => onLayerContextMenu && onLayerContextMenu(l.id, e)}
@@ -951,7 +958,7 @@ const Label = forwardRef(function Label({ design, symbolsReady, onLayerPointerDo
             stroke={resolveFill(l.stroke || 'none', l.bindSeverity, sev)}
             strokeWidth={l.strokeWidth}
             clipPath={(l.clipToCanvas && canvasClipD) ? `url(#${canvasClipId})` : undefined}
-            style={{ pointerEvents: 'none' }}
+            style={{ pointerEvents: 'none', mixBlendMode: l.blend || undefined, opacity: l.opacity == null ? undefined : l.opacity }}
             transform={l.rotation
               ? `rotate(${l.rotation} ${l.x + l.w / 2} ${l.y + l.h / 2})`
               : undefined}

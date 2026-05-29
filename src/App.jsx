@@ -186,6 +186,13 @@ function NumberInput({ value, onChange, min, max, step = 1, suffix, ariaLabel, l
 }
 // Standard safety / signage colours offered as one-click swatches in every
 // colour picker (severity bands, ISO green, fire red, and neutrals).
+// CSS mix-blend-mode values offered per layer. 'normal' clears the property.
+const BLEND_MODES = [
+  ['normal', 'Normal'], ['multiply', 'Multiply'], ['screen', 'Screen'], ['overlay', 'Overlay'],
+  ['darken', 'Darken'], ['lighten', 'Lighten'], ['color-dodge', 'Color dodge'], ['color-burn', 'Color burn'],
+  ['hard-light', 'Hard light'], ['soft-light', 'Soft light'], ['difference', 'Difference'], ['exclusion', 'Exclusion'],
+  ['hue', 'Hue'], ['saturation', 'Saturation'], ['color', 'Color'], ['luminosity', 'Luminosity'],
+];
 const STANDARD_COLORS = [
   '#C8102E', '#F36F21', '#FFD200', '#1057A8', '#0E7C4E', '#237F52',
   '#9B2423', '#000000', '#1a1814', '#6b7280', '#FFFFFF',
@@ -3035,6 +3042,18 @@ function PropertiesPanel({ layer, onChange, cache }) {
       </Section>
 
       <Section title="Layer" defaultOpen={false}>
+        <Field label="Opacity">
+          <Slider ariaLabel="Layer opacity"
+                  value={Math.round((layer.opacity == null ? 1 : layer.opacity) * 100)}
+                  min={0} max={100} step={1}
+                  onChange={v => onChange({ opacity: v >= 100 ? null : v / 100 })} />
+        </Field>
+        <Field label="Blend mode">
+          <select className="select-input" value={layer.blend || 'normal'}
+                  onChange={e => onChange({ blend: e.target.value === 'normal' ? null : e.target.value })}>
+            {BLEND_MODES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+          </select>
+        </Field>
         <Row>
           <Seg
             value={layer.hidden ? 'hidden' : 'shown'}

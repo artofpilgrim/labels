@@ -172,6 +172,18 @@ input, textarea { font-family: inherit; }
   outline: none;
 }
 textarea.text-input { resize: vertical; min-height: 36px; line-height: 1.5; }
+.select-input {
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 8px 10px;
+  font-size: 12px;
+  color: var(--ink);
+  width: 100%;
+  outline: none;
+  cursor: pointer;
+}
+.select-input:focus { border-color: var(--accent); box-shadow: var(--ring); }
 .text-input:focus,
 .color-input input[type="text"]:focus { border-color: var(--accent); box-shadow: var(--ring); }
 .num-input:focus-within { border-color: var(--accent); box-shadow: var(--ring); }
