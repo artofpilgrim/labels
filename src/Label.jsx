@@ -657,7 +657,7 @@ function makeStrip(W, H, severity) {
 
 function makeBlank(W, H) {
   return [
-    L({ name: 'Background', type: 'rect', x: 0, y: 0, w: W, h: H, fill: '#FFFFFF', locked: true, syncCanvas: 'fill' }),
+    L({ name: 'Background', type: 'rect', shape: 'rect', x: 0, y: 0, w: W, h: H, fill: '#FFFFFF', locked: true, syncCanvas: 'fill' }),
   ];
 }
 

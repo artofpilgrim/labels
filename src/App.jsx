@@ -1632,6 +1632,24 @@ export function App() {
     setTimeout(() => setExportMsg(''), 3000);
   }
 
+  // Reshape the blank canvas's base layer (the syncCanvas:'fill' background)
+  // into any of the SHAPES, in place — keeps fill/lock and any layers built on
+  // top. newLayer() gives the right type + normalized polygon points; we just
+  // stretch it to the full canvas and remember the choice for the picker.
+  function changeCanvasShape(shape) {
+    setDesign(d => {
+      const W = d.width, H = d.height;
+      const proto = newLayer(shape, W, H);
+      if (!proto) return d;
+      return {
+        ...d,
+        layers: d.layers.map(l => l.syncCanvas === 'fill'
+          ? { ...l, type: proto.type, points: proto.points, x: 0, y: 0, w: W, h: H, shape }
+          : l),
+      };
+    });
+  }
+
   function setSeverity(id) {
     setDesign(d => {
       const sev = SEVERITY[id];
@@ -2323,6 +2341,24 @@ export function App() {
     </Field>
   );
 
+  const blankShapeField = (
+    <Field label="Canvas shape" hint="The base shape for your blank label — corners outside it export transparent.">
+      <div className="picto-grid">
+        {SHAPES.filter(s => s.type !== 'line').map(s => {
+          const active = (bg?.shape || 'rect') === s.type;
+          return (
+            <button key={s.type} className={`picto-tile ${active ? 'on' : ''}`}
+                    aria-pressed={active} title={s.name}
+                    onClick={() => changeCanvasShape(s.type)}>
+              <svg width="40" height="40" viewBox="0 0 16 16">{s.el}</svg>
+              <span>{s.name}</span>
+            </button>
+          );
+        })}
+      </div>
+    </Field>
+  );
+
   const userPresetsField = (
     <Field label="Your presets" hint="Saved locally to this browser.">
       <Row>
@@ -2669,6 +2705,7 @@ export function App() {
             <>
               {severityField}
               {presetField}
+              {design.format === 'blank' && blankShapeField}
               {userPresetsField}
             </>
           )}
