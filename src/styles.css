@@ -396,6 +396,11 @@ button.icon-btn:hover { color: var(--ink); border-color: var(--ink); }
   background-size: 22px 22px;
   background-position: 11px 11px;
   min-width: 0;
+  /* Grid items default to min-height:auto, so a tall zoomed canvas could grow
+     this column past its 1fr track and push the bottom bar off-screen. Pin it
+     to the track and let the stage scroll/clip internally instead. */
+  min-height: 0;
+  overflow: hidden;
   position: relative;
 }
 
