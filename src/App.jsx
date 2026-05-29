@@ -144,11 +144,14 @@ function Seg({ value, onChange, options }) {
     </div>
   );
 }
-function NumberInput({ value, onChange, min, max, step = 1, suffix, ariaLabel }) {
+function NumberInput({ value, onChange, min, max, step = 1, suffix, ariaLabel, live = true }) {
   // While the field is focused we show a local draft string of exactly what the
   // user types. Clamping to [min,max] happens on commit (blur / Enter), NOT on
   // every keystroke — otherwise typing "1" on the way to "100" snaps up to the
   // minimum and the following digits append to it (40 -> 400). See draft below.
+  // live=false suppresses per-keystroke onChange entirely (commit only on
+  // blur/Enter) — used where a commit does expensive work (canvas resize
+  // re-anchors every layer), so we don't run it on each intermediate digit.
   const [draft, setDraft] = useState(null);
   const display = draft != null ? draft : value;
   return (
@@ -161,6 +164,7 @@ function NumberInput({ value, onChange, min, max, step = 1, suffix, ariaLabel })
                // Live preview while typing, bounded only by max so the value can
                // pass through sub-min states ("1") without snapping. The min is
                // enforced on blur.
+               if (!live) return;
                if (raw === '' || raw === '-') return;
                const n = Number(raw);
                if (Number.isFinite(n)) onChange(max != null ? Math.min(max, n) : n);
@@ -980,6 +984,33 @@ export function App() {
       design: typeof updater === 'function' ? updater(e.design) : updater,
     }));
   }, []);
+
+  // Resize the canvas the same way the canvas-resize drag does: stretch the
+  // synced background (its strokeOnTop border IS the label frame) and re-anchor
+  // pinned layers, so the frame stroke and bands stay glued to the new edges.
+  // Used by the W/H inputs, Reset and Swap — which previously set width/height
+  // alone and left the frame detached from the canvas edge.
+  const setCanvasSize = useCallback((nw, nh) => {
+    nw = Math.max(40, Math.round(nw));
+    nh = Math.max(40, Math.round(nh));
+    setDesign(d => {
+      if (nw === d.width && nh === d.height) return d;
+      const ow = d.width, oh = d.height;
+      return {
+        ...d,
+        width: nw,
+        height: nh,
+        layers: d.layers.map(l => {
+          if (l.syncCanvas === 'fill') return { ...l, x: 0, y: 0, w: nw, h: nh };
+          if (l.pinSides) {
+            const p = applyPins({ x: l.x, y: l.y, w: l.w, h: l.h, pinSides: l.pinSides }, ow, oh, nw, nh);
+            return { ...l, x: p.x, y: p.y, w: p.w, h: p.h };
+          }
+          return l;
+        }),
+      };
+    });
+  }, [setDesign]);
 
   // Tracks the design we most recently committed to `past` so the debounce
   // effect knows whether a real change is pending. The ref decouples the
@@ -2318,19 +2349,19 @@ export function App() {
   const dimensionsBody = (
     <>
       <Row>
-        <NumberInput value={design.width} onChange={v => setDesign(d => ({ ...d, width: Math.max(40, v) }))} min={40} max={4000} suffix="W" />
-        <NumberInput value={design.height} onChange={v => setDesign(d => ({ ...d, height: Math.max(40, v) }))} min={40} max={4000} suffix="H" />
+        <NumberInput live={false} value={design.width} onChange={v => setCanvasSize(v, design.height)} min={40} max={4000} suffix="W" />
+        <NumberInput live={false} value={design.height} onChange={v => setCanvasSize(design.width, v)} min={40} max={4000} suffix="H" />
       </Row>
       <Row>
         <button className="ghost" onClick={() => {
           // applyUserPreset stores format:'custom' which isn't in FORMATS — guard.
           const f = FORMATS.find(x => x.id === design.format);
           if (!f) return;
-          setDesign(d => ({ ...d, width: f.default[0], height: f.default[1] }));
+          setCanvasSize(f.default[0], f.default[1]);
           setWrapOffset({ x: 0, y: 0 });
         }}>Reset</button>
         <button className="ghost" onClick={() => {
-          setDesign(d => ({ ...d, width: d.height, height: d.width }));
+          setCanvasSize(design.height, design.width);
           setWrapOffset({ x: 0, y: 0 });
         }}>Swap</button>
       </Row>
