@@ -352,6 +352,39 @@ function FormatIcon({ id, active }) {
         </defs>
         <rect x="2" y={h / 2 - 8} width={w - 4} height="16" fill={`url(#fi-pat-${active ? 'a' : 'b'})`} />
       </svg>);
+    case 'ghs-label':
+      return (<svg viewBox={`0 0 ${w} ${h}`} width={w} height={h}>
+        <rect x={w / 2 - 10} y={h / 2 - 10} width="20" height="20" transform={`rotate(45 ${w / 2} ${h / 2})`}
+              fill="#fff" stroke={active ? '#C8102E' : ink} strokeWidth="2.4" strokeLinejoin="round" />
+        <rect x={w / 2 - 1} y={h / 2 - 6} width="2" height="6" fill={ink} />
+        <circle cx={w / 2} cy={h / 2 + 5} r="1.2" fill={ink} />
+      </svg>);
+    case 'ppe':
+      return (<svg viewBox={`0 0 ${w} ${h}`} width={w} height={h}>
+        <rect x="2" y="2" width={w - 4} height={h - 4} fill="none" stroke={ink} strokeWidth="1.2" />
+        <circle cx={w / 2} cy={h / 2 + 1} r="10" fill={active ? '#1057A8' : '#bdb398'} />
+        <circle cx={w / 2} cy={h / 2 - 3} r="2.8" fill="#fff" />
+        <path d={`M${w / 2 - 4.5} ${h / 2 + 6} a4.5 4.5 0 0 1 9 0 z`} fill="#fff" />
+      </svg>);
+    case 'fire-point':
+      return (<svg viewBox={`0 0 ${w} ${h}`} width={w} height={h}>
+        <rect x="2" y="2" width={w - 4} height={h - 4} fill={active ? '#9B2423' : '#d8c2bc'} />
+        <rect x={w / 2 - 3.5} y={h / 2 - 7} width="7" height="13" rx="2" fill="#fff" />
+        <rect x={w / 2 - 0.8} y={h / 2 - 10} width="1.6" height="4" fill="#fff" />
+        <rect x={w / 2 + 1} y={h / 2 - 9.5} width="4" height="1.6" fill="#fff" />
+      </svg>);
+    case 'first-aid':
+      return (<svg viewBox={`0 0 ${w} ${h}`} width={w} height={h}>
+        <rect x="2" y="2" width={w - 4} height={h - 4} fill={active ? '#237F52' : '#bcd8c8'} />
+        <rect x={w / 2 - 2.5} y={h / 2 - 8} width="5" height="16" fill="#fff" />
+        <rect x={w / 2 - 8} y={h / 2 - 2.5} width="16" height="5" fill="#fff" />
+      </svg>);
+    case 'prohibition':
+      return (<svg viewBox={`0 0 ${w} ${h}`} width={w} height={h}>
+        <rect x="2" y="2" width={w - 4} height={h - 4} fill="none" stroke={ink} strokeWidth="1.2" />
+        <circle cx={w / 2} cy={h / 2} r="10" fill="none" stroke={active ? '#C8102E' : '#bdb398'} strokeWidth="2.6" />
+        <line x1={w / 2 - 7.1} y1={h / 2 - 7.1} x2={w / 2 + 7.1} y2={h / 2 + 7.1} stroke={active ? '#C8102E' : '#bdb398'} strokeWidth="2.6" />
+      </svg>);
     case 'blank':
       return (<svg viewBox={`0 0 ${w} ${h}`} width={w} height={h}>
         <rect x="2" y="2" width={w - 4} height={h - 4} fill="none" stroke={ink} strokeDasharray="3 3" strokeWidth="1.2" />

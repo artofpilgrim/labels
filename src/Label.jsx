@@ -281,6 +281,11 @@ const FORMATS = [
   { id: 'stop',        name: 'Stop',        default: [520, 520] },
   { id: 'tag',         name: 'Lockout Tag', default: [380, 720] },
   { id: 'strip',       name: 'Barricade',   default: [960, 140] },
+  { id: 'ghs-label',   name: 'GHS Chemical', default: [600, 820] },
+  { id: 'ppe',         name: 'PPE Required', default: [720, 460] },
+  { id: 'fire-point',  name: 'Fire Point',   default: [480, 640] },
+  { id: 'first-aid',   name: 'First Aid',    default: [540, 560] },
+  { id: 'prohibition', name: 'Prohibition',  default: [480, 600] },
   { id: 'blank',       name: 'Blank',       default: [520, 520] },
 ];
 
@@ -599,6 +604,140 @@ function makeBlank(W, H) {
   ];
 }
 
+// ----------- Expanded templates (leverage the GHS / mandatory / fire / safe-condition / prohibition symbol sets) -----------
+
+// GHS / CLP chemical hazard label: product name, signal word, a row of hazard
+// diamonds, hazard + precautionary statements, and a supplier footer.
+function makeGhsLabel(W, H, severity) {
+  const padX = W * 0.06;
+  const contentW = W - padX * 2;
+  const productY = H * 0.045;
+  const productSize = Math.min(contentW / 11, 46);
+  const signalY = productY + productSize * 1.5;
+  const signalSize = Math.min(contentW / 8, 60);
+  const diamondSize = W * 0.22;
+  const diamondsRowY = signalY + signalSize * 1.4;
+  const diamondGap = (contentW - diamondSize * 3) / 2;
+  const d1X = padX;
+  const d2X = padX + diamondSize + diamondGap;
+  const d3X = padX + (diamondSize + diamondGap) * 2;
+  const hazardLabelY = diamondsRowY + diamondSize + H * 0.035;
+  const hazardLabelSize = Math.min(contentW / 22, 22);
+  const hazardBulletsY = hazardLabelY + hazardLabelSize * 1.5;
+  const bulletSize = Math.min(contentW / 30, 17);
+  const hazardBlockH = bulletSize * 1.4 * 3;
+  const precLabelY = hazardBulletsY + hazardBlockH + H * 0.025;
+  const precBulletsY = precLabelY + hazardLabelSize * 1.5;
+  const footerH = H * 0.07;
+  const dividerY = H - footerH;
+  const supplierSize = Math.min(contentW / 38, 15);
+  return [
+    L({ name: 'Background', type: 'rect', x: 0, y: 0, w: W, h: H, fill: '#FFFFFF', stroke: '#000000', strokeWidth: 3, locked: true, syncCanvas: 'fill', strokeOnTop: true }),
+    L({ name: 'Product name', type: 'text', x: padX, y: productY, w: contentW, h: productSize * 1.3, text: 'PRODUCT NAME', fontSize: productSize, fontWeight: 900, fill: '#1a1814', align: 'middle', uppercase: true, letterSpacing: 0.02, pinSides: { top: true, left: true, right: true } }),
+    L({ name: 'Signal word', type: 'text', x: padX, y: signalY, w: contentW, h: signalSize * 1.3, text: 'DANGER', fontSize: signalSize, fontWeight: 900, fill: '#1a1814', align: 'middle', uppercase: true, letterSpacing: 0.06, pinSides: { top: true, left: true, right: true } }),
+    L({ name: 'Pictogram flammable', type: 'image', x: d1X, y: diamondsRowY, w: diamondSize, h: diamondSize, symbol: 'GHS02', preserveAspect: true, pinSides: { top: true } }),
+    L({ name: 'Pictogram toxic', type: 'image', x: d2X, y: diamondsRowY, w: diamondSize, h: diamondSize, symbol: 'GHS06', preserveAspect: true, pinSides: { top: true } }),
+    L({ name: 'Pictogram harmful', type: 'image', x: d3X, y: diamondsRowY, w: diamondSize, h: diamondSize, symbol: 'GHS07', preserveAspect: true, pinSides: { top: true } }),
+    L({ name: 'Hazard heading', type: 'text', x: padX, y: hazardLabelY, w: contentW, h: hazardLabelSize * 1.3, text: 'Hazard statements', fontSize: hazardLabelSize, fontWeight: 700, fill: '#1a1814', align: 'start', pinSides: { top: true, left: true, right: true } }),
+    L({ name: 'Hazard statements', type: 'bullets', x: padX, y: hazardBulletsY, w: contentW, h: hazardBlockH, items: [{ id: uid(), text: 'Highly flammable liquid and vapour.' }, { id: uid(), text: 'Toxic if swallowed.' }, { id: uid(), text: 'Causes skin irritation.' }], fontSize: bulletSize, fontWeight: 400, fill: '#1a1814', lineHeight: 1.4, fontFamily: 'sans', pinSides: { top: true, left: true, right: true } }),
+    L({ name: 'Precaution heading', type: 'text', x: padX, y: precLabelY, w: contentW, h: hazardLabelSize * 1.3, text: 'Precautionary statements', fontSize: hazardLabelSize, fontWeight: 700, fill: '#1a1814', align: 'start', pinSides: { top: true, left: true, right: true } }),
+    L({ name: 'Precautionary statements', type: 'bullets', x: padX, y: precBulletsY, w: contentW, h: hazardBlockH, items: [{ id: uid(), text: 'Keep away from heat/sparks/open flames.' }, { id: uid(), text: 'Wear protective gloves and eye protection.' }, { id: uid(), text: 'IF SWALLOWED: call a POISON CENTER.' }], fontSize: bulletSize, fontWeight: 400, fill: '#1a1814', lineHeight: 1.4, fontFamily: 'sans', pinSides: { top: true, left: true, right: true } }),
+    L({ name: 'Footer divider', type: 'line', x: padX, y: dividerY, w: contentW, h: 2, stroke: '#1a1814', strokeWidth: 1.5, pinSides: { bottom: true, left: true, right: true } }),
+    L({ name: 'Supplier', type: 'text', x: padX, y: dividerY + footerH * 0.3, w: contentW, h: supplierSize * 1.4, text: 'Supplier Name · Address · Tel', fontSize: supplierSize, fontWeight: 400, fill: '#1a1814', align: 'middle', pinSides: { bottom: true, left: true, right: true } }),
+  ];
+}
+
+// Mandatory PPE sign: blue header/footer bands and a centered row of PPE pictograms.
+function makePpe(W, H, severity) {
+  const blue = '#1057A8';
+  const headerH = Math.max(72, H * 0.22);
+  const footerH = Math.max(40, H * 0.13);
+  const padX = W * 0.05;
+  const headerW = W - padX * 2;
+  const count = 4;
+  const symbols = ['hardHat', 'glasses', 'ears', 'M009'];
+  const minGap = W * 0.025;
+  const pictoBox = Math.min(H * 0.42, (W - (count + 1) * minGap) / count);
+  const gap = (W - count * pictoBox) / (count + 1);
+  const midZoneH = H - headerH - footerH;
+  const pictoY = headerH + (midZoneH - pictoBox) / 2;
+  const headerFont = Math.min(headerW / 28, headerH * 0.30);
+  const footerFont = Math.min(W / 28, footerH * 0.5);
+  return [
+    L({ name: 'Background', type: 'rect', x: 0, y: 0, w: W, h: H, fill: '#FFFFFF', stroke: '#000000', strokeWidth: 3, locked: true, syncCanvas: 'fill', strokeOnTop: true }),
+    L({ name: 'Header band', type: 'rect', x: 0, y: 0, w: W, h: headerH, fill: blue, pinSides: { top: true, left: true, right: true } }),
+    L({ name: 'Header text', type: 'text', x: padX, y: 0, w: headerW, h: headerH, text: 'Personal Protective Equipment Required', fontSize: headerFont, fontWeight: 900, fill: '#FFFFFF', align: 'middle', uppercase: true, lineHeight: 1.15, pinSides: { top: true, left: true, right: true } }),
+    L({ name: 'PPE head', type: 'image', x: gap + 0 * (pictoBox + gap), y: pictoY, w: pictoBox, h: pictoBox, symbol: symbols[0] }),
+    L({ name: 'PPE eye', type: 'image', x: gap + 1 * (pictoBox + gap), y: pictoY, w: pictoBox, h: pictoBox, symbol: symbols[1] }),
+    L({ name: 'PPE hearing', type: 'image', x: gap + 2 * (pictoBox + gap), y: pictoY, w: pictoBox, h: pictoBox, symbol: symbols[2] }),
+    L({ name: 'PPE hands', type: 'image', x: gap + 3 * (pictoBox + gap), y: pictoY, w: pictoBox, h: pictoBox, symbol: symbols[3] }),
+    L({ name: 'Footer band', type: 'rect', x: 0, y: H - footerH, w: W, h: footerH, fill: blue, pinSides: { bottom: true, left: true, right: true } }),
+    L({ name: 'Footer text', type: 'text', x: padX, y: H - footerH, w: headerW, h: footerH, text: 'Mandatory in this area', fontSize: footerFont, fontWeight: 700, fill: '#FFFFFF', align: 'middle', uppercase: true, letterSpacing: 0.04, pinSides: { bottom: true, left: true, right: true } }),
+  ];
+}
+
+// Fire-equipment location sign: solid red field (matched to the F-series plate
+// colour) with a large white pictogram and title.
+function makeFirePoint(W, H, severity) {
+  const padX = W * 0.08;
+  const contentW = W - padX * 2;
+  const pictoBox = W * 0.55;
+  const pictoX = W / 2 - pictoBox / 2;
+  const pictoY = H * 0.13;
+  const titleSize = Math.min(contentW / 8, H * 0.085, 52);
+  const titleY = pictoY + pictoBox + H * 0.07;
+  const subSize = Math.min(contentW / 16, titleSize * 0.45, 24);
+  const subY = titleY + titleSize * 2.4 + H * 0.02;
+  return [
+    L({ name: 'Background', type: 'rect', x: 0, y: 0, w: W, h: H, fill: '#9B2423', stroke: '#FFFFFF', strokeWidth: 6, locked: true, syncCanvas: 'fill', strokeOnTop: true }),
+    L({ name: 'Pictogram', type: 'image', x: pictoX, y: pictoY, w: pictoBox, h: pictoBox, symbol: 'F001', preserveAspect: true, pinSides: { top: true } }),
+    L({ name: 'Title', type: 'text', x: padX, y: titleY, w: contentW, h: titleSize * 2.4, text: 'FIRE\nEXTINGUISHER', fontSize: titleSize, fontWeight: 900, fill: '#FFFFFF', align: 'middle', uppercase: true, letterSpacing: 0.02, lineHeight: 1.1, pinSides: { left: true, right: true, bottom: true } }),
+    L({ name: 'Sub-text', type: 'text', x: padX, y: subY, w: contentW, h: subSize * 1.6, text: 'In case of fire', fontSize: subSize, fontWeight: 700, fill: '#FFFFFF', align: 'middle', uppercase: true, letterSpacing: 0.08, pinSides: { left: true, right: true, bottom: true } }),
+  ];
+}
+
+// First-aid / emergency (safe condition) sign: solid green field (matched to the
+// E-series plate colour) with the first-aid pictogram and a station caption.
+function makeFirstAid(W, H, severity) {
+  const green = '#237F52';
+  const white = '#FFFFFF';
+  const padX = W * 0.07;
+  const contentW = W - padX * 2;
+  const footerH = H * 0.11;
+  const pictoBox = W * 0.5;
+  const pictoX = W / 2 - pictoBox / 2;
+  const pictoY = H * 0.1;
+  const titleSize = Math.min(W * 0.13, 72);
+  const titleY = H - footerH - H * 0.04 - titleSize * 1.1;
+  return [
+    L({ name: 'Background', type: 'rect', x: 0, y: 0, w: W, h: H, fill: green, stroke: white, strokeWidth: 10, locked: true, syncCanvas: 'fill', strokeOnTop: true }),
+    L({ name: 'Pictogram', type: 'image', x: pictoX, y: pictoY, w: pictoBox, h: pictoBox, symbol: 'E003', preserveAspect: true }),
+    L({ name: 'Title', type: 'text', x: padX, y: titleY, w: contentW, h: titleSize * 1.2, text: 'First Aid', fontSize: titleSize, fontWeight: 900, fill: white, align: 'middle', uppercase: true, letterSpacing: 0.04, pinSides: { left: true, right: true, bottom: true } }),
+    L({ name: 'Footer band', type: 'rect', x: 0, y: H - footerH, w: W, h: footerH, fill: green, stroke: white, strokeWidth: 2, pinSides: { left: true, right: true, bottom: true } }),
+    L({ name: 'Footer text', type: 'text', x: padX, y: H - footerH / 2 - (footerH * 0.34) / 2, w: contentW, h: footerH * 0.6, text: 'Location of first aid station', fontSize: Math.min(W * 0.045, 24), fontWeight: 700, fill: white, align: 'middle', uppercase: true, letterSpacing: 0.06, pinSides: { left: true, right: true, bottom: true } }),
+  ];
+}
+
+// Prohibition sign: centered prohibition pictogram with a bold caption.
+function makeProhibition(W, H, severity) {
+  const symBox = W * 0.6;
+  const symX = (W - symBox) / 2;
+  const symY = H * 0.12;
+  const padX = W * 0.08;
+  const contentW = W - padX * 2;
+  const titleSize = Math.min(contentW / 8, 56);
+  const titleY = symY + symBox + H * 0.06;
+  const titleBoxH = titleSize * 1.3;
+  const subSize = Math.min(contentW / 22, 22);
+  const subY = titleY + titleBoxH + H * 0.01;
+  return [
+    L({ name: 'Background', type: 'rect', x: 0, y: 0, w: W, h: H, fill: '#FFFFFF', stroke: '#000000', strokeWidth: 3, locked: true, syncCanvas: 'fill', strokeOnTop: true }),
+    L({ name: 'Pictogram', type: 'image', x: symX, y: symY, w: symBox, h: symBox, symbol: 'noSmoking', preserveAspect: true }),
+    L({ name: 'Title', type: 'text', x: padX, y: titleY, w: contentW, h: titleBoxH, text: 'No Smoking', fontSize: titleSize, fontWeight: 900, fill: '#1a1814', align: 'middle', uppercase: true, letterSpacing: 0.02, pinSides: { left: true, right: true, bottom: true } }),
+    L({ name: 'Sub-text', type: 'text', x: padX, y: subY, w: contentW, h: subSize * 2.4, text: 'Smoking prohibited in this area', fontSize: subSize, fontWeight: 400, fill: '#1a1814', align: 'middle', lineHeight: 1.25, pinSides: { left: true, right: true, bottom: true } }),
+  ];
+}
+
 const PRESETS = {
   'ansi-header': makeAnsiHeader,
   'ansi-side':   makeAnsiSide,
@@ -607,6 +746,11 @@ const PRESETS = {
   'stop':        makeStop,
   'tag':         makeTag,
   'strip':       makeStrip,
+  'ghs-label':   makeGhsLabel,
+  'ppe':         makePpe,
+  'fire-point':  makeFirePoint,
+  'first-aid':   makeFirstAid,
+  'prohibition': makeProhibition,
   'blank':       makeBlank,
 };
 
