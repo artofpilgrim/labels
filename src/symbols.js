@@ -23,7 +23,10 @@ export async function loadSymbols() {
       if (!r.ok) throw new Error(`${r.status}`);
       const text = await r.text();
       return [id, svgToDataUrl(text)];
-    } catch {
+    } catch (err) {
+      // Surface load failures (404 / wrong BASE_URL / offline) so blank tiles
+      // are diagnosable instead of silent. The empty entry degrades gracefully.
+      console.warn(`Hazard Label Studio: failed to load symbol "${id}" (${p.file})`, err);
       return [id, ''];
     }
   }));

@@ -699,20 +699,21 @@ body.space-pan .overlay * { pointer-events: none !important; }
 .snap-guide.v {
   top: -20px; bottom: -20px;
   width: 0;
-  border-left: 1px dashed #ff2d6f;
+  border-left: 1px dashed var(--sel);
 }
 .snap-guide.h {
   left: -20px; right: -20px;
   height: 0;
-  border-top: 1px dashed #ff2d6f;
+  border-top: 1px dashed var(--sel);
 }
 
 /* ---------- Layer list ---------- */
 .layer-list {
   display: flex; flex-direction: column;
   gap: 3px;
-  max-height: 360px;
-  overflow-y: auto;
+  /* No inner max-height/scroll: the list lives inside the already-scrollable
+     .panel, so a cap here just created a confusing nested scrollbar and kept
+     the list from filling the panel. Let .panel be the single scroll region. */
 }
 .layer-list::-webkit-scrollbar { width: 6px; }
 .layer-list::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius: var(--r); }

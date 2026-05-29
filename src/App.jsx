@@ -987,7 +987,7 @@ export function App() {
     const trimmed = (name || '').trim();
     if (!trimmed) return;
     const preset = {
-      id: Math.random().toString(36).slice(2, 9),
+      id: uid(),
       name: trimmed,
       design: {
         width: design.width,
@@ -1026,7 +1026,7 @@ export function App() {
     // Fresh layer IDs so nothing reuses stale references.
     const layers = p.design.layers.map(l => ({
       ...l,
-      id: Math.random().toString(36).slice(2, 9),
+      id: uid(),
     }));
     setDesign({
       width: p.design.width,
@@ -1154,12 +1154,15 @@ export function App() {
 
   // Delete every (non-locked) selected layer.
   const deleteSelected = useCallback(() => {
+    // Remove only unlocked selected layers. We deliberately don't clear the
+    // selection here: the prune effect drops the just-deleted ids, which leaves
+    // any locked (undeletable) layers still selected instead of falsely
+    // "deselecting" them and implying a deletion that didn't happen.
     setDesign(d => ({ ...d, layers: d.layers.filter(l => !(selectedIds.includes(l.id) && !l.locked)) }));
-    setSelectedIds([]);
   }, [selectedIds, setDesign]);
 
   // Drag-move every layer in `ids` together (no per-edge snap for groups).
-  function startGroupDrag(e, ids) {
+  function startGroupDrag(e, ids, clickedId) {
     const snaps = new Map();
     for (const id of ids) {
       const l = design.layers.find(x => x.id === id);
@@ -1167,7 +1170,7 @@ export function App() {
     }
     beginDrag(e, (dx, dy) => {
       setDesign(d => ({ ...d, layers: d.layers.map(l => snaps.has(l.id) ? { ...l, x: snaps.get(l.id).x + dx, y: snaps.get(l.id).y + dy } : l) }));
-    });
+    }, clickedId ? () => setSelectedIds([clickedId]) : undefined);
   }
 
   // Rubber-band selection: drag on empty canvas to select intersecting layers;
@@ -1187,7 +1190,9 @@ export function App() {
     };
     function move(ev) {
       const r = rectFrom(ev);
-      if (r.w > 3 || r.h > 3) moved = true;
+      // Threshold in SCREEN pixels (r is in label units, so scale by f) — keeps
+      // the click-vs-drag distinction consistent across zoom levels.
+      if (r.w * f > 3 || r.h * f > 3) moved = true;
       setMarquee(r);
     }
     function up(ev) {
@@ -1246,7 +1251,7 @@ export function App() {
   // We attach mousemove/mouseup on `document` so the user can drag outside the
   // handle. The handlers are local closures captured per drag so we can clean
   // them up correctly on mouseup.
-  function beginDrag(e, onMove) {
+  function beginDrag(e, onMove, onClickNoMove) {
     e.preventDefault(); e.stopPropagation();
     // Flush any pending typing/edit commits so the drag's pre-state is the
     // history anchor. inDragRef suspends the debounced commit while the
@@ -1254,7 +1259,9 @@ export function App() {
     forceCommit();
     inDragRef.current = true;
     const x0 = e.clientX, y0 = e.clientY, f = fit;
+    let moved = false;
     function move(ev) {
+      if (Math.abs(ev.clientX - x0) > 3 || Math.abs(ev.clientY - y0) > 3) moved = true;
       const dx = (ev.clientX - x0) / f;
       const dy = (ev.clientY - y0) / f;
       onMove(dx, dy, {
@@ -1273,6 +1280,9 @@ export function App() {
       window.removeEventListener('blur', up);
       setSnapGuides([]);                  // always clear guides on drag end
       inDragRef.current = false;
+      // A press that never moved is a click — let the caller collapse a group
+      // selection down to just the clicked layer.
+      if (!moved && onClickNoMove) onClickNoMove();
       // Commit the post-drag state as a single history step. setTimeout(0)
       // lets the final mousemove's state update flush first.
       setTimeout(forceCommit, 0);
@@ -1417,7 +1427,7 @@ export function App() {
     const inSelection = selectedIds.includes(layerId);
     const dragIds = inSelection ? selectedIds : [layerId];
     if (!inSelection) setSelectedIds([layerId]);
-    if (dragIds.length > 1) startGroupDrag(e, dragIds);
+    if (dragIds.length > 1) startGroupDrag(e, dragIds, layerId);
     else startLayerDrag(e, layer);
   }
   function onCanvasPointerDown(e) {
@@ -2073,6 +2083,7 @@ export function App() {
                 ref={labelRef}
                 design={design}
                 selectedId={selectedId}
+                symbolsReady={!!symbolCache}
                 onLayerPointerDown={onLayerPointerDown}
                 onCanvasPointerDown={onCanvasPointerDown}
               />

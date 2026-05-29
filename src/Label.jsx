@@ -103,7 +103,7 @@ function rectPath(x, y, w, h, radius, strokeWidth) {
 }
 
 // ----------- Layer renderer -----------
-function renderLayer(l, sev) {
+function renderLayer(l, sev, symbolsReady) {
   if (l.hidden) return null;
   const transform = l.rotation
     ? `rotate(${l.rotation} ${l.x + l.w / 2} ${l.y + l.h / 2})`
@@ -206,7 +206,22 @@ function renderLayer(l, sev) {
     }
     case 'image': {
       const href = pictoHref(l.symbol);
-      if (!href) return null;
+      if (!href) {
+        // No resolved symbol. While symbols are still loading, render nothing
+        // (avoids a placeholder flash on first paint). Once loading is done an
+        // empty href means the id is unknown or its fetch failed — draw a
+        // visible placeholder so the layer isn't silently invisible AND keeps
+        // its hit area (the map skips the whole <g> when this returns null).
+        if (!symbolsReady) return null;
+        return (
+          <g transform={transform}>
+            <rect x={l.x} y={l.y} width={l.w} height={l.h}
+                  fill="none" stroke="#b91c1c" strokeWidth="2" strokeDasharray="6 4" />
+            <line x1={l.x} y1={l.y} x2={l.x + l.w} y2={l.y + l.h} stroke="#b91c1c" strokeWidth="1" />
+            <line x1={l.x + l.w} y1={l.y} x2={l.x} y2={l.y + l.h} stroke="#b91c1c" strokeWidth="1" />
+          </g>
+        );
+      }
       return (
         <g transform={transform}>
           <image
@@ -622,7 +637,7 @@ function newLayer(type, W, H) {
 // ----------- Label component -----------
 // Renders all layers and attaches per-layer mousedown handlers so the parent
 // can drive selection + drag.
-const Label = forwardRef(function Label({ design, selectedId, onLayerPointerDown, onCanvasPointerDown }, ref) {
+const Label = forwardRef(function Label({ design, selectedId, symbolsReady, onLayerPointerDown, onCanvasPointerDown }, ref) {
   const svgRef = useRef(null);
   useImperativeHandle(ref, () => ({ getSvg: () => svgRef.current }));
 
@@ -659,7 +674,7 @@ const Label = forwardRef(function Label({ design, selectedId, onLayerPointerDown
         </defs>
       )}
       {design.layers.map(l => {
-        const node = renderLayer(l, sev);
+        const node = renderLayer(l, sev, symbolsReady);
         if (!node) return null;
         const interactive = !l.locked && !l.hidden;
         const clip = (l.clipToCanvas && canvasClipD) ? `url(#${canvasClipId})` : undefined;
