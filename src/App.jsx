@@ -20,7 +20,7 @@ function makeInitialDesign() {
 const DESIGN_AUTOSAVE_KEY = 'hazardLabelStudio.design';
 const DOC_NAME_KEY = 'hazardLabelStudio.docName';
 // Layer types the renderer knows how to draw — used to validate restored data.
-const KNOWN_LAYER_TYPES = new Set(['rect', 'text', 'bullets', 'image', 'line', 'polygon']);
+const KNOWN_LAYER_TYPES = new Set(['rect', 'text', 'bullets', 'image', 'line', 'polygon', 'ellipse']);
 // Turn a free-text title into a safe file base: "High Voltage Label" → "high-voltage-label".
 function slug(name) {
   const s = (name || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
@@ -478,9 +478,24 @@ function LayerGlyph({ type }) {
     case 'image': return <svg width="14" height="14" viewBox="0 0 14 14"><path d="M7 2 L12 11 L2 11 Z" fill="none" stroke={stroke} strokeWidth="1.4"/></svg>;
     case 'bullets': return <svg width="14" height="14" viewBox="0 0 14 14"><circle cx="3" cy="4" r="1.2" fill={stroke}/><line x1="6" y1="4" x2="13" y2="4" stroke={stroke} strokeWidth="1.4"/><circle cx="3" cy="10" r="1.2" fill={stroke}/><line x1="6" y1="10" x2="13" y2="10" stroke={stroke} strokeWidth="1.4"/></svg>;
     case 'line': return <svg width="14" height="14" viewBox="0 0 14 14"><line x1="2" y1="7" x2="12" y2="7" stroke={stroke} strokeWidth="1.6"/></svg>;
+    case 'polygon': return <svg width="14" height="14" viewBox="0 0 14 14"><polygon points="7,2 12,11 2,11" fill="none" stroke={stroke} strokeWidth="1.4"/></svg>;
+    case 'ellipse': return <svg width="14" height="14" viewBox="0 0 14 14"><ellipse cx="7" cy="7" rx="5.5" ry="4.5" fill="none" stroke={stroke} strokeWidth="1.4"/></svg>;
     default: return null;
   }
 }
+
+// ----------- Shape tools (Shapes panel) -----------
+// Each adds a layer via addLayer(type); newLayer() builds the geometry.
+const SHAPES = [
+  { type: 'rect',     name: 'Rectangle', el: <rect x="2.5" y="3.5" width="11" height="9" fill="currentColor" /> },
+  { type: 'ellipse',  name: 'Circle',    el: <ellipse cx="8" cy="8" rx="6" ry="5" fill="currentColor" /> },
+  { type: 'triangle', name: 'Triangle',  el: <polygon points="8,2 14,14 2,14" fill="currentColor" /> },
+  { type: 'diamond',  name: 'Diamond',   el: <polygon points="8,2 14,8 8,14 2,8" fill="currentColor" /> },
+  { type: 'pentagon', name: 'Pentagon',  el: <polygon points="8,1.5 14.5,6.2 12,14 4,14 1.5,6.2" fill="currentColor" /> },
+  { type: 'hexagon',  name: 'Hexagon',   el: <polygon points="8,1.5 14,5 14,11 8,14.5 2,11 2,5" fill="currentColor" /> },
+  { type: 'star',     name: 'Star',      el: <polygon points="8,1.5 9.7,6 14.5,6 10.6,9 12,13.8 8,11 4,13.8 5.4,9 1.5,6 6.3,6" fill="currentColor" /> },
+  { type: 'line',     name: 'Line',      el: <line x1="2.5" y1="13.5" x2="13.5" y2="2.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /> },
+];
 
 // ----------- Align toolbar glyph -----------
 // One component draws all six align icons: a guide line on the chosen axis/edge
@@ -2050,9 +2065,23 @@ export function App() {
     </>
   );
 
+  const shapesField = (
+    <Field label="Shapes" hint="Click to add a shape, then style it in Properties.">
+      <div className="picto-grid">
+        {SHAPES.map(s => (
+          <button key={s.type} className="picto-tile" onClick={() => addLayer(s.type)} title={`Add ${s.name.toLowerCase()}`}>
+            <svg width="40" height="40" viewBox="0 0 16 16">{s.el}</svg>
+            <span>{s.name}</span>
+          </button>
+        ))}
+      </div>
+    </Field>
+  );
+
   const railBtns = [
     { id: 'templates', title: 'Templates', kind: 'panel', icon: 'M2 2h5v5H2zM9 2h5v5H9zM2 9h5v5H2zM9 9h5v5H9z' },
     { id: 'layers', title: 'Layers', kind: 'panel', icon: 'M8 2l6 3-6 3-6-3zM2 8l6 3 6-3M2 11l6 3 6-3' },
+    { id: 'shapes', title: 'Shapes', kind: 'panel', icon: 'M8 2 L14 6.5 L11.6 13.5 H4.4 L2 6.5 Z' },
     { id: 'text', title: 'Add text', kind: 'add', type: 'text', icon: 'M3 3h10v2M8 5v8M6 13h4' },
     { id: 'rect', title: 'Add rectangle', kind: 'add', type: 'rect', icon: 'M2.5 4h11v8h-11z' },
     { id: 'image', title: 'Add symbol', kind: 'add', type: 'image', icon: 'M8 2l6 11H2z' },
@@ -2172,6 +2201,7 @@ export function App() {
             </>
           )}
 
+          {leftPanel === 'shapes' && shapesField}
           {leftPanel === 'layers' && layerStackField}
         </div>
       </aside>
@@ -2445,6 +2475,7 @@ function PropertiesPanel({ layer, onChange, cache }) {
       {layer.type === 'bullets' && <Section title="List"><BulletsProps layer={layer} onChange={onChange} /></Section>}
       {layer.type === 'rect' && <Section title="Appearance"><RectProps layer={layer} onChange={onChange} /></Section>}
       {layer.type === 'polygon' && <Section title="Appearance"><PolygonProps layer={layer} onChange={onChange} /></Section>}
+      {layer.type === 'ellipse' && <Section title="Appearance"><PolygonProps layer={layer} onChange={onChange} /></Section>}
       {layer.type === 'image' && <Section title="Symbol"><ImageProps layer={layer} onChange={onChange} cache={cache} /></Section>}
       {layer.type === 'line' && <Section title="Appearance"><LineProps layer={layer} onChange={onChange} /></Section>}
 

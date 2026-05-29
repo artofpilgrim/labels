@@ -263,6 +263,19 @@ function renderLayer(l, sev, symbolsReady) {
         </g>
       );
     }
+    case 'ellipse': {
+      return (
+        <g transform={transform}>
+          <ellipse
+            cx={l.x + l.w / 2} cy={l.y + l.h / 2}
+            rx={l.w / 2} ry={l.h / 2}
+            fill={resolveFill(l.fill, l.bindSeverity, sev)}
+            stroke={l.stroke || 'none'}
+            strokeWidth={l.strokeWidth || 0}
+          />
+        </g>
+      );
+    }
     default:
       return null;
   }
@@ -481,6 +494,34 @@ const OCTAGON_POINTS = (() => {
     { x: 0,     y: 1 - k }, { x: 0,     y: k },
   ];
 })();
+
+// Normalized (0..1) point sets for the shape tools. regularPoly inscribes a
+// regular n-gon in the box (rotated so a vertex points up); the rest are
+// hand-set so they fill the box edge-to-edge.
+function regularPoly(n, rotDeg) {
+  const rot = (rotDeg || 0) * Math.PI / 180;
+  const pts = [];
+  for (let i = 0; i < n; i++) {
+    const a = rot + (i * 2 * Math.PI) / n;
+    pts.push({ x: 0.5 + 0.5 * Math.cos(a), y: 0.5 + 0.5 * Math.sin(a) });
+  }
+  return pts;
+}
+const SHAPE_POINTS = {
+  triangle: [{ x: 0.5, y: 0 }, { x: 1, y: 1 }, { x: 0, y: 1 }],
+  diamond: [{ x: 0.5, y: 0 }, { x: 1, y: 0.5 }, { x: 0.5, y: 1 }, { x: 0, y: 0.5 }],
+  pentagon: regularPoly(5, -90),
+  hexagon: regularPoly(6, -90),
+  star: (() => {
+    const pts = [];
+    for (let i = 0; i < 10; i++) {
+      const a = -Math.PI / 2 + (i * Math.PI) / 5;
+      const r = i % 2 === 0 ? 0.5 : 0.21;
+      pts.push({ x: 0.5 + r * Math.cos(a), y: 0.5 + r * Math.sin(a) });
+    }
+    return pts;
+  })(),
+};
 
 function makeStop(W, H) {
   const size = Math.min(W, H) - 4;
@@ -789,6 +830,17 @@ function newLayer(type, W, H) {
     case 'line':
       return L({ name: 'Line', type: 'line', x: cx - 100, y: cy, w: 200, h: 1,
         stroke: '#000000', strokeWidth: 2 });
+    case 'ellipse':
+      return L({ name: 'Circle', type: 'ellipse', x: cx - 80, y: cy - 80, w: 160, h: 160,
+        fill: '#1057A8' });
+    case 'triangle':
+    case 'diamond':
+    case 'pentagon':
+    case 'hexagon':
+    case 'star':
+      return L({ name: type.charAt(0).toUpperCase() + type.slice(1), type: 'polygon',
+        x: cx - 80, y: cy - 80, w: 160, h: 160,
+        points: SHAPE_POINTS[type].map(p => ({ x: p.x, y: p.y })), fill: '#1057A8' });
     default: return null;
   }
 }
