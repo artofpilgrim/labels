@@ -329,6 +329,26 @@ function PinSidesControl({ value, onChange }) {
 
 // Editor for a rect's per-corner radius. The stored value is either a number
 // (uniform) or { tl, tr, br, bl }; the toggle flips between the two.
+// Compact per-corner style toggle: shows a box with that corner rounded or
+// chamfered (oriented to the corner) and flips between the two on click.
+function CornerStyleBtn({ corner, style, onToggle }) {
+  const chamfer = style === 'chamfer';
+  // Rotate a top-left glyph to the target corner: tl 0°, tr 90°, br 180°, bl 270°.
+  const rot = { tl: 0, tr: 90, br: 180, bl: 270 }[corner] || 0;
+  const d = chamfer ? 'M3 13 V7 L7 3 H13 V13 Z' : 'M3 13 V7 A4 4 0 0 1 7 3 H13 V13 Z';
+  return (
+    <button type="button" className="corner-style-btn"
+            title={`${corner.toUpperCase()}: ${chamfer ? 'chamfer' : 'round'} — click to toggle`}
+            aria-label={`${corner.toUpperCase()} corner: ${chamfer ? 'chamfer' : 'round'}`}
+            onClick={onToggle}>
+      <svg width="16" height="16" viewBox="0 0 16 16">
+        <path d={d} fill="none" stroke="currentColor" strokeWidth="1.4"
+              strokeLinejoin="round" transform={`rotate(${rot} 8 8)`} />
+      </svg>
+    </button>
+  );
+}
+
 function CornerRadius({ value, onChange, max, corner, onCorner }) {
   const linked = typeof value === 'number' || value == null;
   const cap = Math.max(0, max);
@@ -336,38 +356,60 @@ function CornerRadius({ value, onChange, max, corner, onCorner }) {
     ? { tl: value || 0, tr: value || 0, br: value || 0, bl: value || 0 }
     : { tl: value.tl || 0, tr: value.tr || 0, br: value.br || 0, bl: value.bl || 0 };
 
+  const norm = (x) => (x === 'chamfer' ? 'chamfer' : 'round');
+  const styleOf = (k) => norm(corner && typeof corner === 'object' ? corner[k] : corner);
+
   function setCorner(k, n) {
     onChange({ ...v, [k]: Math.max(0, n) });
   }
+  // Set one corner's style, collapsing back to a single string (or null for the
+  // all-round default) when every corner ends up the same.
+  function setStyle(k, style) {
+    if (!onCorner) return;
+    const cur = corner && typeof corner === 'object'
+      ? { ...corner } : { tl: corner, tr: corner, br: corner, bl: corner };
+    cur[k] = style;
+    const s = { tl: norm(cur.tl), tr: norm(cur.tr), br: norm(cur.br), bl: norm(cur.bl) };
+    const allSame = s.tl === s.tr && s.tr === s.br && s.br === s.bl;
+    onCorner(allSame ? (s.tl === 'chamfer' ? 'chamfer' : null) : s);
+  }
   function toggleLink() {
     if (linked) {
-      onChange({ ...v });                       // split: keep current value
+      onChange({ ...v });                       // split sizes
     } else {
       const allSame = v.tl === v.tr && v.tr === v.br && v.br === v.bl;
       if (!allSame) {
         const ok = window.confirm('Link corners will reset all four to the top-left value. Continue?');
         if (!ok) return;
       }
-      onChange(Math.round(v.tl));               // collapse: use top-left
+      onChange(Math.round(v.tl));               // collapse size to top-left
+      if (onCorner) onCorner(styleOf('tl') === 'chamfer' ? 'chamfer' : null); // collapse style too
     }
   }
 
   return (
     <div className="corner-radius">
-      {onCorner && (
-        <Seg
-          value={corner === 'chamfer' ? 'chamfer' : 'round'}
-          onChange={c => onCorner(c === 'chamfer' ? 'chamfer' : null)}
-          options={[{ value: 'round', label: 'Round' }, { value: 'chamfer', label: 'Chamfer' }]}
-        />
-      )}
-      <Slider label={linked ? 'All' : 'TL'} value={v.tl} onChange={n => linked ? onChange(n) : setCorner('tl', n)} max={cap} />
-      {!linked && (
+      {linked ? (
         <>
-          <Slider label="TR" value={v.tr} onChange={n => setCorner('tr', n)} max={cap} />
-          <Slider label="BL" value={v.bl} onChange={n => setCorner('bl', n)} max={cap} />
-          <Slider label="BR" value={v.br} onChange={n => setCorner('br', n)} max={cap} />
+          {onCorner && (
+            <Seg
+              value={styleOf('tl')}
+              onChange={c => onCorner(c === 'chamfer' ? 'chamfer' : null)}
+              options={[{ value: 'round', label: 'Round' }, { value: 'chamfer', label: 'Chamfer' }]}
+            />
+          )}
+          <Slider label="All" value={v.tl} onChange={n => onChange(n)} max={cap} />
         </>
+      ) : (
+        ['tl', 'tr', 'bl', 'br'].map(k => (
+          <div className="corner-row" key={k}>
+            {onCorner && (
+              <CornerStyleBtn corner={k} style={styleOf(k)}
+                              onToggle={() => setStyle(k, styleOf(k) === 'chamfer' ? 'round' : 'chamfer')} />
+            )}
+            <Slider label={k.toUpperCase()} value={v[k]} onChange={n => setCorner(k, n)} max={cap} />
+          </div>
+        ))
       )}
       <button className="ghost" onClick={toggleLink}>
         {linked ? 'Split corners' : 'Link corners'}

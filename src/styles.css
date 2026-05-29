@@ -624,6 +624,19 @@ body.space-pan .overlay * { pointer-events: none !important; }
 
 .corner-radius { display: flex; flex-direction: column; gap: 4px; }
 .corner-radius .ghost { margin-top: 4px; }
+.corner-row { display: flex; align-items: center; gap: 6px; }
+.corner-row .slider { flex: 1; min-width: 0; }
+.corner-style-btn {
+  flex: 0 0 auto;
+  width: 26px; height: 26px;
+  display: grid; place-items: center;
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  color: var(--ink);
+  cursor: pointer;
+}
+.corner-style-btn:hover { border-color: var(--ink); background: var(--bg-2); }
 
 /* ---------- Pin-sides control ---------- */
 .pin-control {

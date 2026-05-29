@@ -89,19 +89,23 @@ function rectPath(x, y, w, h, radius, strokeWidth, corner) {
   tl *= s; tr *= s; br *= s; bl *= s;
 
   // A chamfer cuts the corner straight between the same two points the arc would
-  // connect, so we just swap the arc command for a line — radius/clamping shared.
-  const chamfer = corner === 'chamfer';
-  const c = (r, ex, ey) => r > 0 ? (chamfer ? `L ${ex} ${ey}` : `A ${r} ${r} 0 0 1 ${ex} ${ey}`) : '';
+  // connect, so per corner we just swap the arc command for a line — radius and
+  // overlap clamping are shared. `corner` is a single style string OR a per-corner
+  // map { tl, tr, br, bl } so styles can be mixed (e.g. top chamfered, bottom round).
+  const isChamfer = (k) => (corner && typeof corner === 'object')
+    ? corner[k] === 'chamfer'
+    : corner === 'chamfer';
+  const c = (r, ex, ey, ch) => r > 0 ? (ch ? `L ${ex} ${ey}` : `A ${r} ${r} 0 0 1 ${ex} ${ey}`) : '';
   return [
     `M ${xx + tl} ${yy}`,
     `H ${xx + ww - tr}`,
-    c(tr, xx + ww, yy + tr),
+    c(tr, xx + ww, yy + tr, isChamfer('tr')),
     `V ${yy + hh - br}`,
-    c(br, xx + ww - br, yy + hh),
+    c(br, xx + ww - br, yy + hh, isChamfer('br')),
     `H ${xx + bl}`,
-    c(bl, xx, yy + hh - bl),
+    c(bl, xx, yy + hh - bl, isChamfer('bl')),
     `V ${yy + tl}`,
-    c(tl, xx + tl, yy),
+    c(tl, xx + tl, yy, isChamfer('tl')),
     'Z',
   ].filter(Boolean).join(' ');
 }
