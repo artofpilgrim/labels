@@ -19,6 +19,8 @@ function makeInitialDesign() {
 
 const DESIGN_AUTOSAVE_KEY = 'hazardLabelStudio.design';
 const DOC_NAME_KEY = 'hazardLabelStudio.docName';
+// Layer types the renderer knows how to draw — used to validate restored data.
+const KNOWN_LAYER_TYPES = new Set(['rect', 'text', 'bullets', 'image', 'line', 'polygon']);
 // Turn a free-text title into a safe file base: "High Voltage Label" → "high-voltage-label".
 function slug(name) {
   const s = (name || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
@@ -32,7 +34,12 @@ function loadSavedDesign() {
     if (!raw) return null;
     const d = JSON.parse(raw);
     if (d && Array.isArray(d.layers) && d.layers.length
-        && Number.isFinite(d.width) && Number.isFinite(d.height)) {
+        && Number.isFinite(d.width) && Number.isFinite(d.height)
+        // Reject if any layer is unrenderable: a missing/unknown type or
+        // non-finite geometry would feed NaN into the SVG transform/path and
+        // silently break the canvas. Fall back to a clean preset instead.
+        && d.layers.every(l => l && KNOWN_LAYER_TYPES.has(l.type)
+            && ['x', 'y', 'w', 'h'].every(k => Number.isFinite(l[k])))) {
       return d;
     }
   } catch { /* corrupted storage — ignore */ }
@@ -848,10 +855,15 @@ export function App() {
       // committed snapshot), the first undo reverts THAT edit only — the
       // committed past stays intact for the next undo.
       if (e.design !== lastCommittedDesign.current) {
+        // The live edit is a NEW branch, so it invalidates any redo stack that
+        // was still pending from a prior undo (future isn't cleared until a
+        // commit lands). Replace future with just this edit — don't prepend
+        // onto the now-stale entries, or Redo could resurrect an abandoned
+        // branch the user already moved past.
         return {
           ...e,
           design: lastCommittedDesign.current,
-          future: [e.design, ...e.future].slice(0, HISTORY_LIMIT),
+          future: [e.design],
         };
       }
       // Otherwise pop one committed snapshot off `past`.
@@ -869,7 +881,10 @@ export function App() {
   }, []);
 
   const redo = useCallback(() => {
-    if (commitTimerRef.current) { clearTimeout(commitTimerRef.current); commitTimerRef.current = null; }
+    // A pending (uncommitted) edit is a fresh branch that invalidates redo.
+    // Commit it first so it lands in history — this also clears `future`, so
+    // the redo below correctly becomes a no-op instead of discarding the edit.
+    forceCommit();
     setEditor(e => {
       if (e.future.length === 0) return e;
       const next = e.future[0];
@@ -882,7 +897,7 @@ export function App() {
     });
     setWrapOffset({ x: 0, y: 0 });
     setSnapGuides([]);
-  }, []);
+  }, [forceCommit]);
 
   useEffect(() => { loadSymbols().then(setSymbolCache); }, []);
 
@@ -904,7 +919,14 @@ export function App() {
   useEffect(() => {
     try {
       const raw = localStorage.getItem('hazardLabelStudio.userPresets');
-      if (raw) setUserPresets(JSON.parse(raw));
+      if (!raw) return;
+      const v = JSON.parse(raw);
+      // Guard the shape: a non-array value (string/null from a tampered or
+      // future-version store) would throw on .length/.map during render and
+      // white-screen the app. Drop malformed entries rather than trust them.
+      if (Array.isArray(v)) {
+        setUserPresets(v.filter(p => p && p.id && p.design && Array.isArray(p.design.layers)));
+      }
     } catch { /* corrupted storage — ignore */ }
   }, []);
   function persistUserPresets(next) {
@@ -1109,19 +1131,23 @@ export function App() {
     function up(ev) {
       document.removeEventListener('mousemove', move);
       document.removeEventListener('mouseup', up);
-      if (moved) {
+      document.removeEventListener('pointercancel', up);
+      window.removeEventListener('blur', up);
+      if (moved && ev && typeof ev.clientX === 'number') {
         const r = rectFrom(ev);
         const hit = design.layers.filter(l => !l.locked && !l.hidden &&
           l.x < r.x + r.w && l.x + l.w > r.x && l.y < r.y + r.h && l.y + l.h > r.y).map(l => l.id);
         setSelectedIds(hit);
         if (hit.length) setRightTab('properties');
-      } else {
+      } else if (!moved) {
         setSelectedIds([]);
       }
       setMarquee(null);
     }
     document.addEventListener('mousemove', move);
     document.addEventListener('mouseup', up);
+    document.addEventListener('pointercancel', up);
+    window.addEventListener('blur', up);
   }
 
   function applyPreset(formatId) {
@@ -1177,6 +1203,11 @@ export function App() {
     function up() {
       document.removeEventListener('mousemove', move);
       document.removeEventListener('mouseup', up);
+      // Safety net: if the button is released outside the window the document
+      // 'mouseup' never fires, so we'd leak `move` and double-bind on the next
+      // drag. window 'blur' / 'pointercancel' end the drag cleanly in that case.
+      document.removeEventListener('pointercancel', up);
+      window.removeEventListener('blur', up);
       setSnapGuides([]);                  // always clear guides on drag end
       inDragRef.current = false;
       // Commit the post-drag state as a single history step. setTimeout(0)
@@ -1185,6 +1216,8 @@ export function App() {
     }
     document.addEventListener('mousemove', move);
     document.addEventListener('mouseup', up);
+    document.addEventListener('pointercancel', up);
+    window.addEventListener('blur', up);
   }
 
   function startLayerDrag(e, layer) {
@@ -1492,10 +1525,14 @@ export function App() {
     function up() {
       document.removeEventListener('mousemove', move);
       document.removeEventListener('mouseup', up);
+      document.removeEventListener('pointercancel', up);
+      window.removeEventListener('blur', up);
       document.body.style.cursor = '';
     }
     document.addEventListener('mousemove', move);
     document.addEventListener('mouseup', up);
+    document.addEventListener('pointercancel', up);
+    window.addEventListener('blur', up);
   }
   function onStagePointerDown(e) {
     // Middle-mouse or Space+left-mouse → pan.
@@ -1524,11 +1561,19 @@ export function App() {
       spaceHeldRef.current = false;
       document.body.classList.remove('space-pan');
     }
+    // If focus leaves the window while Space is held, the keyup is delivered
+    // elsewhere and the pan state would stick on — clear it on blur.
+    function blur() {
+      spaceHeldRef.current = false;
+      document.body.classList.remove('space-pan');
+    }
     document.addEventListener('keydown', down);
     document.addEventListener('keyup', up);
+    window.addEventListener('blur', blur);
     return () => {
       document.removeEventListener('keydown', down);
       document.removeEventListener('keyup', up);
+      window.removeEventListener('blur', blur);
       document.body.classList.remove('space-pan');
     };
   }, []);

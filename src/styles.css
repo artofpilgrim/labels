@@ -36,7 +36,10 @@ input, textarea { font-family: inherit; }
 
 .app {
   display: grid;
-  grid-template-columns: 56px 300px 1fr 340px;
+  /* Side tracks are elastic (minmax floor 0) so they yield to the canvas as the
+     viewport narrows; the canvas keeps a 320px floor instead of collapsing to 0
+     and disappearing behind the panels (which the fixed 696px of tracks caused). */
+  grid-template-columns: 56px minmax(0, 300px) minmax(320px, 1fr) minmax(0, 340px);
   grid-template-rows: 56px 1fr;
   grid-template-areas:
     "topbar topbar topbar topbar"
@@ -509,6 +512,10 @@ button.icon-btn:hover { color: var(--ink); border-color: var(--ink); }
 body.space-pan .canvas-stage { cursor: grab; }
 body.space-pan .label-wrap   { pointer-events: none; }
 body.space-pan .label-wrap * { cursor: grab; }
+/* The selection/resize handles opt back into pointer-events, so without this
+   they'd still capture a Space-pan press and start a resize instead of panning. */
+body.space-pan .overlay,
+body.space-pan .overlay * { pointer-events: none !important; }
 
 .label-wrap {
   filter: drop-shadow(0 28px 56px rgba(40, 30, 20, 0.18))
