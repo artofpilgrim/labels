@@ -2939,7 +2939,9 @@ export function App() {
 
         <div className="canvas-bottom">
           <span className="dim-readout">{design.width} × {design.height}px</span>
-          <span className="canvas-credit">Symbols are official ISO 7010 plates from Wikimedia Commons.</span>
+          <span className="canvas-credit" title="Labels are provided as-is — you are responsible for ensuring they meet applicable safety regulations. Symbols from Wikimedia Commons (ISO 7010, GHS, ISO 7001).">
+            Provided as-is — you're responsible for meeting applicable safety regulations. Symbols: Wikimedia Commons (ISO 7010 · GHS · ISO 7001).
+          </span>
           <div className="canvas-zoom">
             <button className={`icon-btn${zoomMode === 'fit' ? ' on' : ''}`} aria-pressed={zoomMode === 'fit'} title="Fit to viewport" onClick={() => setZoomMode('fit')}>⤢</button>
             <button className="icon-btn" title="Zoom out" onClick={zoomOut}>−</button>
