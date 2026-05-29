@@ -1,6 +1,6 @@
 // Hazard Label Studio — layer-based editor.
 import { useState, useRef, useEffect, useCallback, useId } from 'react';
-import { SEVERITY, FORMATS, PRESETS, newLayer, Label } from './Label.jsx';
+import { SEVERITY, FORMATS, PRESETS, newLayer, starPoints, Label } from './Label.jsx';
 import { PICTOGRAMS } from './pictograms.js';
 import { loadSymbols } from './symbols.js';
 import { uid } from './uid.js';
@@ -3236,8 +3236,21 @@ function ImageProps({ layer, onChange, cache }) {
 }
 
 function PolygonProps({ layer, onChange }) {
+  const isStar = layer.shape === 'star';
+  const sides = layer.sides || 5;
+  const inner = layer.inner == null ? 0.42 : layer.inner;
   return (
     <>
+      {isStar && (
+        <Field label="Star">
+          <Row><Slider ariaLabel="Star points" label="Points"
+                       value={sides} min={3} max={12} step={1}
+                       onChange={v => onChange({ sides: v, points: starPoints(v, inner) })} /></Row>
+          <Row><Slider ariaLabel="Star spikiness" label="Spikiness"
+                       value={Number((1 - inner).toFixed(2))} min={0.1} max={0.85} step={0.01}
+                       onChange={v => { const ni = 1 - v; onChange({ inner: ni, points: starPoints(sides, ni) }); }} /></Row>
+        </Field>
+      )}
       <Field label="Fill">
         <ColorInput value={layer.fill === 'none' ? '#FFFFFF' : (layer.fill || '#000000')}
                     onChange={v => onChange({ fill: v, bindSeverity: null })} />

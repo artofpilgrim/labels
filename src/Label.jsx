@@ -508,20 +508,25 @@ function regularPoly(n, rotDeg) {
   }
   return pts;
 }
+// n-pointed star inscribed in the box: 2n vertices alternating between the outer
+// radius (0.5) and `inner`. inner is the inner-radius as a fraction of 0.5, so
+// smaller = spikier. Defaults reproduce the original 5-point star (0.21/0.5).
+function starPoints(n, inner) {
+  const pts = [];
+  const r0 = 0.5, ri = (inner == null ? 0.42 : inner) * 0.5;
+  for (let i = 0; i < n * 2; i++) {
+    const a = -Math.PI / 2 + (i * Math.PI) / n;
+    const r = i % 2 === 0 ? r0 : ri;
+    pts.push({ x: 0.5 + r * Math.cos(a), y: 0.5 + r * Math.sin(a) });
+  }
+  return pts;
+}
 const SHAPE_POINTS = {
   triangle: [{ x: 0.5, y: 0 }, { x: 1, y: 1 }, { x: 0, y: 1 }],
   diamond: [{ x: 0.5, y: 0 }, { x: 1, y: 0.5 }, { x: 0.5, y: 1 }, { x: 0, y: 0.5 }],
   pentagon: regularPoly(5, -90),
   hexagon: regularPoly(6, -90),
-  star: (() => {
-    const pts = [];
-    for (let i = 0; i < 10; i++) {
-      const a = -Math.PI / 2 + (i * Math.PI) / 5;
-      const r = i % 2 === 0 ? 0.5 : 0.21;
-      pts.push({ x: 0.5 + r * Math.cos(a), y: 0.5 + r * Math.sin(a) });
-    }
-    return pts;
-  })(),
+  star: starPoints(5, 0.42),
 };
 
 function makeStop(W, H) {
@@ -834,12 +839,15 @@ function newLayer(type, W, H) {
     case 'ellipse':
       return L({ name: 'Circle', type: 'ellipse', x: cx - 80, y: cy - 80, w: 160, h: 160,
         fill: '#1057A8' });
+    case 'star':
+      return L({ name: 'Star', type: 'polygon', shape: 'star', sides: 5, inner: 0.42,
+        x: cx - 80, y: cy - 80, w: 160, h: 160,
+        points: starPoints(5, 0.42), fill: '#1057A8' });
     case 'triangle':
     case 'diamond':
     case 'pentagon':
     case 'hexagon':
-    case 'star':
-      return L({ name: type.charAt(0).toUpperCase() + type.slice(1), type: 'polygon',
+      return L({ name: type.charAt(0).toUpperCase() + type.slice(1), type: 'polygon', shape: type,
         x: cx - 80, y: cy - 80, w: 160, h: 160,
         points: SHAPE_POINTS[type].map(p => ({ x: p.x, y: p.y })), fill: '#1057A8' });
     default: return null;
@@ -953,4 +961,4 @@ const Label = forwardRef(function Label({ design, symbolsReady, onLayerPointerDo
   );
 });
 
-export { SEVERITY, FORMATS, PRESETS, newLayer, Label };
+export { SEVERITY, FORMATS, PRESETS, newLayer, starPoints, Label };
