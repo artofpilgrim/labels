@@ -1302,6 +1302,11 @@ export function App() {
 
   // ----- canvas → layer event router -----
   function onLayerPointerDown(layerId, e) {
+    // Middle/right-button presses and Space-held (hand-tool) presses are PAN
+    // gestures, not layer drags. Bail WITHOUT stopPropagation so the event
+    // bubbles to the canvas stage's pan branch — otherwise beginDrag's
+    // stopPropagation swallows it and we'd drag the layer instead of panning.
+    if (e.button !== 0 || spaceHeldRef.current) return;
     const layer = design.layers.find(l => l.id === layerId);
     if (!layer) return;
     // Locked layers (incl. the canvas-fill background) aren't selectable here —
@@ -1539,16 +1544,27 @@ export function App() {
       setTimeout(() => setExportMsg(''), 2200);
       return;
     }
+    // A symbol whose fetch failed is cached as '' (symbols.js), so pictoHref
+    // returns '' and that <image> layer renders to nothing — silently absent
+    // from the export. Detect it so we don't report a clean success for a
+    // hazard label that's missing its (safety-critical) pictograms.
+    const missing = design.layers.filter(
+      l => l.type === 'image' && !l.hidden && l.symbol && !symbolCache[l.symbol]
+    ).length;
+    const note = missing
+      ? ` — ${missing} symbol${missing > 1 ? 's' : ''} failed to load; reload and re-export`
+      : '';
+    const hold = missing ? 4200 : 2200;
     const name = slug(docName);
     if (kind === 'svg') {
       exportSvg(svg, name);
-      setExportMsg('Exported SVG');
-      setTimeout(() => setExportMsg(''), 2200);
+      setExportMsg('Exported SVG' + note);
+      setTimeout(() => setExportMsg(''), hold);
     } else {
       setExportMsg('Rendering PNG…');
       exportPng(svg, name, scale, (ok) => {
-        setExportMsg(ok ? `Exported PNG @${scale}×` : `PNG too large at ${scale}× — try a smaller scale`);
-        setTimeout(() => setExportMsg(''), 2600);
+        setExportMsg(ok ? `Exported PNG @${scale}×` + note : `PNG too large at ${scale}× — try a smaller scale`);
+        setTimeout(() => setExportMsg(''), ok ? hold : 2600);
       });
     }
   }

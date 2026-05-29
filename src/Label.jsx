@@ -328,7 +328,15 @@ function makeAnsiHeader(W, H, severity) {
 function makeAnsiSide(W, H, severity) {
   const sev = SEVERITY[severity];
   const bandW = Math.max(80, W * 0.18);
-  const signalSize = Math.min(bandW * 0.58, H * 0.18);
+  // The signal word is rotated -90° to run up the band, so its text flows along
+  // the band's long (vertical) axis. Size the layout to that axis and shrink the
+  // font just enough that the actual word (e.g. the multi-word "SAFETY FIRST")
+  // fits on ONE line — otherwise it wraps and the extra lines stack sideways out
+  // of the narrow band. 0.7 ≈ per-char glyph + letter-spacing budget, leaving
+  // slack over wrapLines' 0.62 so it never breaks.
+  const wordRun = H * 0.86;
+  const signalSize = Math.min(bandW * 0.58, H * 0.18, wordRun / (sev.word.length * 0.7));
+  const signalLH = signalSize * 1.2;
   const padX = W * 0.04;
   const pictoBox = Math.min(H * 0.7, (W - bandW) * 0.34);
   const pictoX = bandW + padX;
@@ -345,13 +353,12 @@ function makeAnsiSide(W, H, severity) {
         pinSides: { top: true, left: true, bottom: true },
         clipToCanvas: true }),
     L({ name: 'Signal word', type: 'text',
-        x: 0, y: H / 2 - signalSize / 2,
-        w: bandW, h: signalSize * 1.2,
+        x: bandW / 2 - wordRun / 2, y: H / 2 - signalLH / 2,
+        w: wordRun, h: signalLH,
         text: sev.word, fontSize: signalSize, fontWeight: 900,
         fill: sev.bandInk, bindSeverity: 'bandInk',
         align: 'middle', uppercase: true, letterSpacing: 0.06,
-        rotation: -90,
-        pinSides: { top: true, left: true, bottom: true } }),
+        rotation: -90 }),
     L({ name: 'Pictogram', type: 'image', x: pictoX, y: pictoY, w: pictoBox, h: pictoBox, symbol: 'bolt',
         pinSides: { top: true, left: true } }),
     L({ name: 'Title', type: 'text',
