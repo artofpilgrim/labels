@@ -374,6 +374,40 @@ function PictoTile({ id, active, onClick, cache }) {
   );
 }
 
+// Symbol categories in display order. The picker groups tiles under these so the
+// full ISO 7010 catalog stays navigable; each PICTOGRAMS entry's `kind` maps here.
+const PICTO_GROUPS = [
+  ['warning', 'Warning'],
+  ['prohibition', 'Prohibition'],
+  ['mandatory', 'Mandatory'],
+  ['safe', 'Safe condition'],
+  ['fire', 'Fire equipment'],
+];
+
+// Grouped pictogram picker, shared by the Symbols tab and the image-layer
+// properties panel. activeId highlights the current symbol; onPick(id) applies.
+function SymbolPicker({ activeId, onPick, cache }) {
+  const ids = Object.keys(PICTOGRAMS);
+  return (
+    <div className="picto-groups">
+      {PICTO_GROUPS.map(([kind, label]) => {
+        const group = ids.filter(id => PICTOGRAMS[id].kind === kind);
+        if (!group.length) return null;
+        return (
+          <div key={kind} className="picto-group">
+            <div className="picto-group-label">{label}</div>
+            <div className="picto-grid">
+              {group.map(id => (
+                <PictoTile key={id} id={id} active={activeId === id} onClick={() => onPick(id)} cache={cache} />
+              ))}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 // ----------- Layer-type glyph (for layer list rows) -----------
 function LayerGlyph({ type }) {
   const stroke = 'currentColor';
@@ -1911,29 +1945,23 @@ export function App() {
 
   const symbolsField = (
     <Field label="Symbols" hint="Click to apply to the selected symbol layer, or add a new one.">
-      <div className="picto-grid">
-        {Object.keys(PICTOGRAMS).map(id => (
-          <PictoTile
-            key={id}
-            id={id}
-            active={!!selectedLayer && selectedLayer.type === 'image' && selectedLayer.symbol === id}
-            onClick={() => {
-              if (selectedLayer && selectedLayer.type === 'image') {
-                setLayer(selectedLayer.id, { symbol: id });
-              } else {
-                const nl = newLayer('image', design.width, design.height);
-                if (nl) {
-                  nl.symbol = id;
-                  setDesign(d => ({ ...d, layers: [...d.layers, nl] }));
-                  setSelectedIds([nl.id]);
-                  setRightTab('properties');
-                }
-              }
-            }}
-            cache={symbolCache}
-          />
-        ))}
-      </div>
+      <SymbolPicker
+        activeId={selectedLayer && selectedLayer.type === 'image' ? selectedLayer.symbol : null}
+        cache={symbolCache}
+        onPick={(id) => {
+          if (selectedLayer && selectedLayer.type === 'image') {
+            setLayer(selectedLayer.id, { symbol: id });
+          } else {
+            const nl = newLayer('image', design.width, design.height);
+            if (nl) {
+              nl.symbol = id;
+              setDesign(d => ({ ...d, layers: [...d.layers, nl] }));
+              setSelectedIds([nl.id]);
+              setRightTab('properties');
+            }
+          }
+        }}
+      />
     </Field>
   );
 
@@ -2558,17 +2586,7 @@ function ImageProps({ layer, onChange, cache }) {
   return (
     <>
       <Field label="Symbol" hint="Official ISO 7010 plates.">
-        <div className="picto-grid">
-          {Object.keys(PICTOGRAMS).map(id => (
-            <PictoTile
-              key={id}
-              id={id}
-              active={layer.symbol === id}
-              onClick={() => onChange({ symbol: id })}
-              cache={cache}
-            />
-          ))}
-        </div>
+        <SymbolPicker activeId={layer.symbol} cache={cache} onPick={(id) => onChange({ symbol: id })} />
       </Field>
       <Field label="Aspect">
         <Seg

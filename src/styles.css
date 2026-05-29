@@ -266,6 +266,11 @@ button.icon-btn:hover { color: var(--ink); border-color: var(--ink); }
 .format-tile.on span { color: var(--ink); }
 
 /* ---------- Pictogram grid ---------- */
+.picto-groups { display: flex; flex-direction: column; gap: 14px; }
+.picto-group-label {
+  font-size: 10px; letter-spacing: 1.2px; text-transform: uppercase;
+  color: var(--muted); margin-bottom: 6px;
+}
 .picto-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
