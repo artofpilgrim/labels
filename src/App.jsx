@@ -270,15 +270,26 @@ function PinSidesControl({ value, onChange }) {
   const v = value || {};
   function toggle(side) {
     const next = { ...v, [side]: !v[side] };
+    // Center and edge pins on the same axis are mutually exclusive: a layer
+    // either tracks the centre OR keeps an edge offset, not both. Clear the
+    // conflicting pins so the UI can never express an ambiguous constraint.
+    if (next[side]) {
+      if (side === 'centerX') { next.left = false; next.right = false; }
+      else if (side === 'left' || side === 'right') next.centerX = false;
+      else if (side === 'centerY') { next.top = false; next.bottom = false; }
+      else if (side === 'top' || side === 'bottom') next.centerY = false;
+    }
     // Strip empty so the layer doesn't carry meaningless { } around.
-    const any = next.top || next.right || next.bottom || next.left;
+    const any = next.top || next.right || next.bottom || next.left || next.centerX || next.centerY;
     onChange(any ? next : null);
   }
   const sides = [
-    { id: 'top',    label: 'Top' },
-    { id: 'right',  label: 'Right' },
-    { id: 'bottom', label: 'Bottom' },
-    { id: 'left',   label: 'Left' },
+    { id: 'top',     label: 'Top' },
+    { id: 'right',   label: 'Right' },
+    { id: 'bottom',  label: 'Bottom' },
+    { id: 'left',    label: 'Left' },
+    { id: 'centerX', label: 'Center ↔' },
+    { id: 'centerY', label: 'Center ↕' },
   ];
   return (
     <div className="pin-control">
@@ -292,6 +303,10 @@ function PinSidesControl({ value, onChange }) {
         <div className={`pin-edge pin-left ${v.left ? 'on' : ''}`}
              onClick={() => toggle('left')} title="Pin left" />
         <div className="pin-center" />
+        <div className={`pin-cline pin-cx ${v.centerX ? 'on' : ''}`}
+             onClick={() => toggle('centerX')} title="Center horizontally" />
+        <div className={`pin-cline pin-cy ${v.centerY ? 'on' : ''}`}
+             onClick={() => toggle('centerY')} title="Center vertically" />
       </div>
       <div className="pin-checks">
         {sides.map(s => (
@@ -647,7 +662,10 @@ function Handles({ box, fit, onHandleDown, kind, rotation = 0, onRotateDown, cor
 //   - top    pinned: y stays fixed from the top
 //   - bottom pinned: y shifts so the bottom-edge offset is preserved
 //   - top+bottom both pinned: layer stretches vertically
-//   - same logic horizontally for left/right
+//   - centerY pinned: size unchanged, the layer's centre keeps its offset from
+//     the canvas centre (a centred layer stays centred). Mutually exclusive with
+//     top/bottom in the UI; the branch order enforces it here too.
+//   - same logic horizontally for left/right/centerX
 // Layers without `pinSides` are unchanged on canvas resize (legacy behavior).
 function applyPins(l, oldW, oldH, newW, newH) {
   const pin = l.pinSides;
@@ -658,6 +676,9 @@ function applyPins(l, oldW, oldH, newW, newH) {
   if (left && right) {
     const rightOffset = oldW - (x + w);
     w = Math.max(1, newW - x - rightOffset);
+  } else if (pin.centerX) {
+    const offset = (x + w / 2) - oldW / 2;   // signed distance of layer centre from canvas centre
+    x = newW / 2 + offset - w / 2;           // preserve that offset; width unchanged
   } else if (right && !left) {
     const rightOffset = oldW - (x + w);
     x = newW - w - rightOffset;
@@ -668,6 +689,9 @@ function applyPins(l, oldW, oldH, newW, newH) {
   if (top && bottom) {
     const bottomOffset = oldH - (y + h);
     h = Math.max(1, newH - y - bottomOffset);
+  } else if (pin.centerY) {
+    const offset = (y + h / 2) - oldH / 2;
+    y = newH / 2 + offset - h / 2;
   } else if (bottom && !top) {
     const bottomOffset = oldH - (y + h);
     y = newH - h - bottomOffset;

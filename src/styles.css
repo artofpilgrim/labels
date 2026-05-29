@@ -629,6 +629,19 @@ body.space-pan .overlay * { pointer-events: none !important; }
   border: 1px solid var(--line);
   background: var(--bg-2);
 }
+/* Center-pin toggles: a small "+" inside the layer box. Vertical bar = center
+   horizontally (centerX), horizontal bar = center vertically (centerY). */
+.pin-cline {
+  position: absolute;
+  background: var(--line-strong);
+  cursor: pointer;
+  transition: background .12s;
+  z-index: 1;
+}
+.pin-cline:hover { background: var(--muted); }
+.pin-cline.on { background: var(--accent); }
+.pin-cx { left: 50%; transform: translateX(-50%); top: 17px; bottom: 17px; width: 3px; }
+.pin-cy { top: 50%; transform: translateY(-50%); left: 25px; right: 25px; height: 3px; }
 .pin-edge {
   position: absolute;
   background: var(--line-strong);
