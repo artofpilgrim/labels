@@ -145,19 +145,37 @@ function Seg({ value, onChange, options }) {
   );
 }
 function NumberInput({ value, onChange, min, max, step = 1, suffix, ariaLabel }) {
+  // While the field is focused we show a local draft string of exactly what the
+  // user types. Clamping to [min,max] happens on commit (blur / Enter), NOT on
+  // every keystroke — otherwise typing "1" on the way to "100" snaps up to the
+  // minimum and the following digits append to it (40 -> 400). See draft below.
+  const [draft, setDraft] = useState(null);
+  const display = draft != null ? draft : value;
   return (
     <div className="num-input">
-      <input type="number" value={value} min={min} max={max} step={step}
+      <input type="number" value={display} min={min} max={max} step={step}
              aria-label={ariaLabel || suffix || undefined}
              onChange={e => {
-               // Ignore empty / NaN so clearing the field doesn't propagate
-               // NaN into layer geometry. The caller's state is preserved
-               // until the user commits a valid number.
                const raw = e.target.value;
+               setDraft(raw);
+               // Live preview while typing, bounded only by max so the value can
+               // pass through sub-min states ("1") without snapping. The min is
+               // enforced on blur.
                if (raw === '' || raw === '-') return;
                const n = Number(raw);
-               if (Number.isFinite(n)) onChange(n);
-             }} />
+               if (Number.isFinite(n)) onChange(max != null ? Math.min(max, n) : n);
+             }}
+             onBlur={e => {
+               const n = Number(e.target.value);
+               if (Number.isFinite(n)) {
+                 let r = n;
+                 if (max != null) r = Math.min(max, r);
+                 if (min != null) r = Math.max(min, r);
+                 onChange(r);
+               }
+               setDraft(null);   // revert to the committed value
+             }}
+             onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }} />
       {suffix && <span>{suffix}</span>}
     </div>
   );
@@ -201,13 +219,12 @@ function Slider({ value, onChange, min = 0, max = 100, step = 1, label, ariaLabe
   // Display precision matches step granularity — for step=0.5 we show 2.5,
   // not Math.round(2.5)=3 which would silently disagree with stored state.
   const display = Number.isInteger(step) ? Math.round(v) : Number(v.toFixed(2));
-  const commit = (raw) => {
-    if (raw === '' || raw === '-') return;
-    const n = Number(raw);
-    // Clamp to the slider's bounds so the numeric field can't commit a value
-    // the range track can't represent (e.g. typing 9999 into a 0–100 dial).
-    if (Number.isFinite(n)) onChange(Math.min(max, Math.max(min, n)));
-  };
+  const clamp = (n) => Math.min(max, Math.max(min, n));
+  // The range track can never go out of bounds, so it clamps live. The numeric
+  // companion holds a local draft while focused and only clamps to [min,max] on
+  // commit (blur / Enter) — clamping mid-keystroke corrupts typed values when
+  // min > 0 (the same snap-to-min bug as NumberInput).
+  const [draft, setDraft] = useState(null);
   return (
     <div className={`slider${label ? ' has-label' : ''}`}>
       {label && <span className="slider-label">{label}</span>}
@@ -216,15 +233,27 @@ function Slider({ value, onChange, min = 0, max = 100, step = 1, label, ariaLabe
         type="range"
         aria-label={name}
         value={Math.min(max, Math.max(min, v))}
-        onChange={e => commit(e.target.value)}
+        onChange={e => { const n = Number(e.target.value); if (Number.isFinite(n)) onChange(clamp(n)); }}
         min={min} max={max} step={step}
       />
       <input
         className="slider-num"
         type="number"
         aria-label={name ? `${name} value` : undefined}
-        value={display}
-        onChange={e => commit(e.target.value)}
+        value={draft != null ? draft : display}
+        onChange={e => {
+          const raw = e.target.value;
+          setDraft(raw);
+          if (raw === '' || raw === '-') return;
+          const n = Number(raw);
+          if (Number.isFinite(n)) onChange(Math.min(max, n));   // upper bound live; min on blur
+        }}
+        onBlur={e => {
+          const n = Number(e.target.value);
+          if (Number.isFinite(n)) onChange(clamp(n));
+          setDraft(null);
+        }}
+        onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }}
         min={min} max={max} step={step}
       />
     </div>
