@@ -9,7 +9,7 @@ A browser-based editor for designing industrial hazard, safety, and chemical (GH
 ## Why I built this
 
 For years, whenever I needed a warning or safety label I'd fire up Photoshop and
-hand-make one from scratch — or worse, fake a made-up one — every single time.
+hand-make one from scratch, or put together a made-up one — every single time.
 I got tired of repeating that slow, fiddly process. Hazard Label Studio is my
 attempt to make it **quick, free, and open**: pick a template or a pictogram,
 edit it in the browser, export, done — no Photoshop, no licences, no accounts.
