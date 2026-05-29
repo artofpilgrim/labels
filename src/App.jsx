@@ -329,7 +329,7 @@ function PinSidesControl({ value, onChange }) {
 
 // Editor for a rect's per-corner radius. The stored value is either a number
 // (uniform) or { tl, tr, br, bl }; the toggle flips between the two.
-function CornerRadius({ value, onChange, max }) {
+function CornerRadius({ value, onChange, max, corner, onCorner }) {
   const linked = typeof value === 'number' || value == null;
   const cap = Math.max(0, max);
   const v = linked
@@ -354,6 +354,13 @@ function CornerRadius({ value, onChange, max }) {
 
   return (
     <div className="corner-radius">
+      {onCorner && (
+        <Seg
+          value={corner === 'chamfer' ? 'chamfer' : 'round'}
+          onChange={c => onCorner(c === 'chamfer' ? 'chamfer' : null)}
+          options={[{ value: 'round', label: 'Round' }, { value: 'chamfer', label: 'Chamfer' }]}
+        />
+      )}
       <Slider label={linked ? 'All' : 'TL'} value={v.tl} onChange={n => linked ? onChange(n) : setCorner('tl', n)} max={cap} />
       {!linked && (
         <>
@@ -2462,7 +2469,8 @@ export function App() {
                 </Row>
               </Field>
               <Field label="Corner radius">
-                <CornerRadius value={bg.radius || 0} onChange={v => setLayer(bg.id, { radius: v })} max={maxR} />
+                <CornerRadius value={bg.radius || 0} onChange={v => setLayer(bg.id, { radius: v })} max={maxR}
+                              corner={bg.corner} onCorner={c => setLayer(bg.id, { corner: c })} />
               </Field>
             </Section>
           </>
@@ -3229,7 +3237,8 @@ function RectProps({ layer, onChange }) {
         </Row>
       </Field>
       <Field label="Corner radius">
-        <CornerRadius value={layer.radius || 0} onChange={v => onChange({ radius: v })} max={maxR} />
+        <CornerRadius value={layer.radius || 0} onChange={v => onChange({ radius: v })} max={maxR}
+                      corner={layer.corner} onCorner={c => onChange({ corner: c })} />
       </Field>
     </>
   );

@@ -62,7 +62,7 @@ function resolveFill(value, bind, sev) {
 // too so the stroke's VISIBLE OUTER edge — which sits sw/2 outside the
 // centerline — lands on the same curve the fill draws at radius `R`. Without
 // this subtraction the stroke's outer escapes past the fill at corners.
-function rectPath(x, y, w, h, radius, strokeWidth) {
+function rectPath(x, y, w, h, radius, strokeWidth, corner) {
   const inset = (strokeWidth || 0) / 2;
   const xx = x + inset;
   const yy = y + inset;
@@ -88,16 +88,20 @@ function rectPath(x, y, w, h, radius, strokeWidth) {
   const s = Math.min(scaleTop, scaleBottom, scaleLeft, scaleRight);
   tl *= s; tr *= s; br *= s; bl *= s;
 
+  // A chamfer cuts the corner straight between the same two points the arc would
+  // connect, so we just swap the arc command for a line — radius/clamping shared.
+  const chamfer = corner === 'chamfer';
+  const c = (r, ex, ey) => r > 0 ? (chamfer ? `L ${ex} ${ey}` : `A ${r} ${r} 0 0 1 ${ex} ${ey}`) : '';
   return [
     `M ${xx + tl} ${yy}`,
     `H ${xx + ww - tr}`,
-    tr > 0 ? `A ${tr} ${tr} 0 0 1 ${xx + ww} ${yy + tr}` : '',
+    c(tr, xx + ww, yy + tr),
     `V ${yy + hh - br}`,
-    br > 0 ? `A ${br} ${br} 0 0 1 ${xx + ww - br} ${yy + hh}` : '',
+    c(br, xx + ww - br, yy + hh),
     `H ${xx + bl}`,
-    bl > 0 ? `A ${bl} ${bl} 0 0 1 ${xx} ${yy + hh - bl}` : '',
+    c(bl, xx, yy + hh - bl),
     `V ${yy + tl}`,
-    tl > 0 ? `A ${tl} ${tl} 0 0 1 ${xx + tl} ${yy}` : '',
+    c(tl, xx + tl, yy),
     'Z',
   ].filter(Boolean).join(' ');
 }
@@ -120,8 +124,8 @@ function renderLayer(l, sev, symbolsReady) {
       // Without this, a strokeWidth/2 transparent gutter would appear
       // around the fill until the stroke painted over it.
       const fillPath = l.strokeOnTop
-        ? rectPath(l.x, l.y, l.w, l.h, l.radius, 0)
-        : rectPath(l.x, l.y, l.w, l.h, l.radius, sw);
+        ? rectPath(l.x, l.y, l.w, l.h, l.radius, 0, l.corner)
+        : rectPath(l.x, l.y, l.w, l.h, l.radius, sw, l.corner);
       return (
         <g transform={transform}>
           <path
@@ -869,7 +873,7 @@ const Label = forwardRef(function Label({ design, symbolsReady, onLayerPointerDo
   const bg = design.layers.find(l => l.syncCanvas === 'fill');
   const canvasClipId = 'canvas-clip';
   const canvasClipD = bg
-    ? rectPath(0, 0, design.width, design.height, bg.radius, 0)
+    ? rectPath(0, 0, design.width, design.height, bg.radius, 0, bg.corner)
     : null;
 
   return (
@@ -953,7 +957,7 @@ const Label = forwardRef(function Label({ design, symbolsReady, onLayerPointerDo
         .map(l => (
           <path
             key={`top-${l.id}`}
-            d={rectPath(l.x, l.y, l.w, l.h, l.radius, l.strokeWidth)}
+            d={rectPath(l.x, l.y, l.w, l.h, l.radius, l.strokeWidth, l.corner)}
             fill="none"
             stroke={resolveFill(l.stroke || 'none', l.bindSeverity, sev)}
             strokeWidth={l.strokeWidth}
