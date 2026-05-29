@@ -653,6 +653,29 @@ function reanchorRotated(before, after, mode, cos, sin, alt) {
 
 // Pick a "nice" ruler step (1/2/5 × 10ⁿ) closest to a target raw spacing so
 // tick labels land on round pixel values regardless of zoom.
+// Axis-aligned bounding box of a layer's VISUAL extent, accounting for its
+// rotation about center (same +θ matrix the SVG `rotate()` render uses). For an
+// unrotated layer this returns its own {x,y,w,h} unchanged, so callers that
+// align/select/measure stay correct for both rotated and axis-aligned layers.
+function layerAABB(l) {
+  const deg = l.rotation || 0;
+  if (!deg) return { x: l.x, y: l.y, w: l.w, h: l.h };
+  const rot = deg * Math.PI / 180;
+  const cos = Math.cos(rot), sin = Math.sin(rot);
+  const cx = l.x + l.w / 2, cy = l.y + l.h / 2;
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const [px, py] of [[l.x, l.y], [l.x + l.w, l.y], [l.x + l.w, l.y + l.h], [l.x, l.y + l.h]]) {
+    const dx = px - cx, dy = py - cy;
+    const rx = cx + dx * cos - dy * sin;
+    const ry = cy + dx * sin + dy * cos;
+    if (rx < minX) minX = rx;
+    if (rx > maxX) maxX = rx;
+    if (ry < minY) minY = ry;
+    if (ry > maxY) maxY = ry;
+  }
+  return { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
+}
+
 function niceStep(raw) {
   if (!isFinite(raw) || raw <= 0) return 100;
   const pow = Math.pow(10, Math.floor(Math.log10(raw)));
@@ -830,11 +853,14 @@ export function App() {
   const selectedId = selectedIds.length === 1 ? selectedIds[0] : null;
   const selectedLayer = selectedId ? design.layers.find(l => l.id === selectedId) : null;
   const selectedLayers = selectedIds.length ? design.layers.filter(l => selectedIds.includes(l.id)) : [];
-  const selBounds = selectedLayers.length ? {
-    x: Math.min(...selectedLayers.map(l => l.x)),
-    y: Math.min(...selectedLayers.map(l => l.y)),
-    w: Math.max(...selectedLayers.map(l => l.x + l.w)) - Math.min(...selectedLayers.map(l => l.x)),
-    h: Math.max(...selectedLayers.map(l => l.y + l.h)) - Math.min(...selectedLayers.map(l => l.y)),
+  // Use each layer's rotated visual bounds so the group box / ruler band hug
+  // rotated layers correctly (not their unrotated, smaller boxes).
+  const selBoxes = selectedLayers.map(layerAABB);
+  const selBounds = selBoxes.length ? {
+    x: Math.min(...selBoxes.map(b => b.x)),
+    y: Math.min(...selBoxes.map(b => b.y)),
+    w: Math.max(...selBoxes.map(b => b.x + b.w)) - Math.min(...selBoxes.map(b => b.x)),
+    h: Math.max(...selBoxes.map(b => b.y + b.h)) - Math.min(...selBoxes.map(b => b.y)),
   } : null;
   const editableSel = selectedLayers.filter(l => !l.locked);
 
@@ -1090,20 +1116,26 @@ export function App() {
       const b = sel.length === 1
         ? { x: 0, y: 0, w: d.width, h: d.height }
         : (() => {
-            const x0 = Math.min(...sel.map(l => l.x)), y0 = Math.min(...sel.map(l => l.y));
-            const x1 = Math.max(...sel.map(l => l.x + l.w)), y1 = Math.max(...sel.map(l => l.y + l.h));
+            const boxes = sel.map(layerAABB);
+            const x0 = Math.min(...boxes.map(bb => bb.x)), y0 = Math.min(...boxes.map(bb => bb.y));
+            const x1 = Math.max(...boxes.map(bb => bb.x + bb.w)), y1 = Math.max(...boxes.map(bb => bb.y + bb.h));
             return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
           })();
       const ids = new Set(sel.map(l => l.id));
       return { ...d, layers: d.layers.map(l => {
         if (!ids.has(l.id)) return l;
+        // Align the layer's VISUAL (rotated) bounds to the target edge, then map
+        // back to x/y via the box→AABB offset. For an unrotated layer bb===box
+        // and off===0, so this reduces to the original simple placement.
+        const bb = layerAABB(l);
+        const offX = l.x - bb.x, offY = l.y - bb.y;
         const patch = {};
-        if (kind === 'left') patch.x = b.x;
-        else if (kind === 'cx') patch.x = Math.round(b.x + (b.w - l.w) / 2);
-        else if (kind === 'right') patch.x = b.x + b.w - l.w;
-        else if (kind === 'top') patch.y = b.y;
-        else if (kind === 'cy') patch.y = Math.round(b.y + (b.h - l.h) / 2);
-        else if (kind === 'bottom') patch.y = b.y + b.h - l.h;
+        if (kind === 'left') patch.x = b.x + offX;
+        else if (kind === 'cx') patch.x = Math.round(b.x + (b.w - bb.w) / 2 + offX);
+        else if (kind === 'right') patch.x = b.x + b.w - bb.w + offX;
+        else if (kind === 'top') patch.y = b.y + offY;
+        else if (kind === 'cy') patch.y = Math.round(b.y + (b.h - bb.h) / 2 + offY);
+        else if (kind === 'bottom') patch.y = b.y + b.h - bb.h + offY;
         return { ...l, ...patch };
       }) };
     });
@@ -1202,8 +1234,11 @@ export function App() {
       window.removeEventListener('blur', up);
       if (moved && ev && typeof ev.clientX === 'number') {
         const r = rectFrom(ev);
-        const hit = design.layers.filter(l => !l.locked && !l.hidden &&
-          l.x < r.x + r.w && l.x + l.w > r.x && l.y < r.y + r.h && l.y + l.h > r.y).map(l => l.id);
+        const hit = design.layers.filter(l => {
+          if (l.locked || l.hidden) return false;
+          const b = layerAABB(l);   // test the rotated visual bounds, not the raw box
+          return b.x < r.x + r.w && b.x + b.w > r.x && b.y < r.y + r.h && b.y + b.h > r.y;
+        }).map(l => l.id);
         setSelectedIds(hit);
         if (hit.length) setRightTab('properties');
       } else if (!moved) {
