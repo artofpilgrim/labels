@@ -8,6 +8,8 @@
   --line: #e5e7eb;        /* hairline borders */
   --line-strong: #d1d5db; /* stronger borders / handles */
   --accent: #dc2626;      /* brand red / primary actions */
+  --accent-soft: #fdecec;        /* active/selected tint fill */
+  --accent-soft-border: #f5c2c2; /* active/selected tint border */
   --white: #ffffff;       /* input surfaces */
   --sel: #dc2626;         /* selection handles + guides */
 
@@ -30,6 +32,8 @@
   --line: #2a2f38;
   --line-strong: #3a4150;
   --white: #232932;
+  --accent-soft: rgba(220, 38, 38, .20);
+  --accent-soft-border: rgba(220, 38, 38, .50);
   --shadow: 0 1px 2px rgba(0, 0, 0, .5), 0 2px 8px rgba(0, 0, 0, .45);
   --ring: 0 0 0 3px rgba(220, 38, 38, .28);
 }
@@ -405,7 +409,7 @@ button.icon-btn:hover { color: var(--ink); border-color: var(--ink); }
   border-color: transparent; color: var(--ink);
 }
 .align-toolbar .icon-btn:hover { background: var(--bg-2); border-color: transparent; }
-.align-toolbar .icon-btn.danger:hover { background: #fdecec; color: var(--accent); }
+.align-toolbar .icon-btn.danger:hover { background: var(--accent-soft); color: var(--accent); }
 .align-toolbar .tb-sep { width: 1px; height: 20px; background: var(--line); margin: 0 5px; }
 
 /* Ruler grid: 26px strips along top + left, label canvas fills the rest. */
@@ -524,7 +528,7 @@ body.space-pan .overlay * { pointer-events: none !important; }
   font-family: inherit; font-size: 12px;
 }
 .ctx-menu button:hover { background: var(--bg-2); }
-.ctx-menu button.danger:hover { background: #fdecec; color: var(--accent); }
+.ctx-menu button.danger:hover { background: var(--accent-soft); color: var(--accent); }
 .ctx-menu button span { color: var(--muted); font-size: 10px; letter-spacing: 0.5px; }
 .ctx-sep { height: 1px; background: var(--line); margin: 4px 6px; }
 
@@ -694,7 +698,7 @@ body.space-pan .overlay * { pointer-events: none !important; }
 .layer-row[draggable="true"]:active { cursor: grabbing; }
 .layer-row.on {
   border-color: var(--sel);
-  background: #fdecec;
+  background: var(--accent-soft);
   outline: 1px solid var(--sel);
   outline-offset: -1px;
 }
@@ -838,7 +842,7 @@ body.space-pan .overlay * { pointer-events: none !important; }
   border-radius: var(--r); color: var(--muted);
 }
 .rail-btn:hover:not(:disabled) { background: var(--bg-2); color: var(--ink); }
-.rail-btn.on { background: #fdecec; color: var(--accent); border-color: #f5c2c2; }
+.rail-btn.on { background: var(--accent-soft); color: var(--accent); border-color: var(--accent-soft-border); }
 .rail-btn:disabled { opacity: 0.4; cursor: default; }
 .rail-spacer { flex: 1; }
 
