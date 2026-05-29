@@ -1,0 +1,5 @@
+node_modules
+dist
+
+# Machine-local Claude Code permission overrides (not for sharing)
+.claude/settings.local.json
