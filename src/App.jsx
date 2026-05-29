@@ -3104,6 +3104,15 @@ function PropertiesPanel({ layer, onChange, cache }) {
             {BLEND_MODES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
           </select>
         </Field>
+        {['rect', 'ellipse', 'polygon'].includes(layer.type) && (
+          <Field label="Hole" hint="Punch this shape through the whole label as a transparent cutout (e.g. a tag hole).">
+            <Seg
+              value={layer.hole ? 'hole' : 'solid'}
+              onChange={v => onChange({ hole: v === 'hole' })}
+              options={[{ value: 'solid', label: 'Solid' }, { value: 'hole', label: 'Hole' }]}
+            />
+          </Field>
+        )}
         <Row>
           <Seg
             value={layer.hidden ? 'hidden' : 'shown'}

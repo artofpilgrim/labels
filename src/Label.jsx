@@ -865,6 +865,21 @@ function newLayer(type, W, H) {
 // ----------- Label component -----------
 // Renders all layers and attaches per-layer mousedown handlers so the parent
 // can drive selection + drag.
+
+// Black geometry for a hole layer, painted into the knockout <mask> (white shows,
+// black cuts). Only the area shapes punch — rect (honors radius/chamfer), ellipse
+// and polygon. Rotation is matched to the on-canvas render.
+function holeMaskNode(l) {
+  const t = l.rotation ? `rotate(${l.rotation} ${l.x + l.w / 2} ${l.y + l.h / 2})` : undefined;
+  if (l.type === 'rect') return <path key={l.id} d={rectPath(l.x, l.y, l.w, l.h, l.radius, 0, l.corner)} fill="black" transform={t} />;
+  if (l.type === 'ellipse') return <ellipse key={l.id} cx={l.x + l.w / 2} cy={l.y + l.h / 2} rx={l.w / 2} ry={l.h / 2} fill="black" transform={t} />;
+  if (l.type === 'polygon') {
+    const pts = (l.points || []).map(p => `${l.x + p.x * l.w},${l.y + p.y * l.h}`).join(' ');
+    return <polygon key={l.id} points={pts} fill="black" transform={t} />;
+  }
+  return null;
+}
+
 const Label = forwardRef(function Label({ design, symbolsReady, onLayerPointerDown, onCanvasPointerDown, onLayerContextMenu }, ref) {
   const svgRef = useRef(null);
   useImperativeHandle(ref, () => ({ getSvg: () => svgRef.current }));
@@ -879,6 +894,13 @@ const Label = forwardRef(function Label({ design, symbolsReady, onLayerPointerDo
   const canvasClipD = bg
     ? rectPath(0, 0, design.width, design.height, bg.radius, 0, bg.corner)
     : null;
+
+  // Layers flagged `hole` knock a transparent cutout through the whole label via
+  // a luminance mask. The white field is oversized so off-canvas content still
+  // shows; the black hole shapes are the only thing removed.
+  const holes = design.layers.filter(l => l.hole && !l.hidden);
+  const holeMaskId = 'hole-mask';
+  const W = design.width, H = design.height;
 
   return (
     <svg
@@ -903,6 +925,15 @@ const Label = forwardRef(function Label({ design, symbolsReady, onLayerPointerDo
           </clipPath>
         </defs>
       )}
+      {holes.length > 0 && (
+        <defs>
+          <mask id={holeMaskId} maskUnits="userSpaceOnUse" x={-W} y={-H} width={W * 3} height={H * 3}>
+            <rect x={-W} y={-H} width={W * 3} height={H * 3} fill="white" />
+            {holes.map(holeMaskNode)}
+          </mask>
+        </defs>
+      )}
+      <g mask={holes.length > 0 ? `url(#${holeMaskId})` : undefined}>
       {design.layers.map(l => {
         const node = renderLayer(l, sev, symbolsReady);
         if (!node) return null;
@@ -972,6 +1003,7 @@ const Label = forwardRef(function Label({ design, symbolsReady, onLayerPointerDo
               : undefined}
           />
         ))}
+      </g>
     </svg>
   );
 });
