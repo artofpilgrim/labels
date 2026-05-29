@@ -41,6 +41,7 @@ export const PICTOGRAMS = {
   W028:        { name: 'Oxidizing substance',   file: 'W028.svg', code: 'W028', kind: 'warning' },
   W029:        { name: 'Pressurized cylinder',  file: 'W029.svg', code: 'W029', kind: 'warning' },
   W035:        { name: 'Falling objects',       file: 'W035.svg', code: 'W035', kind: 'warning' },
+  W030:        { name: 'Hand crushing (press)',  file: 'W030.svg', code: 'W030', kind: 'warning' },
 
   // ---------- Prohibition (P) ----------
   noEntry:     { name: 'No entry',              file: 'P001.svg', code: 'P001', kind: 'prohibition' },
@@ -58,6 +59,22 @@ export const PICTOGRAMS = {
   P028:        { name: 'Do not wear gloves',    file: 'P028.svg', code: 'P028', kind: 'prohibition' },
   P029:        { name: 'No photography',        file: 'P029.svg', code: 'P029', kind: 'prohibition' },
   P031:        { name: 'Do not alter switch',   file: 'P031.svg', code: 'P031', kind: 'prohibition' },
+  P008:        { name: 'No metallic items',     file: 'P008.svg', code: 'P008', kind: 'prohibition' },
+  P009:        { name: 'No climbing',           file: 'P009.svg', code: 'P009', kind: 'prohibition' },
+  P012:        { name: 'No heavy load',         file: 'P012.svg', code: 'P012', kind: 'prohibition' },
+  P014:        { name: 'No metallic implants',  file: 'P014.svg', code: 'P014', kind: 'prohibition' },
+  P015:        { name: 'No reaching in',        file: 'P015.svg', code: 'P015', kind: 'prohibition' },
+  P016:        { name: 'Do not spray with water', file: 'P016.svg', code: 'P016', kind: 'prohibition' },
+  P019:        { name: 'No stepping on surface', file: 'P019.svg', code: 'P019', kind: 'prohibition' },
+  P020:        { name: 'No lift in fire',       file: 'P020.svg', code: 'P020', kind: 'prohibition' },
+  P021:        { name: 'No dogs',               file: 'P021.svg', code: 'P021', kind: 'prohibition' },
+  P023:        { name: 'Do not obstruct',       file: 'P023.svg', code: 'P023', kind: 'prohibition' },
+  P025:        { name: 'No incomplete scaffold', file: 'P025.svg', code: 'P025', kind: 'prohibition' },
+  P027:        { name: 'No lift for people',    file: 'P027.svg', code: 'P027', kind: 'prohibition' },
+  P036:        { name: 'No children',           file: 'P036.svg', code: 'P036', kind: 'prohibition' },
+  P039:        { name: 'No hot works',          file: 'P039.svg', code: 'P039', kind: 'prohibition' },
+  P080:        { name: 'No unauthorized access', file: 'P080.svg', code: 'P080', kind: 'prohibition' },
+  P081:        { name: 'Do not cover appliance', file: 'P081.svg', code: 'P081', kind: 'prohibition' },
 
   // ---------- Mandatory (M) ----------
   M001:        { name: 'General mandatory',     file: 'M001.svg', code: 'M001', kind: 'mandatory' },
@@ -75,6 +92,17 @@ export const PICTOGRAMS = {
   M017:        { name: 'Wear respiratory protection', file: 'M017.svg', code: 'M017', kind: 'mandatory' },
   M018:        { name: 'Wear safety harness',   file: 'M018.svg', code: 'M018', kind: 'mandatory' },
   M026:        { name: 'Wear protective apron', file: 'M026.svg', code: 'M026', kind: 'mandatory' },
+  M006:        { name: 'Disconnect mains plug', file: 'M006.svg', code: 'M006', kind: 'mandatory' },
+  M007:        { name: 'Opaque eye protection', file: 'M007.svg', code: 'M007', kind: 'mandatory' },
+  M011:        { name: 'Wash your hands',       file: 'M011.svg', code: 'M011', kind: 'mandatory' },
+  M012:        { name: 'Use handrail',          file: 'M012.svg', code: 'M012', kind: 'mandatory' },
+  M019:        { name: 'Wear welding mask',     file: 'M019.svg', code: 'M019', kind: 'mandatory' },
+  M020:        { name: 'Wear safety belts',     file: 'M020.svg', code: 'M020', kind: 'mandatory' },
+  M021:        { name: 'Disconnect for maintenance', file: 'M021.svg', code: 'M021', kind: 'mandatory' },
+  M056:        { name: 'Ventilate before entering', file: 'M056.svg', code: 'M056', kind: 'mandatory' },
+  M057:        { name: 'Continuous ventilation', file: 'M057.svg', code: 'M057', kind: 'mandatory' },
+  M058:        { name: 'Entry with supervisor', file: 'M058.svg', code: 'M058', kind: 'mandatory' },
+  M059:        { name: 'Wear laboratory coat',  file: 'M059.svg', code: 'M059', kind: 'mandatory' },
 
   // ---------- Safe condition (E) ----------
   E001:        { name: 'Emergency exit (left)', file: 'E001.svg', code: 'E001', kind: 'safe' },
@@ -87,6 +115,11 @@ export const PICTOGRAMS = {
   E012:        { name: 'Safety shower',         file: 'E012.svg', code: 'E012', kind: 'safe' },
   E013:        { name: 'Stretcher',             file: 'E013.svg', code: 'E013', kind: 'safe' },
   E015:        { name: 'Drinking water',        file: 'E015.svg', code: 'E015', kind: 'safe' },
+  E008:        { name: 'Break to obtain access', file: 'E008.svg', code: 'E008', kind: 'safe' },
+  E009:        { name: 'Doctor',                file: 'E009.svg', code: 'E009', kind: 'safe' },
+  E018:        { name: 'Turn anticlockwise to open', file: 'E018.svg', code: 'E018', kind: 'safe' },
+  E019:        { name: 'Turn clockwise to open', file: 'E019.svg', code: 'E019', kind: 'safe' },
+  E020:        { name: 'Emergency stop button', file: 'E020.svg', code: 'E020', kind: 'safe' },
 
   // ---------- Fire equipment (F) ----------
   F001:        { name: 'Fire extinguisher',     file: 'F001.svg', code: 'F001', kind: 'fire' },
@@ -95,4 +128,7 @@ export const PICTOGRAMS = {
   F004:        { name: 'Firefighting equipment', file: 'F004.svg', code: 'F004', kind: 'fire' },
   F005:        { name: 'Fire alarm call point', file: 'F005.svg', code: 'F005', kind: 'fire' },
   F006:        { name: 'Fire emergency telephone', file: 'F006.svg', code: 'F006', kind: 'fire' },
+  F007:        { name: 'Fire protection door',  file: 'F007.svg', code: 'F007', kind: 'fire' },
+  F016:        { name: 'Fire blanket',          file: 'F016.svg', code: 'F016', kind: 'fire' },
+  F017:        { name: "Firefighters' lift",    file: 'F017.svg', code: 'F017', kind: 'fire' },
 };
