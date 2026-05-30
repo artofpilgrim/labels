@@ -2213,6 +2213,18 @@ export function App() {
     setZoomMode(next);
   }
 
+  // Entering preview frames the label: drop any manual zoom back to fit and
+  // clear the pan so the artwork is centred in the now chrome-free viewport.
+  // (autoFit itself recomputes from the ResizeObserver once the rulers are gone.)
+  function togglePreview() {
+    const entering = !preview;
+    setPreview(entering);
+    if (entering) {
+      setZoomMode('fit');
+      setWrapOffset({ x: 0, y: 0 });
+    }
+  }
+
   // Cursor-anchored zoom: keep the label point under the mouse pinned while
   // the scale changes. We capture the point's label-space coordinates before
   // setting the new zoom, then on the next frame (after React commits) read
@@ -2810,7 +2822,7 @@ export function App() {
                   onClick={() => setTheme(t => (t === 'dark' ? 'light' : 'dark'))}>
             {theme === 'dark' ? '☀' : '☾'}
           </button>
-          <button className={`btn-lg${preview ? ' on' : ''}`} onClick={() => setPreview(p => !p)}>
+          <button className={`btn-lg${preview ? ' on' : ''}`} onClick={togglePreview}>
             {preview ? 'Exit preview' : 'Preview'}
           </button>
           <div className="export-wrap">
