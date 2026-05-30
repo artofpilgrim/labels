@@ -1,5 +1,5 @@
 // Layer-based label renderer.
-import { forwardRef, useImperativeHandle, useRef } from 'react';
+import { forwardRef, useImperativeHandle, useRef, memo } from 'react';
 import { uid } from './uid.js';
 import { pictoHref } from './symbols.js';
 
@@ -880,7 +880,7 @@ function holeMaskNode(l) {
   return null;
 }
 
-const Label = forwardRef(function Label({ design, symbolsReady, onLayerPointerDown, onCanvasPointerDown, onLayerContextMenu }, ref) {
+const Label = memo(forwardRef(function Label({ design, symbolsReady, onLayerPointerDown, onCanvasPointerDown, onLayerContextMenu }, ref) {
   const svgRef = useRef(null);
   useImperativeHandle(ref, () => ({ getSvg: () => svgRef.current }));
 
@@ -1006,6 +1006,6 @@ const Label = forwardRef(function Label({ design, symbolsReady, onLayerPointerDo
       </g>
     </svg>
   );
-});
+}));
 
 export { SEVERITY, FORMATS, PRESETS, newLayer, starPoints, Label };

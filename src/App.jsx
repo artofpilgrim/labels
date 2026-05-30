@@ -1,5 +1,5 @@
 // Hazard Label Studio — layer-based editor.
-import { useState, useRef, useEffect, useCallback, useId } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo, useId } from 'react';
 import { SEVERITY, FORMATS, PRESETS, newLayer, starPoints, Label } from './Label.jsx';
 import { PICTOGRAMS } from './pictograms.js';
 import { loadSymbols } from './symbols.js';
@@ -532,7 +532,7 @@ function PictoTile({ id, active, onClick, cache }) {
   const ref = std ? `${std} ${p.code}` : p.code;
   return (
     <button className={`picto-tile ${active ? 'on' : ''}`} aria-pressed={active} onClick={onClick} title={`${p.name} · ${ref}`}>
-      {src ? <img src={src} alt={p.name} width="44" height="44" style={{ objectFit: 'contain' }} />
+      {src ? <img src={src} alt={p.name} width="44" height="44" loading="lazy" decoding="async" style={{ objectFit: 'contain' }} />
            : <div style={{ width: 44, height: 44 }} />}
       <span>{p.name}</span>
     </button>
@@ -1155,18 +1155,25 @@ export function App() {
   const [selectedIds, setSelectedIds] = useState([]);
   const [marquee, setMarquee] = useState(null); // rubber-band rect in label coords
   const selectedId = selectedIds.length === 1 ? selectedIds[0] : null;
-  const selectedLayer = selectedId ? design.layers.find(l => l.id === selectedId) : null;
-  const selectedLayers = selectedIds.length ? design.layers.filter(l => selectedIds.includes(l.id)) : [];
+  // Selection-derived data is read on every render (and every drag frame). Memoize
+  // it on [design.layers, selectedIds] so it isn't recomputed when unrelated state
+  // changes (pan, zoom, docName, theme) and so the arrays keep a stable identity.
+  const selectedLayer = useMemo(
+    () => (selectedId ? design.layers.find(l => l.id === selectedId) : null),
+    [design.layers, selectedId]);
+  const selectedLayers = useMemo(
+    () => (selectedIds.length ? design.layers.filter(l => selectedIds.includes(l.id)) : []),
+    [design.layers, selectedIds]);
   // Use each layer's rotated visual bounds so the group box / ruler band hug
   // rotated layers correctly (not their unrotated, smaller boxes).
-  const selBoxes = selectedLayers.map(layerAABB);
-  const selBounds = selBoxes.length ? {
+  const selBoxes = useMemo(() => selectedLayers.map(layerAABB), [selectedLayers]);
+  const selBounds = useMemo(() => (selBoxes.length ? {
     x: Math.min(...selBoxes.map(b => b.x)),
     y: Math.min(...selBoxes.map(b => b.y)),
     w: Math.max(...selBoxes.map(b => b.x + b.w)) - Math.min(...selBoxes.map(b => b.x)),
     h: Math.max(...selBoxes.map(b => b.y + b.h)) - Math.min(...selBoxes.map(b => b.y)),
-  } : null;
-  const editableSel = selectedLayers.filter(l => !l.locked);
+  } : null), [selBoxes]);
+  const editableSel = useMemo(() => selectedLayers.filter(l => !l.locked), [selectedLayers]);
 
   // ----- 4-zone shell state -----
   // leftPanel: which view the icon rail shows in the left panel.
@@ -2025,7 +2032,13 @@ export function App() {
   }
 
   // ----- canvas → layer event router -----
-  function onLayerPointerDown(layerId, e) {
+  // <Label> is memoized, so these props MUST keep a stable identity or the whole
+  // SVG re-renders on every App state change (and every drag frame). Keep the
+  // live logic in a ref refreshed each render (so it always sees the current
+  // design/selection) and hand Label thin useCallback wrappers whose identity
+  // never changes.
+  const labelHandlers = useRef({});
+  labelHandlers.current.onLayerPointerDown = (layerId, e) => {
     // Middle/right-button presses and Space-held (hand-tool) presses are PAN
     // gestures, not layer drags. Bail WITHOUT stopPropagation so the event
     // bubbles to the canvas stage's pan branch — otherwise beginDrag's
@@ -2047,12 +2060,12 @@ export function App() {
     if (!inSelection) setSelectedIds([layerId]);
     if (dragIds.length > 1) startGroupDrag(e, dragIds, layerId);
     else startLayerDrag(e, layer);
-  }
-  function onCanvasPointerDown(e) {
+  };
+  labelHandlers.current.onCanvasPointerDown = (e) => {
     startMarquee(e);
-  }
+  };
   // Right-click a layer → select it (if not already) and open the context menu.
-  function onLayerContextMenu(layerId, e) {
+  labelHandlers.current.onLayerContextMenu = (layerId, e) => {
     e.preventDefault();
     const layer = design.layers.find(l => l.id === layerId);
     if (!layer || layer.locked) return;
@@ -2061,7 +2074,10 @@ export function App() {
       x: Math.min(e.clientX, window.innerWidth - 210),
       y: Math.min(e.clientY, window.innerHeight - 360),
     });
-  }
+  };
+  const onLayerPointerDown = useCallback((layerId, e) => labelHandlers.current.onLayerPointerDown(layerId, e), []);
+  const onCanvasPointerDown = useCallback((e) => labelHandlers.current.onCanvasPointerDown(e), []);
+  const onLayerContextMenu = useCallback((layerId, e) => labelHandlers.current.onLayerContextMenu(layerId, e), []);
 
   // ----- keyboard -----
   useEffect(() => {
