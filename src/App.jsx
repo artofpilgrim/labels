@@ -159,6 +159,17 @@ function NumberInput({ value, onChange, min, max, step = 1, suffix, ariaLabel, l
   // re-anchors every layer), so we don't run it on each intermediate digit.
   const [draft, setDraft] = useState(null);
   const display = draft != null ? draft : value;
+  // Custom steppers replace the native spinner. preventDefault on mousedown keeps
+  // the input from blurring so an in-progress draft is stepped, not discarded.
+  const bump = (dir) => {
+    const base = Number(draft != null ? draft : value);
+    let n = (Number.isFinite(base) ? base : 0) + dir * step;
+    if (max != null) n = Math.min(max, n);
+    if (min != null) n = Math.max(min, n);
+    n = Math.round(n * 1e6) / 1e6;   // tidy float drift for fractional steps
+    setDraft(null);
+    onChange(n);
+  };
   return (
     <div className="num-input">
       <input type="number" value={display} min={min} max={max} step={step}
@@ -185,7 +196,17 @@ function NumberInput({ value, onChange, min, max, step = 1, suffix, ariaLabel, l
                setDraft(null);   // revert to the committed value
              }}
              onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }} />
-      {suffix && <span>{suffix}</span>}
+      {suffix && <span className="num-suffix">{suffix}</span>}
+      <span className="num-steppers" aria-hidden="true">
+        <button type="button" tabIndex={-1} className="num-step" aria-label="Increment"
+                onMouseDown={e => e.preventDefault()} onClick={() => bump(1)}>
+          <svg viewBox="0 0 12 12" width="9" height="9"><path d="M2.5 7.5 6 4l3.5 3.5" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" /></svg>
+        </button>
+        <button type="button" tabIndex={-1} className="num-step" aria-label="Decrement"
+                onMouseDown={e => e.preventDefault()} onClick={() => bump(-1)}>
+          <svg viewBox="0 0 12 12" width="9" height="9"><path d="M2.5 4.5 6 8l3.5-3.5" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" /></svg>
+        </button>
+      </span>
     </div>
   );
 }

@@ -174,15 +174,21 @@ input, textarea { font-family: inherit; }
 }
 textarea.text-input { resize: vertical; min-height: 36px; line-height: 1.5; }
 .select-input {
-  background: var(--white);
+  background-color: var(--white);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.75 4.5 6 7.75 9.25 4.5' fill='none' stroke='%236b7280' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 10px center; background-size: 12px;
   border: 1px solid var(--line);
   border-radius: var(--r);
-  padding: 8px 10px;
+  padding: 8px 30px 8px 10px;
   font-size: 12px;
   color: var(--ink);
   width: 100%;
   outline: none;
   cursor: pointer;
+  appearance: none; -webkit-appearance: none;
+}
+[data-theme="dark"] .select-input {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.75 4.5 6 7.75 9.25 4.5' fill='none' stroke='%2399a1ad' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
 }
 .select-input:focus { border-color: var(--accent); box-shadow: var(--ring); }
 .text-input:focus,
@@ -195,16 +201,28 @@ textarea.text-input { resize: vertical; min-height: 36px; line-height: 1.5; }
   background: var(--white);
   border: 1px solid var(--line);
   border-radius: var(--r);
-  padding-right: 8px; flex: 1;
+  padding-right: 4px; flex: 1;
 }
 .num-input input {
   border: 0; padding: 8px 0 8px 10px;
   background: transparent; width: 100%;
 }
-.num-input span {
-  font-family: var(--font);
-  font-size: 10px; color: var(--muted); letter-spacing: 1px;
+/* Drop the inconsistent native number spinners — replaced by custom steppers. */
+.num-input input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
+.num-input input::-webkit-outer-spin-button,
+.num-input input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.num-suffix {
+  font-family: var(--mono);
+  font-size: 10px; color: var(--muted); letter-spacing: 0.06em; padding: 0 2px;
 }
+.num-steppers { display: flex; flex-direction: column; flex: none; }
+.num-step {
+  display: grid; place-items: center; width: 18px; height: 13px; padding: 0;
+  background: transparent; border: 0; color: var(--muted); border-radius: 3px;
+  transition: color .12s ease, background .12s ease;
+}
+.num-step:hover { color: var(--ink); background: var(--bg-2); }
+.num-step:active { color: var(--accent); }
 
 .color-input {
   display: flex; flex-direction: column; gap: 6px; flex: 1;
