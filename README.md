@@ -1,6 +1,6 @@
-# Hazard Label Studio
+# Label Studio
 
-A browser-based editor for designing industrial hazard, safety, and chemical (GHS) labels (ANSI/ISO style) on an SVG canvas, then exporting them as crisp vector **SVG** or high-resolution **PNG**. Everything runs client-side — there is no backend, account, or upload; your work autosaves to the browser.
+A browser-based editor for designing labels of every kind — industrial safety and hazard signs (ANSI/ISO), GHS chemical labels, barcode and asset stickers, shipping labels and more — on an SVG canvas, then exporting them as crisp vector **SVG** or high-resolution **PNG**. Everything runs client-side — there is no backend, account, or upload; your work autosaves to the browser.
 
 **▶ Live: https://artofpilgrim.github.io/labels/**
 
@@ -10,20 +10,23 @@ A browser-based editor for designing industrial hazard, safety, and chemical (GH
 
 For years, whenever I needed a warning or safety label I'd fire up Photoshop and
 hand-make one from scratch, or put together a made-up one — every single time.
-I got tired of repeating that slow, fiddly process. Hazard Label Studio is my
+I got tired of repeating that slow, fiddly process. Label Studio is my
 attempt to make it **quick, free, and open**: pick a template or a pictogram,
 edit it in the browser, export, done — no Photoshop, no licences, no accounts.
+It started with hazard signs and now builds any label — barcode stickers, asset
+tags and shipping labels included.
 
 ## Features
 
 - **Layer-based canvas** — compose labels from text, bullet lists, lines, and shapes (rectangle, circle/ellipse, triangle, diamond, pentagon, hexagon, star).
 - **150+ pictograms** — a searchable library of **ISO 7010** safety signs (warning, mandatory, prohibition, safe-condition, fire), **GHS** hazard diamonds, and **ISO 7001** public-information symbols — plus upload your own image or SVG.
-- **Ready-made templates** — ANSI Header, Side Bar, Tall Banner, ISO Plate, Stop sign, Lockout Tag, Barricade strip, GHS Chemical, PPE Required, Fire Point, First Aid, Prohibition, and a Blank canvas.
+- **Ready-made templates** — ANSI Header, Side Bar, Tall Banner, ISO Plate, Stop sign, Lockout Tag, Barricade strip, GHS Chemical, PPE Required, Fire Point, First Aid, Prohibition, Barcode Label, Asset Tag, Shipping Label, and a Blank canvas.
+- **Barcodes & QR** — generate scannable **Code 39**, dense decorative barcodes, and **QR-style** codes as label layers, right alongside your shapes.
 - **Severity system** — Danger / Warning / Caution / Notice / Safety First; severity-bound layers recolor automatically when you switch.
 - **Direct manipulation** — drag to move, handles to resize, rotate any layer; hold **Ctrl/⌘** while dragging to snap to other layers and the canvas.
 - **Multi-select & arrange** — marquee or Shift-click, then align, distribute, scale, rotate, reorder, duplicate, or delete as a group.
 - **Constraints** — pin a layer's edges so it tracks the canvas on resize, keep it centered, and clip layers to the canvas's rounded shape.
-- **Canvas tools** — pixel rulers, fit-to-viewport, cursor-anchored zoom (Ctrl/⌘ + scroll), Space/middle-mouse panning, and a right-click context menu.
+- **Canvas tools** — pixel rulers, fit-to-viewport, cursor-anchored scroll-wheel zoom, middle-mouse / Space-drag panning, and a right-click context menu.
 - **Light & dark theme**, standard safety-color swatches, and slider-driven property controls.
 - **Undo / redo** with a debounced history, plus reusable **user presets** saved locally.
 - **Export** to SVG (vector) or PNG at 1×–4× scale, or copy the label to the clipboard as a PNG. Pictograms are embedded as data URLs so exports are self-contained.
@@ -43,8 +46,8 @@ edit it in the browser, export, done — no Photoshop, no licences, no accounts.
 | Nudge | Arrow keys (`Shift` = 10px) |
 | Deselect | `Esc` |
 | Snap while dragging | hold `Ctrl/⌘` |
-| Pan | hold `Space` + drag, or middle-mouse drag |
-| Zoom | `Ctrl/⌘` + scroll |
+| Pan | middle-mouse drag (or hold `Space` + drag) |
+| Zoom | scroll wheel |
 
 ## Tech stack
 
@@ -71,10 +74,13 @@ labels/
 ├─ vite.config.js          # base '/labels/' for GitHub Pages; React plugin
 ├─ public/symbols/         # pictogram SVGs: ISO 7010, GHS, ISO 7001 (static assets)
 └─ src/
-   ├─ main.jsx             # React root
+   ├─ main.jsx             # React root — landing ⇄ editor switch
+   ├─ Landing.jsx          # marketing / intro screen
+   ├─ landing.css          # landing-page styles (scoped)
    ├─ App.jsx              # editor: state, undo/redo, drag/resize/rotate/snap,
    │                       #         zoom/pan, rulers, export, and all UI panels
    ├─ Label.jsx            # SVG renderer + layer factory + format presets
+   ├─ barcode.js           # Code 39 / pseudo-barcode / QR-matrix generation
    ├─ symbols.js           # fetches + base64-caches the symbol SVGs
    ├─ pictograms.js        # symbol manifest (grouped: warning, prohibition,
    │                       #   mandatory, safe, fire, ghs, info)

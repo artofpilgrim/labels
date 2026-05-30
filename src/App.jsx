@@ -1,4 +1,4 @@
-// Hazard Label Studio — layer-based editor.
+// Label Studio — layer-based label editor.
 import { useState, useRef, useEffect, useCallback, useMemo, useId } from 'react';
 import { SEVERITY, FORMATS, PRESETS, newLayer, starPoints, Label } from './Label.jsx';
 import { PICTOGRAMS } from './pictograms.js';
@@ -515,6 +515,32 @@ function FormatIcon({ id, active }) {
         <rect x="2" y="2" width={w - 4} height={h - 4} fill="none" stroke={ink} strokeWidth="1.2" />
         <circle cx={w / 2} cy={h / 2} r="10" fill="none" stroke={active ? '#C8102E' : '#bdb398'} strokeWidth="2.6" />
         <line x1={w / 2 - 7.1} y1={h / 2 - 7.1} x2={w / 2 + 7.1} y2={h / 2 + 7.1} stroke={active ? '#C8102E' : '#bdb398'} strokeWidth="2.6" />
+      </svg>);
+    case 'barcode-label':
+      return (<svg viewBox={`0 0 ${w} ${h}`} width={w} height={h}>
+        <rect x="2" y="2" width={w - 4} height={h - 4} fill="none" stroke={ink} strokeWidth="1.2" />
+        {[7, 10, 12, 16, 19, 23, 26, 30, 33, 37, 40].map((x, i) => (
+          <rect key={i} x={x} y="9" width={i % 3 === 0 ? 2 : 1} height="14" fill={ink} />))}
+        <rect x={w / 2 - 7} y="27" width="14" height="3" fill={accent} />
+      </svg>);
+    case 'asset-tag':
+      return (<svg viewBox={`0 0 ${w} ${h}`} width={w} height={h}>
+        <rect x="3" y="4" width={w - 6} height={h - 8} rx="3" fill="none" stroke={ink} strokeWidth="1.2" />
+        <rect x="4" y="5" width={w - 8} height="7" rx="2" fill={ink} />
+        {[9, 12, 14, 18, 21, 25, 28, 32, 35].map((x, i) => (
+          <rect key={i} x={x} y="17" width={i % 2 === 0 ? 2 : 1} height="11" fill={ink} />))}
+        <rect x="11" y="31" width={w - 22} height="2.5" fill={accent} />
+      </svg>);
+    case 'shipping-label':
+      return (<svg viewBox="0 0 36 48" width={w} height={h}>
+        <rect x="2" y="2" width="32" height="44" fill="none" stroke={ink} strokeWidth="1.2" />
+        <line x1="6" y1="9" x2="19" y2="9" stroke={ink} strokeWidth="0.8" />
+        <line x1="6" y1="12.5" x2="15" y2="12.5" stroke={ink} strokeWidth="0.8" />
+        <line x1="2" y1="18" x2="34" y2="18" stroke={ink} strokeWidth="1" />
+        <line x1="6" y1="24" x2="28" y2="24" stroke={ink} strokeWidth="1.6" />
+        <line x1="6" y1="29" x2="23" y2="29" stroke={ink} strokeWidth="1.6" />
+        {[6, 9, 11, 14, 17, 20, 23, 26, 29].map((x, i) => (
+          <rect key={i} x={x} y="38" width={i % 2 === 0 ? 1.6 : 1} height="6" fill={ink} />))}
       </svg>);
     case 'blank':
       return (<svg viewBox={`0 0 ${w} ${h}`} width={w} height={h}>
@@ -2794,15 +2820,14 @@ export function App({ onHome } = {}) {
           onKeyDown={onHome ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onHome(); } } : undefined}
         >
           <div className="brand-mark">
-            <svg viewBox="0 0 24 24" width="20" height="20">
-              <path d="M12 2 L22 20 L2 20 Z" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinejoin="round" />
-              <rect x="11" y="9" width="2" height="6" fill="currentColor" />
-              <circle cx="12" cy="17.5" r="1.2" fill="currentColor" />
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinejoin="round" strokeLinecap="round">
+              <path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z" />
+              <circle cx="7.5" cy="7.5" r="1.3" fill="currentColor" stroke="none" />
             </svg>
           </div>
           <div>
-            <div className="brand-name">Hazard Label Studio</div>
-            <div className="brand-sub">Professional Label Designer</div>
+            <div className="brand-name">Label Studio</div>
+            <div className="brand-sub">Labels · Signs · Stickers</div>
           </div>
         </div>
 

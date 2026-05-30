@@ -43,12 +43,11 @@ function BoltMark() {
   );
 }
 
-function TriangleMark() {
+function TagMark() {
   return (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M12 2 L22 20 L2 20 Z" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinejoin="round" />
-      <rect x="11" y="9" width="2" height="6" fill="currentColor" />
-      <circle cx="12" cy="17.5" r="1.2" fill="currentColor" />
+    <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinejoin="round" strokeLinecap="round">
+      <path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z" />
+      <circle cx="7.5" cy="7.5" r="1.3" fill="currentColor" stroke="none" />
     </svg>
   );
 }
@@ -73,8 +72,8 @@ export function Landing({ skip, onSkipChange, onLaunch }) {
       {/* ---------- Nav ---------- */}
       <header className="l-nav">
         <div className="l-brand">
-          <span className="l-brand-mark"><TriangleMark /></span>
-          <span className="l-brand-name">Hazard Label Studio</span>
+          <span className="l-brand-mark"><TagMark /></span>
+          <span className="l-brand-name">Label Studio</span>
         </div>
         <button className="l-ghost" onClick={onLaunch}>Open the Studio →</button>
       </header>

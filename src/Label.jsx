@@ -386,6 +386,9 @@ const FORMATS = [
   { id: 'fire-point',  name: 'Fire Point',   default: [480, 640] },
   { id: 'first-aid',   name: 'First Aid',    default: [540, 560] },
   { id: 'prohibition', name: 'Prohibition',  default: [480, 600] },
+  { id: 'barcode-label',  name: 'Barcode Label',  default: [620, 360] },
+  { id: 'asset-tag',      name: 'Asset Tag',       default: [560, 380] },
+  { id: 'shipping-label', name: 'Shipping Label',  default: [600, 800] },
   { id: 'blank',       name: 'Blank',       default: [520, 520] },
 ];
 
@@ -886,6 +889,84 @@ function makeProhibition(W, H, severity) {
   ];
 }
 
+// ----------- General-purpose label templates (not severity-driven) -----------
+
+// Retail / barcode sticker: product name, a Code 128 barcode, and a price line.
+function makeBarcodeLabel(W, H) {
+  const padX = W * 0.06;
+  const cw = W - padX * 2;
+  const nameSize = Math.min(cw / 12, 38);
+  return [
+    L({ name: 'Background', type: 'rect', x: 0, y: 0, w: W, h: H, fill: '#FFFFFF', stroke: '#111111', strokeWidth: 2, locked: true, syncCanvas: 'fill', strokeOnTop: true }),
+    L({ name: 'Product name', type: 'text', x: padX, y: H * 0.09, w: cw, h: nameSize * 1.3,
+        text: 'PRODUCT NAME', fontSize: nameSize, fontWeight: 900, fill: '#111111',
+        align: 'middle', uppercase: true, letterSpacing: 0.02, pinSides: { top: true, left: true, right: true } }),
+    L({ name: 'Variant', type: 'text', x: padX, y: H * 0.09 + nameSize * 1.4, w: cw, h: 24,
+        text: 'Variant · Size · Colour', fontSize: Math.min(cw / 30, 16), fontWeight: 500, fill: '#666666',
+        align: 'middle', pinSides: { top: true, left: true, right: true } }),
+    L({ name: 'Barcode', type: 'barcode', variant: 'code128', x: padX, y: H * 0.40, w: cw, h: H * 0.34,
+        data: '0123456789012', fill: '#111111', background: '#FFFFFF', showText: true, quietZone: 10, density: 3,
+        pinSides: { left: true, right: true } }),
+    L({ name: 'Price', type: 'text', x: padX, y: H - H * 0.19, w: cw, h: Math.min(cw / 9, 46) * 1.2,
+        text: '$0.00', fontSize: Math.min(cw / 9, 46), fontWeight: 900, fill: '#111111',
+        align: 'middle', pinSides: { bottom: true, left: true, right: true } }),
+  ];
+}
+
+// Equipment asset tag: dark owner header with a scannable Code 39 ID barcode.
+function makeAssetTag(W, H) {
+  const padX = W * 0.06;
+  const cw = W - padX * 2;
+  const headerH = H * 0.2;
+  const ownerSize = Math.min(cw / 13, 28);
+  return [
+    L({ name: 'Background', type: 'rect', x: 0, y: 0, w: W, h: H, fill: '#FFFFFF', stroke: '#111111', strokeWidth: 3, radius: 16, locked: true, syncCanvas: 'fill', strokeOnTop: true }),
+    L({ name: 'Header band', type: 'rect', x: 0, y: 0, w: W, h: headerH, fill: '#111111', clipToCanvas: true, pinSides: { top: true, left: true, right: true } }),
+    L({ name: 'Owner', type: 'text', x: padX, y: headerH / 2 - ownerSize * 0.6, w: cw * 0.6, h: ownerSize * 1.3,
+        text: 'ACME CORP', fontSize: ownerSize, fontWeight: 900, fill: '#FFFFFF',
+        align: 'start', uppercase: true, letterSpacing: 0.03, pinSides: { top: true, left: true } }),
+    L({ name: 'Kicker', type: 'text', x: padX, y: headerH / 2 - 11, w: cw, h: 22,
+        text: 'ASSET TAG', fontFamily: 'mono', fontSize: Math.min(cw / 22, 18), fontWeight: 700, fill: '#FFD200',
+        align: 'end', uppercase: true, letterSpacing: 0.12, pinSides: { top: true, right: true } }),
+    L({ name: 'Barcode', type: 'barcode', variant: 'code39', x: padX, y: headerH + H * 0.08, w: cw, h: H * 0.34,
+        data: 'AC-0042', fill: '#111111', background: '#FFFFFF', showText: true, quietZone: 10,
+        pinSides: { left: true, right: true } }),
+    L({ name: 'Asset ID', type: 'text', x: padX, y: H - H * 0.2, w: cw, h: 34,
+        text: 'ASSET ID · 0042', fontSize: Math.min(cw / 16, 24), fontWeight: 700, fill: '#111111',
+        align: 'middle', uppercase: true, letterSpacing: 0.05, pinSides: { bottom: true, left: true, right: true } }),
+    L({ name: 'Footer', type: 'text', x: padX, y: H - H * 0.1, w: cw, h: 20,
+        text: 'Property of ACME Corp — do not remove', fontSize: Math.min(cw / 30, 15), fontWeight: 500, fill: '#666666',
+        align: 'middle', pinSides: { bottom: true, left: true, right: true } }),
+  ];
+}
+
+// 4×6 shipping label: FROM / SHIP-TO address blocks + a Code 128 tracking barcode.
+function makeShippingLabel(W, H) {
+  const padX = W * 0.06;
+  const cw = W - padX * 2;
+  const toY = H * 0.27;
+  return [
+    L({ name: 'Background', type: 'rect', x: 0, y: 0, w: W, h: H, fill: '#FFFFFF', stroke: '#111111', strokeWidth: 3, locked: true, syncCanvas: 'fill', strokeOnTop: true }),
+    L({ name: 'From label', type: 'text', x: padX, y: H * 0.04, w: cw, h: 18,
+        text: 'FROM', fontFamily: 'mono', fontSize: 15, fontWeight: 700, fill: '#111111', uppercase: true, letterSpacing: 0.1,
+        pinSides: { top: true, left: true } }),
+    L({ name: 'From address', type: 'text', x: padX, y: H * 0.04 + 22, w: cw * 0.72, h: 72,
+        text: 'Sender Name\n123 Warehouse Way\nCity, ST 00000', fontSize: 17, fontWeight: 500, fill: '#333333', lineHeight: 1.3,
+        pinSides: { top: true, left: true } }),
+    L({ name: 'Divider', type: 'line', x: padX, y: toY - H * 0.03, w: cw, h: 1, stroke: '#111111', strokeWidth: 2,
+        pinSides: { top: true, left: true, right: true } }),
+    L({ name: 'Ship-to label', type: 'text', x: padX, y: toY, w: cw, h: 22,
+        text: 'SHIP TO', fontFamily: 'mono', fontSize: 19, fontWeight: 700, fill: '#111111', uppercase: true, letterSpacing: 0.12,
+        pinSides: { top: true, left: true } }),
+    L({ name: 'Ship-to address', type: 'text', x: padX, y: toY + 32, w: cw, h: 160,
+        text: 'RECIPIENT NAME\n456 Delivery Road\nSuite 100\nBIG CITY, ST 11111', fontSize: 30, fontWeight: 800, fill: '#111111', lineHeight: 1.28, uppercase: true,
+        pinSides: { top: true, left: true, right: true } }),
+    L({ name: 'Tracking barcode', type: 'barcode', variant: 'code128', x: padX, y: H - H * 0.19, w: cw, h: H * 0.12,
+        data: '1Z999AA10123456784', fill: '#111111', background: '#FFFFFF', showText: true, quietZone: 10, density: 4,
+        pinSides: { bottom: true, left: true, right: true } }),
+  ];
+}
+
 const PRESETS = {
   'ansi-header': makeAnsiHeader,
   'ansi-side':   makeAnsiSide,
@@ -899,6 +980,9 @@ const PRESETS = {
   'fire-point':  makeFirePoint,
   'first-aid':   makeFirstAid,
   'prohibition': makeProhibition,
+  'barcode-label':  makeBarcodeLabel,
+  'asset-tag':      makeAssetTag,
+  'shipping-label': makeShippingLabel,
   'blank':       makeBlank,
 };
 

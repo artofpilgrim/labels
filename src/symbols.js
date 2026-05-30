@@ -26,7 +26,7 @@ export async function loadSymbols() {
     } catch (err) {
       // Surface load failures (404 / wrong BASE_URL / offline) so blank tiles
       // are diagnosable instead of silent. The empty entry degrades gracefully.
-      console.warn(`Hazard Label Studio: failed to load symbol "${id}" (${p.file})`, err);
+      console.warn(`Label Studio: failed to load symbol "${id}" (${p.file})`, err);
       return [id, ''];
     }
   }));
