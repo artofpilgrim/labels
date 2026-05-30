@@ -418,19 +418,19 @@ button.icon-btn:hover { color: var(--ink); border-color: var(--ink); }
 
 /* ---------- Align / arrange toolbar (floating) ---------- */
 .align-toolbar {
-  position: absolute; bottom: 50px; left: 50%; transform: translateX(-50%);
-  display: flex; align-items: center; gap: 1px;
+  position: absolute; bottom: 92px; left: 50%; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 2px;
   background: var(--bg); border: 1px solid var(--line);
-  border-radius: 10px; box-shadow: var(--shadow);
-  padding: 4px 6px; z-index: 15;
+  border-radius: 13px; box-shadow: var(--shadow);
+  padding: 6px 9px; z-index: 15;
 }
 .align-toolbar .icon-btn {
-  width: 30px; height: 30px;
+  width: 38px; height: 38px;
   border-color: transparent; color: var(--ink);
 }
 .align-toolbar .icon-btn:hover { background: var(--bg-2); border-color: transparent; }
 .align-toolbar .icon-btn.danger:hover { background: var(--accent-soft); color: var(--accent); }
-.align-toolbar .tb-sep { width: 1px; height: 20px; background: var(--line); margin: 0 5px; }
+.align-toolbar .tb-sep { width: 1px; height: 24px; background: var(--line); margin: 0 6px; }
 
 /* Ruler grid: 26px strips along top + left, label canvas fills the rest. */
 .canvas-rulers {
@@ -728,6 +728,9 @@ body.space-pan .overlay * { pointer-events: none !important; }
 }
 .layer-list::-webkit-scrollbar { width: 6px; }
 .layer-list::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius: var(--r); }
+/* In the right panel the layer list sits above Properties, so cap its height and
+   let it scroll internally — that keeps the selected layer's properties in view. */
+.rightpanel .layer-list { max-height: 34vh; overflow-y: auto; padding-right: 2px; }
 
 .layer-row {
   display: flex; align-items: center;

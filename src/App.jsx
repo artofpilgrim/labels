@@ -662,7 +662,7 @@ function AlignIcon({ axis, pos }) {
     ? [{ x: place(9), y: 4, w: 9, h: 3 }, { x: place(6), y: 9, w: 6, h: 3 }]
     : [{ x: 4, y: place(9), w: 3, h: 9 }, { x: 9, y: place(6), w: 3, h: 6 }];
   return (
-    <svg viewBox="0 0 16 16" width="15" height="15">
+    <svg viewBox="0 0 16 16" width="18" height="18">
       {axis === 'x'
         ? <line x1={G} y1="2" x2={G} y2="14" stroke="currentColor" strokeWidth="1.4" />
         : <line x1="2" y1={G} x2="14" y2={G} stroke="currentColor" strokeWidth="1.4" />}
@@ -1180,9 +1180,11 @@ export function App() {
 
   // ----- 4-zone shell state -----
   // leftPanel: which view the icon rail shows in the left panel.
-  const [leftPanel, setLeftPanel] = useState('templates'); // 'templates' | 'layers'
-  // rightTab: which tab the right properties panel shows.
-  const [rightTab, setRightTab] = useState('properties');  // 'properties' | 'layers' | 'symbols'
+  const [leftPanel, setLeftPanel] = useState('templates'); // 'templates' | 'shapes' | 'symbols'
+  // The right panel now shows Layers + Properties together (no tabs). setRightTab
+  // is kept as a no-op so the many "reveal properties on select" callers stay
+  // valid without editing each one — there's no longer a tab to switch to.
+  const setRightTab = () => {};
   // Editable document title in the top bar; restored from + saved to localStorage.
   const [docName, setDocName] = useState(() => {
     try { return localStorage.getItem(DOC_NAME_KEY) || 'Untitled Label'; }
@@ -2632,7 +2634,7 @@ export function App() {
   const dragLayerRef = useRef(null);
   const [dropTargetId, setDropTargetId] = useState(null);
   const layerStackField = (
-    <Field label="Layer stack" hint="Top of list = front. Click to select, drag to reorder.">
+    <Field hint="Top of list = front. Click to select, drag to reorder.">
       <div className="layer-list">
         {design.layers.slice().reverse().map((l) => (
           <div
@@ -2743,11 +2745,10 @@ export function App() {
 
   const railBtns = [
     { id: 'templates', title: 'Templates', kind: 'panel', icon: 'M2 2h5v5H2zM9 2h5v5H9zM2 9h5v5H2zM9 9h5v5H9z' },
-    { id: 'layers', title: 'Layers', kind: 'panel', icon: 'M8 2l6 3-6 3-6-3zM2 8l6 3 6-3M2 11l6 3 6-3' },
     { id: 'shapes', title: 'Shapes', kind: 'panel', icon: 'M8 2 L14 6.5 L11.6 13.5 H4.4 L2 6.5 Z' },
+    { id: 'symbols', title: 'Symbols', kind: 'panel', icon: 'M8 2l6 11H2z' },
     { id: 'text', title: 'Add text', kind: 'add', type: 'text', icon: 'M3 3h10v2M8 5v8M6 13h4' },
     { id: 'rect', title: 'Add rectangle', kind: 'add', type: 'rect', icon: 'M2.5 4h11v8h-11z' },
-    { id: 'image', title: 'Add symbol', kind: 'add', type: 'image', icon: 'M8 2l6 11H2z' },
     { id: 'list', title: 'Add list', kind: 'add', type: 'bullets', icon: 'M2 4h2M6 4h8M2 8h2M6 8h8M2 12h2M6 12h8' },
     { id: 'line', title: 'Add line', kind: 'add', type: 'line', icon: 'M2 8h12' },
     { id: 'barcode', title: 'Add barcode', kind: 'add', type: 'barcode', icon: 'M2.5 3v10M5 3v10M6.5 3v10M9 3v10M10.5 3v10M13.5 3v10' },
@@ -2877,7 +2878,7 @@ export function App() {
           )}
 
           {leftPanel === 'shapes' && shapesField}
-          {leftPanel === 'layers' && layerStackField}
+          {leftPanel === 'symbols' && symbolsField}
         </div>
       </aside>
 
@@ -3016,14 +3017,14 @@ export function App() {
               <>
                 <span className="tb-sep" />
                 <button className="icon-btn" title="Distribute horizontally" onClick={() => distribute('x')}>
-                  <svg viewBox="0 0 16 16" width="15" height="15">
+                  <svg viewBox="0 0 16 16" width="18" height="18">
                     <rect x="1.5" y="3" width="2.5" height="10" rx="1" fill="currentColor" />
                     <rect x="6.75" y="3" width="2.5" height="10" rx="1" fill="currentColor" />
                     <rect x="12" y="3" width="2.5" height="10" rx="1" fill="currentColor" />
                   </svg>
                 </button>
                 <button className="icon-btn" title="Distribute vertically" onClick={() => distribute('y')}>
-                  <svg viewBox="0 0 16 16" width="15" height="15">
+                  <svg viewBox="0 0 16 16" width="18" height="18">
                     <rect x="3" y="1.5" width="10" height="2.5" rx="1" fill="currentColor" />
                     <rect x="3" y="6.75" width="10" height="2.5" rx="1" fill="currentColor" />
                     <rect x="3" y="12" width="10" height="2.5" rx="1" fill="currentColor" />
@@ -3033,13 +3034,13 @@ export function App() {
             )}
             <span className="tb-sep" />
             <button className="icon-btn" title="Duplicate" onClick={duplicateLayer}>
-              <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.4">
+              <svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.4">
                 <rect x="5.5" y="5.5" width="8" height="8" rx="1.5" />
                 <path d="M10.5 5.5V4A1.5 1.5 0 0 0 9 2.5H4A1.5 1.5 0 0 0 2.5 4v5A1.5 1.5 0 0 0 4 10.5h1.5" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </button>
             <button className="icon-btn danger" title="Delete" onClick={deleteSelected}>
-              <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+              <svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.6 4.5l.6 8.4a1 1 0 0 0 1 .9h3.6a1 1 0 0 0 1-.9l.6-8.4" />
               </svg>
             </button>
@@ -3071,35 +3072,27 @@ export function App() {
 
       {/* ---------- Right panel ---------- */}
       <aside className="rightpanel">
-        <div className="rp-tabs" role="tablist" aria-label="Panel">
-          {[['properties', 'Properties'], ['layers', 'Layers'], ['symbols', 'Symbols']].map(([k, l]) => (
-            <button key={k} role="tab" aria-selected={rightTab === k}
-                    className={rightTab === k ? 'on' : ''} onClick={() => setRightTab(k)}>{l}</button>
-          ))}
-        </div>
         <div className="panel">
-          {rightTab === 'properties' && (
-            selectedLayer ? (
-              <PropertiesPanel
-                layer={selectedLayer}
-                onChange={patch => setLayer(selectedLayer.id, patch)}
-                cache={symbolCache}
-              />
-            ) : selectedIds.length >= 2 ? (
-              <div className="pad">
-                <Field label={`${selectedIds.length} layers selected`}>
-                  <div className="empty-note">
-                    Align or distribute from the toolbar, or duplicate / delete.
-                    Shift-click a layer to add or remove it from the selection.
-                  </div>
-                </Field>
-              </div>
-            ) : (
-              <>{canvasPropsFields}</>
-            )
+          {/* Layers on top, then the context-sensitive properties below. */}
+          <Section title="Layers">{layerStackField}</Section>
+          {selectedLayer ? (
+            <PropertiesPanel
+              layer={selectedLayer}
+              onChange={patch => setLayer(selectedLayer.id, patch)}
+              cache={symbolCache}
+            />
+          ) : selectedIds.length >= 2 ? (
+            <div className="pad">
+              <Field label={`${selectedIds.length} layers selected`}>
+                <div className="empty-note">
+                  Align or distribute from the toolbar, or duplicate / delete.
+                  Shift-click a layer to add or remove it from the selection.
+                </div>
+              </Field>
+            </div>
+          ) : (
+            <>{canvasPropsFields}</>
           )}
-          {rightTab === 'layers' && <div className="pad">{layerStackField}</div>}
-          {rightTab === 'symbols' && <div className="pad">{symbolsField}</div>}
         </div>
       </aside>
 
