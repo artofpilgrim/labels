@@ -2271,14 +2271,34 @@ export function App() {
     window.addEventListener('blur', up);
   }
   function onStagePointerDown(e) {
-    // Middle-mouse or Space+left-mouse → pan.
-    if (e.button === 1 || (e.button === 0 && spaceHeldRef.current)) {
+    // Space + left-mouse → pan. (Middle-mouse pan is bound as a native listener
+    // below so it can cancel the browser's autoscroll in time.)
+    if (e.button === 0 && spaceHeldRef.current) {
       startPan(e);
       return;
     }
     // Left-press on the empty stage (the padding around the label) → marquee.
     if (e.button === 0 && e.target === e.currentTarget) startMarquee(e);
   }
+
+  // Middle-mouse pan MUST be a native non-passive listener. React delegates
+  // events at the root, so a synthetic mousedown only reaches our handler after
+  // Chrome has already kicked off its middle-click autoscroll — by then
+  // preventDefault() is ignored and the gesture turns into autoscroll instead of
+  // a pan. Binding mousedown directly on the stage lets preventDefault land in
+  // time. startPan reads only refs/event coords, so an empty-dep bind is safe.
+  useEffect(() => {
+    const el = canvasRef.current;
+    if (!el) return;
+    const onDown = (e) => {
+      if (e.button !== 1) return;
+      e.preventDefault();
+      startPan(e);
+    };
+    el.addEventListener('mousedown', onDown);
+    return () => el.removeEventListener('mousedown', onDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Track Space key so left-drag pans like a hand tool.
   useEffect(() => {
