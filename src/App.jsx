@@ -1023,16 +1023,26 @@ function HelpModal({ onClose }) {
       <div ref={dialogRef} tabIndex={-1} className="modal help-modal" onMouseDown={e => e.stopPropagation()}
            role="dialog" aria-modal="true" aria-labelledby={titleId}>
         <div className="modal-head">
-          <h2 id={titleId}>Help &amp; workflows</h2>
+          <div className="help-head-title">
+            <span className="help-head-mark" aria-hidden="true">
+              <svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="8" cy="8" r="6.5" /><path d="M6.2 6.2a1.8 1.8 0 1 1 2.4 1.7c-.6.3-.9.7-.9 1.3M8 11.6v.01" />
+              </svg>
+            </span>
+            <div>
+              <h2 id={titleId}>Help &amp; shortcuts</h2>
+              <p className="help-head-sub">Build · arrange · export</p>
+            </div>
+          </div>
           <button className="icon-btn" title="Close" onClick={onClose}>✕</button>
         </div>
         <div className="modal-body">
           <section className="help-section">
             <h3>Build a label</h3>
-            <ol>
+            <ol className="help-steps">
               <li><b>Pick a severity</b> (Danger, Warning, …) — sets the banner colour and signal word.</li>
               <li><b>Choose a template</b> under Common Templates — this replaces all layers with a starting layout.</li>
-              <li><b>Add elements</b> from the left rail (Text, Rect, Symbol, List, Line) or the Layers tab.</li>
+              <li><b>Add elements</b> from the left rail (Text, Rect, List, Line, Barcode), or browse the Shapes and Symbols panels.</li>
               <li><b>Select & edit</b> a layer — drag it on the canvas to move, drag its handles to resize, and tune everything in the Properties panel.</li>
               <li><b>Align &amp; arrange</b> with the floating toolbar; fine-tune with the Dimensions fields.</li>
               <li><b>Export</b> (top-right) as SVG (vector) or PNG at 1–4×.</li>
