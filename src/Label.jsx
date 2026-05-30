@@ -2,6 +2,7 @@
 import { forwardRef, useImperativeHandle, useRef, memo } from 'react';
 import { uid } from './uid.js';
 import { pictoHref } from './symbols.js';
+import { buildLinearBarcode, qrModules } from './barcode.js';
 
 const SEVERITY = {
   danger:  { word: 'DANGER',       band: '#C8102E', bandInk: '#FFFFFF' },
@@ -108,6 +109,81 @@ function rectPath(x, y, w, h, radius, strokeWidth, corner) {
     c(tl, xx + tl, yy, isChamfer('tl')),
     'Z',
   ].filter(Boolean).join(' ');
+}
+
+// Pseudo / Code-39 barcodes. Pure SVG <rect>s (+ an optional human-readable
+// <text>), so the same node rasterizes correctly on PNG export. `data` drives
+// the pattern; bars paint in `fill`, over an optional opaque `background` that
+// is skipped when 'none' so the label colour shows through (transparent symbol).
+function renderBarcode(l, transform) {
+  const barColor = l.fill || '#000000';
+  const bg = l.background == null ? '#FFFFFF' : l.background;
+  const hasBg = bg && bg !== 'none';
+  const els = [];
+
+  // --- 2D matrix (decorative QR) ---
+  if (l.variant === 'qr') {
+    const grid = qrModules(l.data, l.qrSize);
+    const n = grid.length;
+    const side = Math.min(l.w, l.h);             // QR is square; centre it in the box
+    const offX = l.x + (l.w - side) / 2;
+    const offY = l.y + (l.h - side) / 2;
+    const margin = side * 0.08;                  // quiet zone
+    const m = (side - margin * 2) / n;           // module size
+    // Background covers the FULL layer box (matches the linear branch) so a
+    // non-square box doesn't leave transparent corners around the centred QR.
+    if (hasBg) els.push(<rect key="bg" x={l.x} y={l.y} width={l.w} height={l.h} fill={bg} />);
+    if (m > 0) {
+      // Extend a module toward a neighbour ONLY when that neighbour is also set,
+      // so the seam-closing overlap never bleeds dark into a light cell. Capped
+      // at a fraction of the module so it stays subtle at small sizes.
+      const overlap = Math.min(0.6, m * 0.06);
+      for (let r = 0; r < n; r++) {
+        for (let c = 0; c < n; c++) {
+          if (!grid[r][c]) continue;
+          const ow = m + (c + 1 < n && grid[r][c + 1] ? overlap : 0);
+          const oh = m + (r + 1 < n && grid[r + 1][c] ? overlap : 0);
+          els.push(
+            <rect key={`m${r}-${c}`}
+              x={offX + margin + c * m} y={offY + margin + r * m}
+              width={ow} height={oh} fill={barColor} />
+          );
+        }
+      }
+    }
+    return <g transform={transform}>{els}</g>;
+  }
+
+  // --- 1D linear (code128 pseudo / code39 real) ---
+  const { elements, text, totalUnits, quietZone } =
+    buildLinearBarcode(l.variant, l.data, l.density, l.quietZone);
+  if (hasBg) els.push(<rect key="bg" x={l.x} y={l.y} width={l.w} height={l.h} fill={bg} />);
+  const showText = l.showText !== false && !!text;
+  const textH = showText ? Math.min(l.h * 0.28, 24) : 0;
+  const barsH = Math.max(0, l.h - textH);
+  const unit = totalUnits > 0 ? l.w / totalUnits : 0;
+  if (unit > 0 && barsH > 0) {
+    let x = l.x + quietZone * unit;
+    elements.forEach((e, i) => {
+      const w = e.units * unit;
+      if (e.bar) els.push(<rect key={`b${i}`} x={x} y={l.y} width={w} height={barsH} fill={barColor} />);
+      x += w;
+    });
+  }
+  if (showText) {
+    // Cap font to the text strip, then shrink further if the string is too wide
+    // for the box (mono glyph ≈ 0.6em, +spacing budget).
+    const fs = Math.min(textH * 0.82, (l.w * 0.92) / (Math.max(text.length, 1) * 0.65));
+    els.push(
+      <text key="hr"
+        x={l.x + l.w / 2} y={l.y + barsH + textH * 0.78}
+        fontFamily={FONTS.mono} fontSize={fs} fill={barColor}
+        textAnchor="middle" letterSpacing={fs * 0.06}>
+        {text}
+      </text>
+    );
+  }
+  return <g transform={transform}>{els}</g>;
 }
 
 // ----------- Layer renderer -----------
@@ -285,6 +361,8 @@ function renderLayer(l, sev, symbolsReady) {
         </g>
       );
     }
+    case 'barcode':
+      return renderBarcode(l, transform);
     default:
       return null;
   }
@@ -847,6 +925,11 @@ function newLayer(type, W, H) {
     case 'ellipse':
       return L({ name: 'Circle', type: 'ellipse', x: cx - 80, y: cy - 80, w: 160, h: 160,
         fill: '#1057A8' });
+    case 'barcode':
+      return L({ name: 'Barcode', type: 'barcode', variant: 'code128',
+        x: cx - 150, y: cy - 50, w: 300, h: 100,
+        data: '012345678905', fill: '#000000', background: '#FFFFFF',
+        showText: true, quietZone: 10, density: 3 });
     case 'star':
       return L({ name: 'Star', type: 'polygon', shape: 'star', sides: 5, inner: 0.42,
         x: cx - 80, y: cy - 80, w: 160, h: 160,

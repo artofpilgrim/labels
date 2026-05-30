@@ -3,6 +3,7 @@ import { useState, useRef, useEffect, useCallback, useMemo, useId } from 'react'
 import { SEVERITY, FORMATS, PRESETS, newLayer, starPoints, Label } from './Label.jsx';
 import { PICTOGRAMS } from './pictograms.js';
 import { loadSymbols } from './symbols.js';
+import { BARCODE_VARIANTS, sanitizeCode39 } from './barcode.js';
 import { uid } from './uid.js';
 
 // ----------- Initial design -----------
@@ -20,7 +21,7 @@ function makeInitialDesign() {
 const DESIGN_AUTOSAVE_KEY = 'hazardLabelStudio.design';
 const DOC_NAME_KEY = 'hazardLabelStudio.docName';
 // Layer types the renderer knows how to draw — used to validate restored data.
-const KNOWN_LAYER_TYPES = new Set(['rect', 'text', 'bullets', 'image', 'line', 'polygon', 'ellipse']);
+const KNOWN_LAYER_TYPES = new Set(['rect', 'text', 'bullets', 'image', 'line', 'polygon', 'ellipse', 'barcode']);
 // Turn a free-text title into a safe file base: "High Voltage Label" → "high-voltage-label".
 function slug(name) {
   const s = (name || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
@@ -632,6 +633,7 @@ function LayerGlyph({ type }) {
     case 'line': return <svg width="14" height="14" viewBox="0 0 14 14"><line x1="2" y1="7" x2="12" y2="7" stroke={stroke} strokeWidth="1.6"/></svg>;
     case 'polygon': return <svg width="14" height="14" viewBox="0 0 14 14"><polygon points="7,2 12,11 2,11" fill="none" stroke={stroke} strokeWidth="1.4"/></svg>;
     case 'ellipse': return <svg width="14" height="14" viewBox="0 0 14 14"><ellipse cx="7" cy="7" rx="5.5" ry="4.5" fill="none" stroke={stroke} strokeWidth="1.4"/></svg>;
+    case 'barcode': return <svg width="14" height="14" viewBox="0 0 14 14"><g fill={stroke}><rect x="2" y="3" width="1" height="8"/><rect x="3.8" y="3" width="2" height="8"/><rect x="6.6" y="3" width="1" height="8"/><rect x="8.4" y="3" width="1.6" height="8"/><rect x="11" y="3" width="1" height="8"/></g></svg>;
     default: return null;
   }
 }
@@ -647,6 +649,7 @@ const SHAPES = [
   { type: 'hexagon',  name: 'Hexagon',   el: <polygon points="8,1.5 14,5 14,11 8,14.5 2,11 2,5" fill="currentColor" /> },
   { type: 'star',     name: 'Star',      el: <polygon points="8,1.5 9.7,6 14.5,6 10.6,9 12,13.8 8,11 4,13.8 5.4,9 1.5,6 6.3,6" fill="currentColor" /> },
   { type: 'line',     name: 'Line',      el: <line x1="2.5" y1="13.5" x2="13.5" y2="2.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /> },
+  { type: 'barcode',  name: 'Barcode',   el: <g fill="currentColor"><rect x="2" y="3" width="1.2" height="10"/><rect x="4" y="3" width="2.2" height="10"/><rect x="7" y="3" width="1" height="10"/><rect x="9" y="3" width="1.8" height="10"/><rect x="11.6" y="3" width="1.2" height="10"/></g> },
 ];
 
 // ----------- Align toolbar glyph -----------
@@ -2436,7 +2439,7 @@ export function App() {
   const blankShapeField = (
     <Field label="Canvas shape" hint="The base shape for your blank label — corners outside it export transparent.">
       <div className="picto-grid">
-        {SHAPES.filter(s => s.type !== 'line').map(s => {
+        {SHAPES.filter(s => s.type !== 'line' && s.type !== 'barcode').map(s => {
           const active = (bg?.shape || 'rect') === s.type;
           return (
             <button key={s.type} className={`picto-tile ${active ? 'on' : ''}`}
@@ -2678,6 +2681,7 @@ export function App() {
     { id: 'image', title: 'Add symbol', kind: 'add', type: 'image', icon: 'M8 2l6 11H2z' },
     { id: 'list', title: 'Add list', kind: 'add', type: 'bullets', icon: 'M2 4h2M6 4h8M2 8h2M6 8h8M2 12h2M6 12h8' },
     { id: 'line', title: 'Add line', kind: 'add', type: 'line', icon: 'M2 8h12' },
+    { id: 'barcode', title: 'Add barcode', kind: 'add', type: 'barcode', icon: 'M2.5 3v10M5 3v10M6.5 3v10M9 3v10M10.5 3v10M13.5 3v10' },
   ];
 
   // ----- Pixel rulers (top + left) -----
@@ -3115,6 +3119,7 @@ function PropertiesPanel({ layer, onChange, cache }) {
       {layer.type === 'ellipse' && <Section title="Appearance"><PolygonProps layer={layer} onChange={onChange} /></Section>}
       {layer.type === 'image' && <Section title="Symbol"><ImageProps layer={layer} onChange={onChange} cache={cache} /></Section>}
       {layer.type === 'line' && <Section title="Appearance"><LineProps layer={layer} onChange={onChange} /></Section>}
+      {layer.type === 'barcode' && <Section title="Barcode"><BarcodeProps layer={layer} onChange={onChange} /></Section>}
 
       <Section title="Constraints" defaultOpen={false}>
         <Field label="Pin to canvas" hint="When the canvas resizes, the pinned edges stay anchored.">
@@ -3402,6 +3407,63 @@ function LineProps({ layer, onChange }) {
           onChange={v => onChange({ dasharray: v === 'dash' ? '8 6' : null })}
           options={[{ value: 'solid', label: 'Solid' }, { value: 'dash', label: 'Dashed' }]}
         />
+      </Field>
+    </>
+  );
+}
+
+function BarcodeProps({ layer, onChange }) {
+  const variant = layer.variant || 'code128';
+  const isLinear = variant !== 'qr';
+  // 'none' OR a missing value both mean "transparent background".
+  const bgNone = !layer.background || layer.background === 'none';
+  return (
+    <>
+      <Field label="Data" hint={variant === 'code39'
+        ? 'Scannable. Allowed: 0-9 A-Z space - . $ / + % — lower-case is upper-cased, anything else is dropped.'
+        : 'Any text — it seeds the bar pattern (decorative, not scannable).'}>
+        <input className="text-input" value={layer.data || ''}
+               onChange={e => onChange({ data: e.target.value })}
+               placeholder="012345678905" />
+        {variant === 'code39' && (layer.data || '').trim() !== '' &&
+          sanitizeCode39(layer.data) !== layer.data.toUpperCase() && (
+          <div className="field-hint" style={{ marginTop: 4 }}>Encodes: {sanitizeCode39(layer.data)}</div>
+        )}
+      </Field>
+      <Field label="Type">
+        {/* Switching variant never touches geometry — the renderer letterboxes a
+            square QR centred in whatever box the layer has, so a round-trip can't
+            lose the box's width. Resize the layer for a bigger QR. */}
+        <Seg value={variant} onChange={v => onChange({ variant: v })} options={BARCODE_VARIANTS} />
+      </Field>
+      {isLinear && (
+        <Field label="Caption" hint="Show the value as text beneath the bars.">
+          <Seg
+            value={layer.showText === false ? 'off' : 'on'}
+            onChange={v => onChange({ showText: v === 'on' })}
+            options={[{ value: 'on', label: 'Shown' }, { value: 'off', label: 'Hidden' }]}
+          />
+        </Field>
+      )}
+      {variant === 'code128' && (
+        <Field label="Density" hint="Roughly how many bars to pack in.">
+          <Slider ariaLabel="Barcode density" value={layer.density || 3}
+                  min={1} max={8} step={1} onChange={v => onChange({ density: v })} />
+        </Field>
+      )}
+      <Field label="Bars">
+        <ColorInput value={layer.fill || '#000000'} onChange={v => onChange({ fill: v, bindSeverity: null })} />
+      </Field>
+      <Field label="Background">
+        <ColorInput value={bgNone ? '#FFFFFF' : layer.background}
+                    onChange={v => onChange({ background: v })} />
+        <div className="row" style={{ marginTop: 6 }}>
+          <Seg
+            value={bgNone ? 'none' : 'on'}
+            onChange={v => onChange({ background: v === 'none' ? 'none' : (bgNone ? '#FFFFFF' : layer.background) })}
+            options={[{ value: 'on', label: 'Solid' }, { value: 'none', label: 'None' }]}
+          />
+        </div>
       </Field>
     </>
   );
