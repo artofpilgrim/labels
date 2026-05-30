@@ -3146,6 +3146,15 @@ function PropertiesPanel({ layer, onChange, cache }) {
   }
   return (
     <>
+      <Section title="Blend">
+        <Field label="Blend mode">
+          <select className="select-input" value={layer.blend || 'normal'}
+                  onChange={e => onChange({ blend: e.target.value === 'normal' ? null : e.target.value })}>
+            {BLEND_MODES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+          </select>
+        </Field>
+      </Section>
+
       <Section title="Dimensions">
         <Field label="Name">
           <input className="text-input" value={layer.name || ''}
@@ -3194,12 +3203,6 @@ function PropertiesPanel({ layer, onChange, cache }) {
                   value={Math.round((layer.opacity == null ? 1 : layer.opacity) * 100)}
                   min={0} max={100} step={1}
                   onChange={v => onChange({ opacity: v >= 100 ? null : v / 100 })} />
-        </Field>
-        <Field label="Blend mode">
-          <select className="select-input" value={layer.blend || 'normal'}
-                  onChange={e => onChange({ blend: e.target.value === 'normal' ? null : e.target.value })}>
-            {BLEND_MODES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-          </select>
         </Field>
         {['rect', 'ellipse', 'polygon'].includes(layer.type) && (
           <Field label="Hole" hint="Punch this shape through the whole label as a transparent cutout (e.g. a tag hole).">
