@@ -227,15 +227,23 @@ html.show-landing, html.show-landing body, html.show-landing #root {
 .l-card-feat p { font-size: 0.95rem; color: var(--muted); margin: 0; line-height: 1.5; }
 
 /* Marquee of included formats */
-.l-formats { margin-top: 34px; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; display: flex; align-items: center; }
+.l-formats { margin-top: 34px; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; display: flex; align-items: stretch; }
 .l-formats-label {
   flex: none; font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase;
-  color: var(--ink-on-hi); background: var(--hi); padding: 16px 18px; align-self: stretch; display: flex; align-items: center;
+  color: var(--ink-on-hi); background: var(--hi); padding: 16px 18px; display: flex; align-items: center;
+}
+/* The scrolling track is clipped to its OWN viewport (flex: 1 + min-width: 0 +
+   overflow: hidden) so the translated text can never paint over the label on the
+   left. The mask fades names in/out at both edges. */
+.l-formats-viewport {
+  flex: 1 1 0; min-width: 0; overflow: hidden; display: flex; align-items: center;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 26px, #000 calc(100% - 26px), transparent 100%);
+          mask-image: linear-gradient(90deg, transparent 0, #000 26px, #000 calc(100% - 26px), transparent 100%);
 }
 .l-formats-track {
   display: flex; gap: 38px; padding-left: 38px; white-space: nowrap;
   font-family: var(--font-mono); font-size: 13px; color: var(--muted);
-  animation: l-marquee 26s linear infinite;
+  animation: l-marquee 26s linear infinite; will-change: transform;
 }
 .l-formats-track span { position: relative; }
 .l-formats-track span::before { content: '›'; color: var(--hi); margin-right: 38px; position: absolute; left: -38px; }

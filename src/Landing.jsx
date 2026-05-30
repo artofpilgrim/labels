@@ -161,8 +161,10 @@ export function Landing({ skip, onSkipChange, onLaunch }) {
         </div>
         <div className="l-formats">
           <span className="l-formats-label">Included formats</span>
-          <div className="l-formats-track">
-            {formatNames.concat(formatNames).map((n, i) => <span key={i}>{n}</span>)}
+          <div className="l-formats-viewport">
+            <div className="l-formats-track">
+              {formatNames.concat(formatNames).map((n, i) => <span key={i}>{n}</span>)}
+            </div>
           </div>
         </div>
       </section>
