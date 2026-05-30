@@ -1180,11 +1180,9 @@ export function App() {
 
   // ----- 4-zone shell state -----
   // leftPanel: which view the icon rail shows in the left panel.
+  // The right panel shows Layers + Properties together (no tabs), so selecting a
+  // layer reveals its properties without any tab switch.
   const [leftPanel, setLeftPanel] = useState('templates'); // 'templates' | 'shapes' | 'symbols'
-  // The right panel now shows Layers + Properties together (no tabs). setRightTab
-  // is kept as a no-op so the many "reveal properties on select" callers stay
-  // valid without editing each one — there's no longer a tab to switch to.
-  const setRightTab = () => {};
   // Editable document title in the top bar; restored from + saved to localStorage.
   const [docName, setDocName] = useState(() => {
     try { return localStorage.getItem(DOC_NAME_KEY) || 'Untitled Label'; }
@@ -1448,7 +1446,6 @@ export function App() {
     if (!nl) return;
     setDesign(d => ({ ...d, layers: [...d.layers, nl] }));
     setSelectedIds([nl.id]);
-    setRightTab('properties');
   }, [design.width, design.height]);
 
   // Add an uploaded image as a new image layer (sized to fit, aspect preserved).
@@ -1468,7 +1465,6 @@ export function App() {
       nl.y = Math.round(design.height / 2 - h / 2);
       setDesign(d => ({ ...d, layers: [...d.layers, nl] }));
       setSelectedIds([nl.id]);
-      setRightTab('properties');
     });
   }, [design.width, design.height, setDesign]);
 
@@ -1546,7 +1542,7 @@ export function App() {
       }
       return { ...d, layers };
     });
-    if (newIds.length) { setSelectedIds(newIds); setRightTab('properties'); }
+    if (newIds.length) setSelectedIds(newIds);
   }, [selectedIds, setDesign]);
 
   // Delete every (non-locked) selected layer.
@@ -1584,12 +1580,12 @@ export function App() {
       });
       return { ...d, layers: [...d.layers, ...added] };
     });
-    if (newIds.length) { setSelectedIds(newIds); setRightTab('properties'); }
+    if (newIds.length) setSelectedIds(newIds);
   }, [setDesign]);
 
   const selectAll = useCallback(() => {
     const ids = designRef.current.layers.filter(l => !l.locked && !l.hidden).map(l => l.id);
-    if (ids.length) { setSelectedIds(ids); setRightTab('properties'); }
+    if (ids.length) setSelectedIds(ids);
   }, []);
 
   // Reorder the selected (unlocked) layers within the stack. 'forward'/'backward'
@@ -1691,7 +1687,6 @@ export function App() {
           return b.x < r.x + r.w && b.x + b.w > r.x && b.y < r.y + r.h && b.y + b.h > r.y;
         }).map(l => l.id);
         setSelectedIds(hit);
-        if (hit.length) setRightTab('properties');
       } else if (!moved) {
         setSelectedIds([]);
       }
@@ -2062,7 +2057,6 @@ export function App() {
     // Locked layers (incl. the canvas-fill background) aren't selectable here —
     // pressing one starts a marquee so you can rubber-band over the artwork.
     if (layer.locked) { startMarquee(e); return; }
-    setRightTab('properties');
     if (e.shiftKey) {
       // Toggle this layer in/out of the selection; don't start a drag.
       setSelectedIds(ids => ids.includes(layerId) ? ids.filter(i => i !== layerId) : [...ids, layerId]);
@@ -2086,7 +2080,7 @@ export function App() {
     e.preventDefault();
     const layer = design.layers.find(l => l.id === layerId);
     if (!layer || layer.locked) return;
-    if (!selectedIds.includes(layerId)) { setSelectedIds([layerId]); setRightTab('properties'); }
+    if (!selectedIds.includes(layerId)) setSelectedIds([layerId]);
     setCtxMenu({
       x: Math.min(e.clientX, window.innerWidth - 210),
       y: Math.min(e.clientY, window.innerHeight - 360),
@@ -2649,7 +2643,6 @@ export function App() {
             onClick={e => {
               if (e.shiftKey) setSelectedIds(ids => ids.includes(l.id) ? ids.filter(i => i !== l.id) : [...ids, l.id]);
               else setSelectedIds([l.id]);
-              setRightTab('properties');
             }}
           >
             <span className="layer-glyph"><LayerGlyph type={l.type} /></span>
@@ -2692,7 +2685,6 @@ export function App() {
               nl.symbol = id;
               setDesign(d => ({ ...d, layers: [...d.layers, nl] }));
               setSelectedIds([nl.id]);
-              setRightTab('properties');
             }
           }
         }}

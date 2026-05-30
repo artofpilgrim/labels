@@ -903,24 +903,11 @@ body.space-pan .overlay * { pointer-events: none !important; }
 .leftpanel { border-right: 1px solid var(--line); }
 .rightpanel { border-left: 1px solid var(--line); }
 
-.lp-tabs, .rp-tabs {
-  display: flex; border-bottom: 1px solid var(--line);
-  padding: 0 8px;
-}
-.lp-tabs button, .rp-tabs button {
-  flex: 1; background: transparent; border: 0;
-  padding: 13px 4px; font-size: 11px; font-weight: 600;
-  letter-spacing: 0.4px; text-transform: uppercase;
-  color: var(--muted); border-bottom: 2px solid transparent;
-}
-.lp-tabs button:hover:not(:disabled), .rp-tabs button:hover:not(:disabled) { color: var(--ink); }
-.lp-tabs button.on, .rp-tabs button.on { color: var(--accent); border-bottom-color: var(--accent); }
-.lp-tabs button:disabled, .rp-tabs button:disabled { opacity: 0.4; cursor: default; }
-
 .lp-search { padding: 12px 16px 0; }
 
 /* Right panel renders full-width accordion sections, so its scroll container
-   has no padding; non-section tabs (Layers/Symbols) re-add it via .pad. */
+   has no padding; non-section content (e.g. the multi-select note) re-adds it
+   via .pad. */
 .rightpanel .panel { padding: 0; }
 .rightpanel .panel .pad { padding: 16px; }
 /* Field spacing is tighter inside accordion bodies than the old panels. */
