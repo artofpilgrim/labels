@@ -26,6 +26,18 @@ function slug(name) {
   const s = (name || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
   return s || 'label';
 }
+// A restored design (from the autosave OR a saved user preset) is safe to
+// render only if the canvas dimensions are finite and every layer has a known
+// type and finite geometry — a missing/unknown type or non-finite geometry
+// would feed NaN into the SVG transform/path and silently break the canvas.
+// Both restore paths gate on this single predicate.
+function isRenderableDesign(d) {
+  return !!(d && Array.isArray(d.layers) && d.layers.length
+    && Number.isFinite(d.width) && Number.isFinite(d.height)
+    && d.layers.every(l => l && KNOWN_LAYER_TYPES.has(l.type)
+        && ['x', 'y', 'w', 'h'].every(k => Number.isFinite(l[k]))));
+}
+
 // Restore the last working design from localStorage. Returns null when nothing
 // is stored or the payload is unusable, so the caller falls back to a preset.
 function loadSavedDesign() {
@@ -33,15 +45,7 @@ function loadSavedDesign() {
     const raw = localStorage.getItem(DESIGN_AUTOSAVE_KEY);
     if (!raw) return null;
     const d = JSON.parse(raw);
-    if (d && Array.isArray(d.layers) && d.layers.length
-        && Number.isFinite(d.width) && Number.isFinite(d.height)
-        // Reject if any layer is unrenderable: a missing/unknown type or
-        // non-finite geometry would feed NaN into the SVG transform/path and
-        // silently break the canvas. Fall back to a clean preset instead.
-        && d.layers.every(l => l && KNOWN_LAYER_TYPES.has(l.type)
-            && ['x', 'y', 'w', 'h'].every(k => Number.isFinite(l[k])))) {
-      return d;
-    }
+    if (isRenderableDesign(d)) return d;
   } catch { /* corrupted storage — ignore */ }
   return null;
 }
@@ -184,8 +188,6 @@ function NumberInput({ value, onChange, min, max, step = 1, suffix, ariaLabel, l
     </div>
   );
 }
-// Standard safety / signage colours offered as one-click swatches in every
-// colour picker (severity bands, ISO green, fire red, and neutrals).
 // CSS mix-blend-mode values offered per layer. 'normal' clears the property.
 const BLEND_MODES = [
   ['normal', 'Normal'], ['multiply', 'Multiply'], ['screen', 'Screen'], ['overlay', 'Overlay'],
@@ -193,6 +195,8 @@ const BLEND_MODES = [
   ['hard-light', 'Hard light'], ['soft-light', 'Soft light'], ['difference', 'Difference'], ['exclusion', 'Exclusion'],
   ['hue', 'Hue'], ['saturation', 'Saturation'], ['color', 'Color'], ['luminosity', 'Luminosity'],
 ];
+// Standard safety / signage colours offered as one-click swatches in every
+// colour picker (severity bands, ISO green, fire red, and neutrals).
 const STANDARD_COLORS = [
   '#C8102E', '#F36F21', '#FFD200', '#1057A8', '#0E7C4E', '#237F52',
   '#9B2423', '#000000', '#1a1814', '#6b7280', '#FFFFFF',
@@ -253,10 +257,10 @@ function Slider({ value, onChange, min = 0, max = 100, step = 1, label, ariaLabe
         aria-label={name ? `${name} value` : undefined}
         value={draft != null ? draft : display}
         onChange={e => {
-          const raw = e.target.value;
-          setDraft(raw);
-          if (raw === '' || raw === '-') return;
-          const n = Number(raw);
+          const next = e.target.value;
+          setDraft(next);
+          if (next === '' || next === '-') return;
+          const n = Number(next);
           if (Number.isFinite(n)) onChange(Math.min(max, n));   // upper bound live; min on blur
         }}
         onBlur={e => {
@@ -1357,6 +1361,15 @@ export function App() {
   function applyUserPreset(id) {
     const p = userPresets.find(x => x.id === id);
     if (!p) return;
+    // A preset comes from localStorage — the same trust boundary as the autosave
+    // restore — so validate before applying. A tampered or stale entry with an
+    // unknown layer type or non-finite geometry would feed NaN into the SVG and
+    // break the canvas.
+    if (!isRenderableDesign(p.design)) {
+      setExportMsg('That preset is corrupted and could not be loaded');
+      setTimeout(() => setExportMsg(''), 3000);
+      return;
+    }
     forceCommit();   // make the current design a clean undo point before replacing it
     // Fresh layer IDs so nothing reuses stale references.
     const layers = p.design.layers.map(l => ({
@@ -2079,7 +2092,14 @@ export function App() {
       if (mod && (e.key === 'd' || e.key === 'D')) { e.preventDefault(); duplicateLayer(); return; }
       if (mod && e.key === ']') { e.preventDefault(); reorderSelected(e.shiftKey ? 'front' : 'forward'); return; }
       if (mod && e.key === '[') { e.preventDefault(); reorderSelected(e.shiftKey ? 'back' : 'backward'); return; }
-      if (e.key === 'Escape') { setSelectedIds([]); return; }
+      // If an overlay is open, let its own Esc handler close it and leave the
+      // selection intact — otherwise one Escape both dismisses the overlay and
+      // wipes the selection.
+      if (e.key === 'Escape') {
+        if (ctxMenu || exportOpen || helpOpen) return;
+        setSelectedIds([]);
+        return;
+      }
       if (e.key === 'Delete' || e.key === 'Backspace') {
         e.preventDefault(); deleteSelected();
       } else if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
@@ -2095,7 +2115,7 @@ export function App() {
     }
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [selectedIds, deleteSelected, undo, redo, duplicateLayer, copySelected, pasteClipboard, selectAll, reorderSelected]);
+  }, [selectedIds, deleteSelected, undo, redo, duplicateLayer, copySelected, pasteClipboard, selectAll, reorderSelected, ctxMenu, exportOpen, helpOpen]);
 
   // If undo/redo restores a design that no longer contains a selected layer,
   // prune the selection so handles + property panel don't dangle.
