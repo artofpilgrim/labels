@@ -1055,7 +1055,7 @@ function HelpModal({ onClose }) {
 const HISTORY_LIMIT = 100;
 const COMMIT_DEBOUNCE_MS = 400;
 
-export function App() {
+export function App({ onHome } = {}) {
   // Single bundle so design / past / future stay consistent across one render.
   // Undo/redo pop from past/future; ordinary edits update `design` and a
   // debounced effect snapshots the previous-committed design into `past`.
@@ -2784,7 +2784,15 @@ export function App() {
     <div className={`app${preview ? ' is-preview' : ''}`}>
       {/* ---------- Top bar ---------- */}
       <header className="topbar">
-        <div className="brand">
+        <div
+          className="brand"
+          role={onHome ? 'button' : undefined}
+          tabIndex={onHome ? 0 : undefined}
+          title={onHome ? 'Back to the start page' : undefined}
+          style={onHome ? { cursor: 'pointer' } : undefined}
+          onClick={onHome}
+          onKeyDown={onHome ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onHome(); } } : undefined}
+        >
           <div className="brand-mark">
             <svg viewBox="0 0 24 24" width="20" height="20">
               <path d="M12 2 L22 20 L2 20 Z" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinejoin="round" />
