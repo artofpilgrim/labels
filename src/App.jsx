@@ -1212,6 +1212,14 @@ export function App() {
   // and both edges appear to move; we offset the wrap by half the size delta
   // so the un-dragged edge stays visually pinned. Reset via "Center canvas".
   const [wrapOffset, setWrapOffset] = useState({ x: 0, y: 0 });
+  // Mirror of wrapOffset for imperative readers (the native pan listener is bound
+  // once with an empty-dep effect, so it must read the live value via this ref).
+  const wrapOffsetRef = useRef(wrapOffset);
+  wrapOffsetRef.current = wrapOffset;
+  // True while a pan drag is live, so the stage's scroll listener doesn't
+  // recompute rulers mid-drag — that re-render would reset the wrap's
+  // imperatively-set transform and make translate-panning jitter.
+  const isPanningRef = useRef(false);
   // Active alignment guides shown while Ctrl-dragging. Each guide:
   // { orient: 'v' | 'h', value: number }  — value in label coordinates.
   const [snapGuides, setSnapGuides] = useState([]);
@@ -2065,6 +2073,10 @@ export function App() {
     else startLayerDrag(e, layer);
   };
   labelHandlers.current.onCanvasPointerDown = (e) => {
+    // Only a left-press rubber-bands a selection. Middle-press must fall through
+    // to the stage's pan (a marquee here would add its own move listener and
+    // preventDefault, fighting the pan); right-press is for the context menu.
+    if (e.button !== 0) return;
     startMarquee(e);
   };
   // Right-click a layer → select it (if not already) and open the context menu.
@@ -2178,7 +2190,7 @@ export function App() {
     computeRulers();
     const stage = canvasRef.current;
     let raf = 0;
-    const onScroll = () => { if (!raf) raf = requestAnimationFrame(() => { raf = 0; computeRulers(); }); };
+    const onScroll = () => { if (isPanningRef.current || raf) return; raf = requestAnimationFrame(() => { raf = 0; computeRulers(); }); };
     const ro = new ResizeObserver(() => computeRulers());
     if (stage) { stage.addEventListener('scroll', onScroll, { passive: true }); ro.observe(stage); }
     return () => {
@@ -2245,18 +2257,38 @@ export function App() {
     return () => el.removeEventListener('wheel', handler);
   }, [fit]);
 
-  // Pan: drag the stage's scroll with middle-mouse or Space + left-mouse.
+  // Pan with middle-mouse or Space + left-mouse. The stage's native scroll only
+  // has range when the zoomed canvas overflows the viewport — when it fits, or
+  // once a scroll edge is reached, scrolling does nothing. So we consume the drag
+  // with scroll first and apply whatever's left over to the wrap's translate
+  // (wrapOffset), giving free panning at any zoom. The translate is mutated on
+  // the DOM during the drag (no per-move re-render) and committed to state on up.
   const spaceHeldRef = useRef(false);
   function startPan(e) {
     e.preventDefault();
     const stage = canvasRef.current;
+    const wrap = wrapRef.current;
     if (!stage) return;
     const x0 = e.clientX, y0 = e.clientY;
     const sl0 = stage.scrollLeft, st0 = stage.scrollTop;
+    // Scroll range is fixed for the duration of one pan (zoom/size can't change
+    // mid-drag), so measure it once instead of reflowing on every move.
+    const maxX = Math.max(0, stage.scrollWidth - stage.clientWidth);
+    const maxY = Math.max(0, stage.scrollHeight - stage.clientHeight);
+    const ox0 = wrapOffsetRef.current.x, oy0 = wrapOffsetRef.current.y;
+    let ox = ox0, oy = oy0;
+    isPanningRef.current = true;
     document.body.style.cursor = 'grabbing';
     function move(ev) {
-      stage.scrollLeft = sl0 - (ev.clientX - x0);
-      stage.scrollTop  = st0 - (ev.clientY - y0);
+      const dx = ev.clientX - x0, dy = ev.clientY - y0;
+      const tx = Math.min(Math.max(sl0 - dx, 0), maxX);
+      const ty = Math.min(Math.max(st0 - dy, 0), maxY);
+      stage.scrollLeft = tx;
+      stage.scrollTop  = ty;
+      // Content shift the scroll couldn't absorb → translate the wrap to match.
+      ox = ox0 + (dx - (sl0 - tx));
+      oy = oy0 + (dy - (st0 - ty));
+      if (wrap) wrap.style.transform = `translate(${ox}px, ${oy}px)`;
     }
     function up() {
       document.removeEventListener('mousemove', move);
@@ -2264,6 +2296,11 @@ export function App() {
       document.removeEventListener('pointercancel', up);
       window.removeEventListener('blur', up);
       document.body.style.cursor = '';
+      isPanningRef.current = false;
+      // Commit the translate to state (so it survives the next render) and
+      // refresh the rulers once now that the drag has settled.
+      if (ox !== ox0 || oy !== oy0) setWrapOffset({ x: ox, y: oy });
+      computeRulers();
     }
     document.addEventListener('mousemove', move);
     document.addEventListener('mouseup', up);
