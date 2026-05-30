@@ -1020,7 +1020,7 @@ function HelpModal({ onClose }) {
               <li><b>Text size</b> is set in <b>Typography → Size</b> — a text layer's box only controls where it wraps, so dragging its handles reflows the text rather than scaling the glyphs.</li>
               <li><b>Rotate</b>: set the angle in Properties → Dimensions (° field).</li>
               <li><b>Multi-select</b>: Shift-click layers, or drag a marquee on empty space. Drag any selected layer to move the whole group; with 3+ selected you can distribute.</li>
-              <li><b>Pan</b>: hold <K>Space</K> and drag, or middle-mouse drag. <b>Zoom</b>: <K>Ctrl</K>/<K>⌘</K> + scroll, or the bottom-right slider.</li>
+              <li><b>Pan</b>: middle-mouse drag (or hold <K>Space</K> and drag). <b>Zoom</b>: scroll the mouse wheel, or the bottom-right slider.</li>
               <li><b>Snap</b>: hold <K>Ctrl</K>/<K>⌘</K> while dragging to align to other layers and the canvas.</li>
             </ul>
           </section>
@@ -2227,16 +2227,16 @@ export function App() {
     });
   }
 
-  // Ctrl/Cmd + wheel → zoom; plain wheel falls through to overflow:auto scroll.
-  // Must be a NATIVE non-passive listener: React's onWheel is registered as a
-  // passive listener (React 17+), so calling preventDefault there is ignored
-  // and the browser would also page-zoom. Re-runs on `fit` change so zoomAt
-  // closes over the current scale.
+  // Wheel → cursor-anchored zoom (no modifier needed; pinch-zoom, which arrives
+  // as ctrl+wheel, lands here too). Panning is middle-mouse drag (or Space +
+  // left-drag), so the wheel is free to zoom directly. Must be a NATIVE
+  // non-passive listener: React's onWheel is passive (React 17+), so
+  // preventDefault there is ignored and the browser would scroll/page-zoom.
+  // Re-runs on `fit` change so zoomAt closes over the current scale.
   useEffect(() => {
     const el = canvasRef.current;
     if (!el) return;
     const handler = (e) => {
-      if (!(e.ctrlKey || e.metaKey)) return;
       e.preventDefault();
       const factor = e.deltaY < 0 ? 1.1 : 1 / 1.1;
       zoomAt(e.clientX, e.clientY, factor);
