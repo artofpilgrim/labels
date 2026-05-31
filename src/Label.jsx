@@ -119,6 +119,29 @@ function rectPath(x, y, w, h, radius, strokeWidth, corner) {
   ].filter(Boolean).join(' ');
 }
 
+function insetRadius(radius, inset) {
+  if (typeof radius === 'number') return Math.max(0, radius - inset);
+  if (radius && typeof radius === 'object') {
+    return {
+      tl: Math.max(0, (radius.tl || 0) - inset),
+      tr: Math.max(0, (radius.tr || 0) - inset),
+      br: Math.max(0, (radius.br || 0) - inset),
+      bl: Math.max(0, (radius.bl || 0) - inset),
+    };
+  }
+  return 0;
+}
+
+function rectStrokeRingPath(l, strokeWidth) {
+  const sw = Math.max(0, strokeWidth || 0);
+  const outer = rectPath(l.x, l.y, l.w, l.h, l.radius, 0, l.corner);
+  const iw = l.w - sw * 2;
+  const ih = l.h - sw * 2;
+  if (sw <= 0 || iw <= 0 || ih <= 0) return outer;
+  const inner = rectPath(l.x + sw, l.y + sw, iw, ih, insetRadius(l.radius, sw), 0, l.corner);
+  return `${outer} ${inner}`;
+}
+
 // Pseudo / Code-39 barcodes. Pure SVG <rect>s (+ an optional human-readable
 // <text>), so the same node rasterizes correctly on PNG export. `data` drives
 // the pattern; bars paint in `fill`, over an optional opaque `background` that
@@ -204,24 +227,22 @@ function renderLayer(l, sev, symbolsReady) {
   switch (l.type) {
     case 'rect': {
       const sw = l.strokeWidth || 0;
-      const drawStrokeHere = sw > 0 && !l.strokeOnTop;
-      // When strokeOnTop is set, the stroke is drawn later in a second pass.
-      // Render the FILL on the full-bounds path (sw=0) so it reaches the
-      // layer's outer edge — the second-pass stroke then sits centered on
-      // the inset path, with its outer half covering the layer boundary.
-      // Without this, a strokeWidth/2 transparent gutter would appear
-      // around the fill until the stroke painted over it.
-      const fillPath = l.strokeOnTop
-        ? rectPath(l.x, l.y, l.w, l.h, l.radius, 0, l.corner)
-        : rectPath(l.x, l.y, l.w, l.h, l.radius, sw, l.corner);
+      const stroke = resolveFill(l.stroke || 'none', l.bindSeverity, sev);
+      const drawStrokeHere = sw > 0 && !l.strokeOnTop && stroke !== 'none';
+      const fillPath = rectPath(l.x, l.y, l.w, l.h, l.radius, 0, l.corner);
       return (
         <g transform={transform}>
           <path
             d={fillPath}
             fill={resolveFill(l.fill, l.bindSeverity, sev)}
-            stroke={drawStrokeHere ? (l.stroke || 'none') : 'none'}
-            strokeWidth={drawStrokeHere ? sw : 0}
           />
+          {drawStrokeHere && (
+            <path
+              d={rectStrokeRingPath(l, sw)}
+              fill={stroke}
+              fillRule="evenodd"
+            />
+          )}
         </g>
       );
     }
@@ -1167,10 +1188,9 @@ const Label = memo(forwardRef(function Label({ design, symbolsReady, onLayerPoin
         .map(l => (
           <path
             key={`top-${l.id}`}
-            d={rectPath(l.x, l.y, l.w, l.h, l.radius, l.strokeWidth, l.corner)}
-            fill="none"
-            stroke={resolveFill(l.stroke || 'none', l.bindSeverity, sev)}
-            strokeWidth={l.strokeWidth}
+            d={rectStrokeRingPath(l, l.strokeWidth)}
+            fill={resolveFill(l.stroke || 'none', l.bindSeverity, sev)}
+            fillRule="evenodd"
             clipPath={(l.clipToCanvas && canvasClipD) ? `url(#${canvasClipId})` : undefined}
             style={{ pointerEvents: 'none', mixBlendMode: l.blend || undefined, opacity: l.opacity == null ? undefined : l.opacity }}
             transform={l.rotation
