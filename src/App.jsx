@@ -954,6 +954,23 @@ function AlignIcon({ axis, pos }) {
   );
 }
 
+function FlipIcon({ axis }) {
+  if (axis === 'h') return (
+    <svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.2">
+      <line x1="8" y1="2" x2="8" y2="14" strokeDasharray="2 1.5" />
+      <path d="M6.4 4.5 L2.6 8 L6.4 11.5 Z" fill="currentColor" stroke="none" />
+      <path d="M9.6 4.5 L13.4 8 L9.6 11.5 Z" fill="currentColor" stroke="none" />
+    </svg>
+  );
+  return (
+    <svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.2">
+      <line x1="2" y1="8" x2="14" y2="8" strokeDasharray="2 1.5" />
+      <path d="M4.5 6.4 L8 2.6 L11.5 6.4 Z" fill="currentColor" stroke="none" />
+      <path d="M4.5 9.6 L8 13.4 L11.5 9.6 Z" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
 // ----------- Selection / drag handles (DOM overlay) -----------
 const HANDLE_POSITIONS = [
   ['nw', 0, 0], ['n', 0.5, 0], ['ne', 1, 0],
@@ -1813,6 +1830,51 @@ export function App({ onHome } = {}) {
       const patch = new Map();
       sorted.forEach((l, i) => { if (i > 0 && i < sorted.length - 1) patch.set(l.id, Math.round(c0 + step * i - l[s] / 2)); });
       return { ...d, layers: d.layers.map(l => patch.has(l.id) ? { ...l, [k]: patch.get(l.id) } : l) };
+    });
+  }, [selectedIds, setDesign]);
+
+  // Mirror selected layers in place. Geometric where possible (polygon points,
+  // rect per-corner radius/chamfer, text alignment); image layers carry flipX/
+  // flipY flags consumed by the renderer. {x,y,w,h} never change, so hit-testing,
+  // alignment, snapping and export are unaffected. One history step.
+  const flipSelected = useCallback((axis) => {
+    const H = axis === 'h';
+    const flipOne = (l) => {
+      if (l.type === 'polygon' && Array.isArray(l.points)) {
+        return { ...l, points: l.points.map(p => H ? { ...p, x: 1 - p.x } : { ...p, y: 1 - p.y }) };
+      }
+      if (l.type === 'image') return H ? { ...l, flipX: !l.flipX } : { ...l, flipY: !l.flipY };
+      if (l.type === 'rect') {
+        const patch = {};
+        if (l.radius && typeof l.radius === 'object') {
+          const r = l.radius;
+          patch.radius = H ? { tl: r.tr || 0, tr: r.tl || 0, br: r.bl || 0, bl: r.br || 0 }
+                           : { tl: r.bl || 0, tr: r.br || 0, br: r.tr || 0, bl: r.tl || 0 };
+        }
+        if (l.corner && typeof l.corner === 'object') {
+          const c = l.corner;
+          patch.corner = H ? { tl: c.tr, tr: c.tl, br: c.bl, bl: c.br }
+                           : { tl: c.bl, tr: c.br, br: c.tr, bl: c.tl };
+        }
+        return Object.keys(patch).length ? { ...l, ...patch } : l;
+      }
+      if (l.type === 'text' && H) {
+        if (l.align === 'start') return { ...l, align: 'end' };
+        if (l.align === 'end') return { ...l, align: 'start' };
+      }
+      return l;
+    };
+    setDesign(d => {
+      const ids = new Set(selectedIds);
+      if (!ids.size) return d;
+      let changed = false;
+      const layers = d.layers.map(l => {
+        if (!ids.has(l.id) || l.locked) return l;
+        const nl = flipOne(l);
+        if (nl !== l) changed = true;
+        return nl;
+      });
+      return changed ? { ...d, layers } : d;
     });
   }, [selectedIds, setDesign]);
 
@@ -3453,6 +3515,9 @@ export function App({ onHome } = {}) {
                 </button>
               </>
             )}
+            <span className="tb-sep" />
+            <button className="icon-btn" title="Flip horizontal" onClick={() => flipSelected('h')}><FlipIcon axis="h" /></button>
+            <button className="icon-btn" title="Flip vertical" onClick={() => flipSelected('v')}><FlipIcon axis="v" /></button>
             <span className="tb-sep" />
             <button className="icon-btn" title="Duplicate" onClick={duplicateLayer}>
               <svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.4">

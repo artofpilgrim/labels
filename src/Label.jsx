@@ -217,6 +217,16 @@ function renderBarcode(l, transform) {
   return <g transform={transform}>{els}</g>;
 }
 
+// Compose a flipX/flipY mirror (about the layer centre) with the layer's
+// rotation, for image layers — the one type whose flip can't be baked into
+// geometry. The scale() applies to the image first (rightmost), then rotation.
+function imageFlipTransform(l, transform) {
+  if (!l.flipX && !l.flipY) return transform;
+  const cx = l.x + l.w / 2, cy = l.y + l.h / 2;
+  const flip = `translate(${cx} ${cy}) scale(${l.flipX ? -1 : 1} ${l.flipY ? -1 : 1}) translate(${-cx} ${-cy})`;
+  return transform ? `${transform} ${flip}` : flip;
+}
+
 // ----------- Layer renderer -----------
 function renderLayer(l, sev, symbolsReady) {
   if (l.hidden) return null;
@@ -337,7 +347,7 @@ function renderLayer(l, sev, symbolsReady) {
         );
       }
       return (
-        <g transform={transform}>
+        <g transform={imageFlipTransform(l, transform)}>
           <image
             href={href} xlinkHref={href}
             x={l.x} y={l.y} width={l.w} height={l.h}
