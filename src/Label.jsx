@@ -415,9 +415,16 @@ const FORMATS = [
   { id: 'fire-point',  name: 'Fire Point',   default: [480, 640] },
   { id: 'first-aid',   name: 'First Aid',    default: [540, 560] },
   { id: 'prohibition', name: 'Prohibition',  default: [480, 600] },
+  { id: 'electrical-panel', name: 'Electrical Panel', default: [600, 760] },
+  { id: 'confined-space',   name: 'Confined Space',   default: [600, 800] },
+  { id: 'forklift-traffic', name: 'Forklift Traffic', default: [680, 480] },
+  { id: 'emergency-exit',   name: 'Emergency Exit',   default: [760, 360] },
   { id: 'barcode-label',  name: 'Barcode Label',  default: [620, 360] },
   { id: 'asset-tag',      name: 'Asset Tag',       default: [560, 380] },
   { id: 'shipping-label', name: 'Shipping Label',  default: [600, 800] },
+  { id: 'shipping-handling', name: 'Shipping Handling', default: [600, 800] },
+  { id: 'inspection-due', name: 'Inspection Due',   default: [600, 400] },
+  { id: 'calibration',    name: 'Calibration',      default: [520, 340] },
   { id: 'blank',       name: 'Blank',       default: [520, 520] },
 ];
 
@@ -996,6 +1003,356 @@ function makeShippingLabel(W, H) {
   ];
 }
 
+// Electrical-panel access sign: severity header + electrical pictogram, a
+// working-clearance message, safe-work bullets, and a panel/circuit field.
+function makeElectricalPanel(W, H, severity) {
+  const sev = SEVERITY[severity];
+  const headerH = Math.max(64, H * 0.18);
+  const pictoBox = headerH * 0.82;
+  const pictoX = W * 0.05;
+  const pictoY = (headerH - pictoBox) / 2;
+  const signalSize = headerH * 0.5;
+  const padX = W * 0.07;
+  const contentW = W - padX * 2;
+  const bodyTop = headerH + H * 0.05;
+  const fieldY = H - H * 0.12;
+  return [
+    L({ name: 'Background', type: 'rect', x: 0, y: 0, w: W, h: H,
+        fill: '#FFFFFF', stroke: '#000000', strokeWidth: 3,
+        locked: true, syncCanvas: 'fill', strokeOnTop: true }),
+    L({ name: 'Signal band', type: 'rect', x: 0, y: 0, w: W, h: headerH,
+        fill: sev.band, bindSeverity: 'band',
+        pinSides: { top: true, left: true, right: true }, clipToCanvas: true }),
+    L({ name: 'Pictogram', type: 'image', x: pictoX, y: pictoY, w: pictoBox, h: pictoBox,
+        symbol: 'bolt', pinSides: { top: true, left: true } }),
+    L({ name: 'Signal word', type: 'text',
+        x: pictoX + pictoBox + headerH * 0.18,
+        y: headerH / 2 - signalSize / 2 + signalSize * 0.04,
+        w: W - (pictoX + pictoBox + headerH * 0.18) - padX, h: signalSize * 1.2,
+        text: sev.word, fontSize: signalSize, fontWeight: 900,
+        fill: sev.bandInk, bindSeverity: 'bandInk',
+        align: 'start', uppercase: true, letterSpacing: 0.04,
+        pinSides: { top: true, left: true, right: true } }),
+    L({ name: 'Title', type: 'text', x: padX, y: bodyTop, w: contentW, h: 60,
+        text: 'Electrical Panel', fontSize: Math.min(contentW / 10, 48), fontWeight: 900,
+        fill: '#000000', align: 'middle', uppercase: true,
+        pinSides: { top: true, left: true, right: true } }),
+    L({ name: 'Message', type: 'text', x: padX, y: bodyTop + 78, w: contentW, h: 64,
+        text: 'Keep clear. Maintain 36 in (915 mm)\nworking space in front of this panel.',
+        fontSize: Math.min(contentW / 24, 22), fontWeight: 500, fill: '#000000',
+        align: 'middle', lineHeight: 1.3,
+        pinSides: { top: true, left: true, right: true } }),
+    L({ name: 'Instructions', type: 'bullets', x: padX, y: bodyTop + 178, w: contentW, h: 150,
+        items: [
+          { id: uid(), text: 'Authorized personnel only.' },
+          { id: uid(), text: 'Arc-flash PPE required.' },
+          { id: uid(), text: 'De-energize and lock out before servicing.' },
+        ],
+        fontSize: 18, fontWeight: 500, fill: '#000000', lineHeight: 1.4,
+        pinSides: { top: true, left: true, right: true } }),
+    L({ name: 'Panel ID label', type: 'text', x: padX, y: fieldY, w: contentW, h: 16,
+        text: 'PANEL / CIRCUIT', fontFamily: 'mono', fontSize: 14, fill: '#000000',
+        letterSpacing: 0.1, uppercase: true, pinSides: { bottom: true, left: true } }),
+    L({ name: 'Panel ID line', type: 'line', x: padX, y: fieldY + 30, w: contentW, h: 1,
+        stroke: '#000000', strokeWidth: 1, pinSides: { bottom: true, left: true, right: true } }),
+  ];
+}
+
+// Confined-space entry sign: severity header, a permit-only message, and a row
+// of the ISO confined-space mandatory pictograms (ventilate / continuous
+// ventilation / supervised entry) plus a permit-number field.
+function makeConfinedSpace(W, H, severity) {
+  const sev = SEVERITY[severity];
+  const headerH = Math.max(64, H * 0.16);
+  const signalSize = headerH * 0.5;
+  const pictoBoxH = headerH * 0.82;
+  const pictoXH = W * 0.05;
+  const pictoYH = (headerH - pictoBoxH) / 2;
+  const padX = W * 0.07;
+  const contentW = W - padX * 2;
+  const titleY = headerH + H * 0.045;
+  const titleSize = Math.min(contentW / 9, 54);
+  const msgY = titleY + titleSize * 1.5;
+  const msgSize = Math.min(contentW / 20, 26);
+  const count = 3;
+  const symbols = ['M056', 'M057', 'M058'];
+  const captions = ['Ventilate before entry', 'Continuous ventilation', 'Entry with supervisor'];
+  const gap = W * 0.04;
+  const rowBox = Math.min((contentW - gap * (count - 1)) / count, H * 0.2);
+  const rowW = rowBox * count + gap * (count - 1);
+  const rowX = (W - rowW) / 2;
+  const rowY = msgY + msgSize * 2.2;
+  const capSize = Math.min(rowBox * 0.16, 14);
+  const fieldY = H - H * 0.12;
+  const layers = [
+    L({ name: 'Background', type: 'rect', x: 0, y: 0, w: W, h: H,
+        fill: '#FFFFFF', stroke: '#000000', strokeWidth: 3,
+        locked: true, syncCanvas: 'fill', strokeOnTop: true }),
+    L({ name: 'Signal band', type: 'rect', x: 0, y: 0, w: W, h: headerH,
+        fill: sev.band, bindSeverity: 'band',
+        pinSides: { top: true, left: true, right: true }, clipToCanvas: true }),
+    L({ name: 'Pictogram', type: 'image', x: pictoXH, y: pictoYH, w: pictoBoxH, h: pictoBoxH,
+        symbol: 'exclamation', pinSides: { top: true, left: true } }),
+    L({ name: 'Signal word', type: 'text',
+        x: pictoXH + pictoBoxH + headerH * 0.18,
+        y: headerH / 2 - signalSize / 2 + signalSize * 0.04,
+        w: W - (pictoXH + pictoBoxH + headerH * 0.18) - padX, h: signalSize * 1.2,
+        text: sev.word, fontSize: signalSize, fontWeight: 900,
+        fill: sev.bandInk, bindSeverity: 'bandInk',
+        align: 'start', uppercase: true, letterSpacing: 0.04,
+        pinSides: { top: true, left: true, right: true } }),
+    L({ name: 'Title', type: 'text', x: padX, y: titleY, w: contentW, h: titleSize * 1.3,
+        text: 'Confined Space', fontSize: titleSize, fontWeight: 900,
+        fill: '#000000', align: 'middle', uppercase: true,
+        pinSides: { top: true, left: true, right: true } }),
+    L({ name: 'Message', type: 'text', x: padX, y: msgY, w: contentW, h: msgSize * 2,
+        text: 'Enter by permit only', fontSize: msgSize, fontWeight: 700,
+        fill: '#000000', align: 'middle', uppercase: true, letterSpacing: 0.03,
+        pinSides: { top: true, left: true, right: true } }),
+  ];
+  for (let i = 0; i < count; i++) {
+    const cx = rowX + i * (rowBox + gap);
+    layers.push(L({ name: `Pictogram ${i + 1}`, type: 'image', x: cx, y: rowY, w: rowBox, h: rowBox,
+      symbol: symbols[i], preserveAspect: true }));
+    layers.push(L({ name: `Caption ${i + 1}`, type: 'text', x: cx - gap / 2, y: rowY + rowBox + 6,
+      w: rowBox + gap, h: capSize * 2.6, text: captions[i], fontSize: capSize, fontWeight: 500,
+      fill: '#000000', align: 'middle', lineHeight: 1.2 }));
+  }
+  layers.push(L({ name: 'Permit label', type: 'text', x: padX, y: fieldY, w: contentW, h: 16,
+    text: 'PERMIT NO.', fontFamily: 'mono', fontSize: 14, fill: '#000000',
+    letterSpacing: 0.1, uppercase: true, pinSides: { bottom: true, left: true } }));
+  layers.push(L({ name: 'Permit line', type: 'line', x: padX, y: fieldY + 30, w: contentW, h: 1,
+    stroke: '#000000', strokeWidth: 1, pinSides: { bottom: true, left: true, right: true } }));
+  return layers;
+}
+
+// Forklift-traffic warning: severity header with the industrial-truck
+// pictogram beside a title and awareness message.
+function makeForkliftTraffic(W, H, severity) {
+  const sev = SEVERITY[severity];
+  const headerH = Math.max(64, H * 0.2);
+  const signalSize = headerH * 0.56;
+  const padX = W * 0.06;
+  const pictoSize = Math.min(W * 0.34, H * 0.46);
+  const pictoX = padX;
+  const pictoY = headerH + (H - headerH - pictoSize) / 2;
+  const textX = pictoX + pictoSize + W * 0.04;
+  const textW = W - textX - padX;
+  const titleSize = Math.min(textW / 8, 52);
+  const titleY = headerH + (H - headerH) * 0.26;
+  const msgSize = Math.min(textW / 18, 22);
+  // Title is hard-wrapped to two lines ('Forklift' / 'Traffic') because the
+  // single string overflows the narrow side-column at titleSize. Budget the
+  // message position for both title lines plus a small gap.
+  const msgY = titleY + titleSize * 1.2 * 2 + titleSize * 0.3;
+  return [
+    L({ name: 'Background', type: 'rect', x: 0, y: 0, w: W, h: H,
+        fill: '#FFFFFF', stroke: '#000000', strokeWidth: 3,
+        locked: true, syncCanvas: 'fill', strokeOnTop: true }),
+    L({ name: 'Signal band', type: 'rect', x: 0, y: 0, w: W, h: headerH,
+        fill: sev.band, bindSeverity: 'band',
+        pinSides: { top: true, left: true, right: true }, clipToCanvas: true }),
+    L({ name: 'Signal word', type: 'text',
+        x: 0, y: headerH / 2 - signalSize / 2 + signalSize * 0.04, w: W, h: signalSize * 1.2,
+        text: sev.word, fontSize: signalSize, fontWeight: 900,
+        fill: sev.bandInk, bindSeverity: 'bandInk',
+        align: 'middle', uppercase: true, letterSpacing: 0.05,
+        pinSides: { top: true, left: true, right: true } }),
+    L({ name: 'Pictogram', type: 'image', x: pictoX, y: pictoY, w: pictoSize, h: pictoSize,
+        symbol: 'forklift', preserveAspect: true, pinSides: { left: true } }),
+    L({ name: 'Title', type: 'text', x: textX, y: titleY, w: textW, h: titleSize * 1.2 * 2,
+        text: 'Forklift\nTraffic', fontSize: titleSize, fontWeight: 900,
+        fill: '#000000', align: 'start', uppercase: true,
+        pinSides: { left: true, right: true } }),
+    L({ name: 'Message', type: 'text', x: textX, y: msgY, w: textW, h: msgSize * 4,
+        text: 'Watch for moving vehicles and pedestrians in this area.',
+        fontSize: msgSize, fontWeight: 500, fill: '#000000', align: 'start', lineHeight: 1.3,
+        pinSides: { left: true, right: true } }),
+  ];
+}
+
+// Emergency-exit (safe condition) sign: green field, running figure, the word
+// EXIT, and a directional arrow.
+function makeEmergencyExit(W, H) {
+  const green = '#0E7C4E';
+  const white = '#FFFFFF';
+  const pad = Math.min(W, H) * 0.08;
+  const manBox = Math.min(H - pad * 2, W * 0.32);
+  const manX = pad;
+  const manY = (H - manBox) / 2;
+  const arrowW = W * 0.12;
+  const arrowH = H * 0.4;
+  const arrowX = W - pad - arrowW;
+  const arrowY = (H - arrowH) / 2;
+  const textX = manX + manBox + W * 0.04;
+  const textW = arrowX - textX - W * 0.03;
+  const exitSize = Math.min(textW / 4.2, H * 0.42);
+  return [
+    L({ name: 'Background', type: 'rect', x: 0, y: 0, w: W, h: H, fill: green,
+        locked: true, syncCanvas: 'fill' }),
+    L({ name: 'Running figure', type: 'image', x: manX, y: manY, w: manBox, h: manBox,
+        symbol: 'E002', preserveAspect: true, pinSides: { left: true } }),
+    L({ name: 'EXIT', type: 'text', x: textX, y: H / 2 - exitSize * 0.62, w: textW, h: exitSize * 1.25,
+        text: 'EXIT', fontSize: exitSize, fontWeight: 900, fill: white,
+        align: 'middle', uppercase: true, letterSpacing: 0.04, pinSides: { left: true, right: true } }),
+    L({ name: 'Arrow', type: 'polygon', x: arrowX, y: arrowY, w: arrowW, h: arrowH,
+        points: [
+          { x: 0, y: 0.28 }, { x: 0.5, y: 0.28 }, { x: 0.5, y: 0 },
+          { x: 1, y: 0.5 }, { x: 0.5, y: 1 }, { x: 0.5, y: 0.72 }, { x: 0, y: 0.72 },
+        ],
+        fill: white, pinSides: { right: true } }),
+  ];
+}
+
+// Inspection record tag: green status header with a PASS pill and a four-field
+// grid (equipment / inspected by / date / next due).
+function makeInspectionDue(W, H) {
+  const green = '#0E7C4E';
+  const ink = '#1a1814';
+  const padX = W * 0.06;
+  const cw = W - padX * 2;
+  const headerH = H * 0.22;
+  const titleSize = Math.min(cw / 14, 30);
+  const colGap = W * 0.05;
+  const colW = (cw - colGap) / 2;
+  const labelSize = Math.min(cw / 34, 15);
+  const row1Y = headerH + H * 0.12;
+  const row2Y = row1Y + H * 0.3;
+  const pillW = cw * 0.28;
+  const fields = [
+    ['Equipment', padX, row1Y],
+    ['Inspected by', padX + colW + colGap, row1Y],
+    ['Inspection date', padX, row2Y],
+    ['Next due', padX + colW + colGap, row2Y],
+  ];
+  const layers = [
+    L({ name: 'Background', type: 'rect', x: 0, y: 0, w: W, h: H, fill: '#FFFFFF',
+        stroke: ink, strokeWidth: 3, radius: 16, locked: true, syncCanvas: 'fill', strokeOnTop: true }),
+    L({ name: 'Header band', type: 'rect', x: 0, y: 0, w: W, h: headerH, fill: green,
+        clipToCanvas: true, pinSides: { top: true, left: true, right: true } }),
+    L({ name: 'Header title', type: 'text', x: padX, y: headerH / 2 - titleSize * 0.62, w: cw * 0.6, h: titleSize * 1.3,
+        text: 'Inspection', fontSize: titleSize, fontWeight: 900, fill: '#FFFFFF',
+        align: 'start', uppercase: true, letterSpacing: 0.04, pinSides: { top: true, left: true } }),
+    L({ name: 'Status pill', type: 'rect', x: W - padX - pillW, y: headerH / 2 - headerH * 0.18, w: pillW, h: headerH * 0.36,
+        fill: '#FFFFFF', radius: 999, pinSides: { top: true, right: true } }),
+    L({ name: 'Status text', type: 'text', x: W - padX - pillW, y: headerH / 2 - (headerH * 0.2) / 2, w: pillW, h: headerH * 0.2,
+        text: 'PASS', fontSize: Math.min(headerH * 0.22, 22), fontWeight: 900, fill: green,
+        align: 'middle', uppercase: true, letterSpacing: 0.06, pinSides: { top: true, right: true } }),
+  ];
+  for (const [label, fx, fy] of fields) {
+    layers.push(L({ name: `${label} label`, type: 'text', x: fx, y: fy, w: colW, h: labelSize * 1.3,
+      text: label, fontFamily: 'mono', fontSize: labelSize, fontWeight: 700, fill: green,
+      letterSpacing: 0.08, uppercase: true }));
+    layers.push(L({ name: `${label} line`, type: 'line', x: fx, y: fy + labelSize * 2.4, w: colW, h: 1,
+      stroke: ink, strokeWidth: 1.5 }));
+  }
+  return layers;
+}
+
+// Calibration sticker: blue header with a four-field grid (cal date / due date
+// / by / certificate number).
+function makeCalibration(W, H) {
+  const blue = '#1057A8';
+  const ink = '#1a1814';
+  const padX = W * 0.07;
+  const cw = W - padX * 2;
+  const headerH = H * 0.26;
+  const titleSize = Math.min(cw / 13, 30);
+  const colGap = W * 0.06;
+  const colW = (cw - colGap) / 2;
+  const labelSize = Math.min(cw / 28, 15);
+  const row1Y = headerH + H * 0.14;
+  const row2Y = row1Y + H * 0.32;
+  const fields = [
+    ['Cal date', padX, row1Y],
+    ['Due date', padX + colW + colGap, row1Y],
+    ['By', padX, row2Y],
+    ['Cert no.', padX + colW + colGap, row2Y],
+  ];
+  const layers = [
+    L({ name: 'Background', type: 'rect', x: 0, y: 0, w: W, h: H, fill: '#FFFFFF',
+        stroke: ink, strokeWidth: 3, radius: 14, locked: true, syncCanvas: 'fill', strokeOnTop: true }),
+    L({ name: 'Header band', type: 'rect', x: 0, y: 0, w: W, h: headerH, fill: blue,
+        clipToCanvas: true, pinSides: { top: true, left: true, right: true } }),
+    L({ name: 'Header title', type: 'text', x: padX, y: headerH / 2 - titleSize * 0.62, w: cw, h: titleSize * 1.3,
+        text: 'Calibration', fontSize: titleSize, fontWeight: 900, fill: '#FFFFFF',
+        align: 'middle', uppercase: true, letterSpacing: 0.08, pinSides: { top: true, left: true, right: true } }),
+  ];
+  for (const [label, fx, fy] of fields) {
+    layers.push(L({ name: `${label} label`, type: 'text', x: fx, y: fy, w: colW, h: labelSize * 1.3,
+      text: label, fontFamily: 'mono', fontSize: labelSize, fontWeight: 700, fill: blue,
+      letterSpacing: 0.08, uppercase: true }));
+    layers.push(L({ name: `${label} line`, type: 'line', x: fx, y: fy + labelSize * 2.4, w: colW, h: 1,
+      stroke: ink, strokeWidth: 1.5 }));
+  }
+  return layers;
+}
+
+// Package-handling label: HANDLE WITH CARE header, a this-way-up arrow pair, a
+// handling-instructions chip, and order / weight fields.
+function makeShippingHandling(W, H) {
+  const ink = '#111111';
+  const amber = '#F36F21';
+  const padX = W * 0.07;
+  const cw = W - padX * 2;
+  const headerH = H * 0.12;
+  const headerFont = Math.min(cw / 14, 40);
+  const arrowAreaY = headerH + H * 0.06;
+  const arrowH = H * 0.26;
+  const arrowW = arrowH * 0.62;
+  const arrowGap = W * 0.06;
+  const arrowsW = arrowW * 2 + arrowGap;
+  const a1X = W / 2 - arrowsW / 2;
+  const a2X = a1X + arrowW + arrowGap;
+  const arrowUp = [
+    { x: 0.5, y: 0 }, { x: 1, y: 0.42 }, { x: 0.72, y: 0.42 },
+    { x: 0.72, y: 1 }, { x: 0.28, y: 1 }, { x: 0.28, y: 0.42 }, { x: 0, y: 0.42 },
+  ];
+  const twuY = arrowAreaY + arrowH + H * 0.025;
+  const twuSize = Math.min(cw / 14, 30);
+  const chipsY = twuY + twuSize * 2.2;
+  const chipH = H * 0.09;
+  // Sized with margin so the one-line instruction list clears the chip outline
+  // even with letter-spacing (which wrapLines doesn't account for).
+  const chipFont = Math.min(cw / 20, 24);
+  const fieldY = H - H * 0.16;
+  const labelSize = Math.min(cw / 30, 15);
+  const colGap = W * 0.05;
+  const colW = (cw - colGap) / 2;
+  return [
+    L({ name: 'Background', type: 'rect', x: 0, y: 0, w: W, h: H, fill: '#FFFFFF',
+        stroke: ink, strokeWidth: 4, locked: true, syncCanvas: 'fill', strokeOnTop: true }),
+    L({ name: 'Header band', type: 'rect', x: 0, y: 0, w: W, h: headerH, fill: ink,
+        clipToCanvas: true, pinSides: { top: true, left: true, right: true } }),
+    L({ name: 'Header text', type: 'text', x: padX, y: headerH / 2 - headerFont / 2 + headerFont * 0.04, w: cw, h: headerFont * 1.2,
+        text: 'Handle With Care', fontSize: headerFont, fontWeight: 900, fill: '#FFFFFF',
+        align: 'middle', uppercase: true, letterSpacing: 0.06, pinSides: { top: true, left: true, right: true } }),
+    L({ name: 'Arrow up 1', type: 'polygon', x: a1X, y: arrowAreaY, w: arrowW, h: arrowH,
+        points: arrowUp, fill: ink }),
+    L({ name: 'Arrow up 2', type: 'polygon', x: a2X, y: arrowAreaY, w: arrowW, h: arrowH,
+        points: arrowUp, fill: ink }),
+    L({ name: 'This way up', type: 'text', x: padX, y: twuY, w: cw, h: twuSize * 1.4,
+        text: 'This Way Up', fontSize: twuSize, fontWeight: 900, fill: ink,
+        align: 'middle', uppercase: true, letterSpacing: 0.06 }),
+    L({ name: 'Handling chip', type: 'rect', x: padX, y: chipsY, w: cw, h: chipH,
+        fill: 'none', stroke: amber, strokeWidth: 3, radius: 8, strokeOnTop: true,
+        pinSides: { left: true, right: true } }),
+    L({ name: 'Handling text', type: 'text', x: padX, y: chipsY + chipH / 2 - chipFont * 0.62, w: cw, h: chipFont * 1.3,
+        text: "Fragile · Keep Dry · Don't Stack", fontSize: chipFont, fontWeight: 800, fill: amber,
+        align: 'middle', uppercase: true, letterSpacing: 0.03, pinSides: { left: true, right: true } }),
+    L({ name: 'Order label', type: 'text', x: padX, y: fieldY, w: colW, h: labelSize * 1.3,
+        text: 'Order no.', fontFamily: 'mono', fontSize: labelSize, fontWeight: 700, fill: ink,
+        letterSpacing: 0.08, uppercase: true, pinSides: { bottom: true, left: true } }),
+    L({ name: 'Order line', type: 'line', x: padX, y: fieldY + labelSize * 2.4, w: colW, h: 1,
+        stroke: ink, strokeWidth: 1.5, pinSides: { bottom: true, left: true } }),
+    L({ name: 'Weight label', type: 'text', x: padX + colW + colGap, y: fieldY, w: colW, h: labelSize * 1.3,
+        text: 'Weight', fontFamily: 'mono', fontSize: labelSize, fontWeight: 700, fill: ink,
+        letterSpacing: 0.08, uppercase: true, pinSides: { bottom: true, right: true } }),
+    L({ name: 'Weight line', type: 'line', x: padX + colW + colGap, y: fieldY + labelSize * 2.4, w: colW, h: 1,
+        stroke: ink, strokeWidth: 1.5, pinSides: { bottom: true, right: true } }),
+  ];
+}
+
 const PRESETS = {
   'ansi-header': makeAnsiHeader,
   'ansi-side':   makeAnsiSide,
@@ -1009,9 +1366,16 @@ const PRESETS = {
   'fire-point':  makeFirePoint,
   'first-aid':   makeFirstAid,
   'prohibition': makeProhibition,
+  'electrical-panel': makeElectricalPanel,
+  'confined-space':   makeConfinedSpace,
+  'forklift-traffic': makeForkliftTraffic,
+  'emergency-exit':   makeEmergencyExit,
   'barcode-label':  makeBarcodeLabel,
   'asset-tag':      makeAssetTag,
   'shipping-label': makeShippingLabel,
+  'shipping-handling': makeShippingHandling,
+  'inspection-due': makeInspectionDue,
+  'calibration':    makeCalibration,
   'blank':       makeBlank,
 };
 
