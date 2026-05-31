@@ -13,6 +13,16 @@ export function useLayerActions({ design, setDesign, selectedIds, setSelectedIds
       layers: d.layers.map(l => l.id === id ? { ...l, ...patch } : l),
     }));
   }, []);
+  // Apply one patch to many layers in a single history step (used by the
+  // multi-select shared-property editor). Locked layers are skipped so a batch
+  // recolour can't silently mutate something the user pinned.
+  const setLayers = useCallback((ids, patch) => {
+    const idset = new Set(ids);
+    setDesign(d => ({
+      ...d,
+      layers: d.layers.map(l => (idset.has(l.id) && !l.locked) ? { ...l, ...patch } : l),
+    }));
+  }, [setDesign]);
   const deleteLayer = useCallback((id) => {
     setDesign(d => {
       const layer = d.layers.find(l => l.id === id);
@@ -86,6 +96,10 @@ export function useLayerActions({ design, setDesign, selectedIds, setSelectedIds
         else if (kind === 'top') patch.y = b.y + offY;
         else if (kind === 'cy') patch.y = Math.round(b.y + (b.h - bb.h) / 2 + offY);
         else if (kind === 'bottom') patch.y = b.y + b.h - bb.h + offY;
+        else if (kind === 'center') {   // both axes at once → one undo step
+          patch.x = Math.round(b.x + (b.w - bb.w) / 2 + offX);
+          patch.y = Math.round(b.y + (b.h - bb.h) / 2 + offY);
+        }
         return { ...l, ...patch };
       }) };
     });
@@ -270,6 +284,7 @@ export function useLayerActions({ design, setDesign, selectedIds, setSelectedIds
 
   return {
     setLayer,
+    setLayers,
     deleteLayer,
     moveLayer,
     addLayer,

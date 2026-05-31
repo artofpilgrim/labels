@@ -131,7 +131,10 @@ input, textarea { font-family: inherit; }
 .panel::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius: 4px; }
 
 /* ---------- Field primitives ---------- */
-.field { margin-bottom: 22px; }
+/* One column rhythm everywhere — inside Sections and bare .pad blocks alike,
+   so no-selection / multi-select panels don't loosen vs the rest. */
+.field { margin-bottom: 14px; }
+.field:last-child { margin-bottom: 0; }
 .field-label {
   font-family: var(--mono);
   font-size: 10px;
@@ -590,6 +593,10 @@ body.space-pan .overlay * { pointer-events: none !important; }
 .slider.has-label {
   grid-template-columns: 24px 1fr 56px;
 }
+/* A trailing unit (e.g. rotation's °) needs its own grid column, else it wraps
+   to a new implicit row at the far left. */
+.slider.has-unit { grid-template-columns: 1fr 48px auto; }
+.slider.has-label.has-unit { grid-template-columns: 24px 1fr 48px auto; }
 .slider:last-child { margin-bottom: 0; }
 .slider-label {
   font-family: var(--font);
@@ -846,7 +853,15 @@ body.space-pan .overlay * { pointer-events: none !important; }
   border-radius: 50%; background: var(--ink); border: 2px solid var(--white); cursor: pointer;
 }
 .opacity-ctl input[type="range"]:disabled { opacity: .5; cursor: default; }
-.opacity-val { flex: 0 0 auto; width: 32px; text-align: right; font-family: var(--mono); font-size: 10px; color: var(--muted); }
+.opacity-num {
+  flex: 0 0 auto; width: 30px; padding: 2px 0; text-align: right;
+  font-family: var(--mono); font-size: 10px; color: var(--muted);
+  background: transparent; border: 0; outline: none; -moz-appearance: textfield; appearance: textfield;
+}
+.opacity-num::-webkit-inner-spin-button, .opacity-num::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+.opacity-num:focus { color: var(--ink); }
+.opacity-num:disabled { opacity: .5; }
+.opacity-pct { flex: 0 0 auto; font-family: var(--mono); font-size: 10px; color: var(--muted); margin-left: -3px; }
 
 .layer-thumb {
   flex: 0 0 auto; width: 30px; height: 22px;
@@ -902,6 +917,71 @@ body.space-pan .overlay * { pointer-events: none !important; }
 .layer-row.locked .layer-name {
   color: var(--muted);
 }
+
+/* ---------- Properties header (identity + quick actions) ---------- */
+.props-head {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 16px; border-bottom: 1px solid var(--line);
+}
+.ph-glyph {
+  flex: 0 0 auto; width: 28px; height: 28px; display: grid; place-items: center;
+  color: var(--ink); background: var(--bg-2); border: 1px solid var(--line); border-radius: var(--r);
+}
+.ph-id { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.ph-name {
+  font-family: var(--font); font-size: 13px; font-weight: 600; color: var(--ink);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: text;
+}
+.ph-name-input {
+  font-family: var(--font); font-size: 13px; font-weight: 600; color: var(--ink);
+  width: 100%; padding: 1px 4px; outline: none;
+  background: var(--white); border: 1px solid var(--accent); border-radius: 3px;
+}
+.ph-stat {
+  font-family: var(--mono); font-size: 9.5px; letter-spacing: .08em; color: var(--muted);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.qa-bar { flex: 0 0 auto; display: flex; align-items: center; gap: 1px; }
+.qa-btn {
+  width: 26px; height: 26px; display: grid; place-items: center;
+  background: transparent; border: 1px solid transparent; border-radius: 5px;
+  color: var(--muted); cursor: pointer;
+  transition: color .12s ease, background .12s ease, border-color .12s ease;
+}
+.qa-btn:hover:not(:disabled) { color: var(--ink); background: var(--bg); border-color: var(--line); }
+.qa-btn:disabled { opacity: .3; cursor: default; }
+.qa-btn.danger:hover:not(:disabled) { color: var(--accent); border-color: var(--accent-soft-border); background: var(--accent-soft); }
+
+/* ---------- Locked read-only inspect ---------- */
+.locked-banner {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  margin: 14px 16px 0; padding: 8px 10px;
+  background: var(--accent-soft); border: 1px solid var(--accent-soft-border); border-radius: var(--r);
+}
+.lb-text { font-family: var(--mono); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); }
+.lb-unlock { flex: 0 0 auto; width: auto; padding: 4px 10px; font-size: 11px; }
+.ro-fields { border: 0; padding: 0; margin: 0; min-width: 0; }
+/* pointer-events:none neutralises the scrub-handle spans too — a disabled
+   fieldset only blocks real form controls, not arbitrary spans. */
+.ro-fields:disabled { opacity: .7; pointer-events: none; }
+
+/* ---------- Multi-select editor ---------- */
+.mixed-tag {
+  font-family: var(--mono); font-size: 8.5px; letter-spacing: .04em;
+  color: var(--muted); background: var(--bg-2); border: 1px solid var(--line);
+  border-radius: 3px; padding: 1px 4px; margin-left: 6px; text-transform: none; vertical-align: middle;
+}
+.ms-align { display: flex; align-items: center; gap: 2px; flex-wrap: wrap; }
+.ms-align .icon-btn { width: 28px; height: 26px; color: var(--ink); border-color: transparent; }
+.ms-align .icon-btn:hover:not(:disabled) { background: var(--bg); border-color: var(--line); }
+.ms-align .icon-btn:disabled { opacity: .3; cursor: default; }
+.ms-sep { width: 1px; height: 16px; background: var(--line); margin: 0 3px; }
+
+/* ---------- Slider unit + scrub affordance ---------- */
+.slider-unit { font-family: var(--mono); font-size: 10px; color: var(--muted); margin-left: -2px; }
+.num-suffix.scrub, .slider-label.scrub, .slider-unit.scrub { cursor: ew-resize; touch-action: none; }
+.num-suffix.scrub:hover, .slider-label.scrub:hover, .slider-unit.scrub:hover { color: var(--ink); }
+body.scrubbing, body.scrubbing * { cursor: ew-resize !important; user-select: none; }
 
 /* ---------- Accordion section (right properties panel) ---------- */
 .section { border-bottom: 1px solid var(--line); }

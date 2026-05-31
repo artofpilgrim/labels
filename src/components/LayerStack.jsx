@@ -55,6 +55,7 @@ export function LayerStack({
   const dragLayerRef = useRef(null);
   const [dropTarget, setDropTarget] = useState(null);
   const [renaming, setRenaming] = useState(null); // id of the row being renamed
+  const [opDraft, setOpDraft] = useState(null);   // local draft so the % field stays clearable
   const dropPlacementFromEvent = (e) => {
     const r = e.currentTarget.getBoundingClientRect();
     // The visible list is reversed: above a row means higher/front in stack.
@@ -62,27 +63,42 @@ export function LayerStack({
   };
 
   const active = selectedLayer;                       // single selection drives the header
+  const canEdit = !!active && !active.locked;         // a locked layer is read-only here too
   const opacity = Math.round((active?.opacity ?? 1) * 100);
   const hasSel = selectedIds.length > 0;
 
   return (
     <div className="layers-panel">
-      {/* Blend + opacity for the active layer — kept at the top, where the hand is. */}
+      {/* Blend + opacity for the active layer — kept at the top, where the hand is.
+          Disabled when the layer is locked, matching the read-only Properties view. */}
       <div className="layers-head">
         <select
-          className="select-input blend-select" aria-label="Blend mode" disabled={!active}
+          className="select-input blend-select" aria-label="Blend mode" disabled={!canEdit}
           value={active?.blend || 'normal'}
-          onChange={e => active && setLayer(active.id, { blend: e.target.value === 'normal' ? undefined : e.target.value })}
+          onChange={e => canEdit && setLayer(active.id, { blend: e.target.value === 'normal' ? undefined : e.target.value })}
         >
           {BLEND_MODES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
         </select>
         <div className="opacity-ctl" title="Layer opacity">
           <input
-            type="range" min={0} max={100} step={1} aria-label="Layer opacity" disabled={!active}
+            type="range" min={0} max={100} step={1} aria-label="Layer opacity" disabled={!canEdit}
             value={active ? opacity : 100}
-            onChange={e => { const n = Number(e.target.value); if (active) setLayer(active.id, { opacity: n >= 100 ? undefined : n / 100 }); }}
+            onChange={e => { const n = Number(e.target.value); if (canEdit) setLayer(active.id, { opacity: n >= 100 ? null : n / 100 }); }}
           />
-          <span className="opacity-val">{active ? `${opacity}%` : '—'}</span>
+          <input
+            className="opacity-num" type="number" min={0} max={100} aria-label="Layer opacity value"
+            disabled={!canEdit} value={opDraft != null ? opDraft : (active ? opacity : '')}
+            onChange={e => {
+              const raw = e.target.value;
+              setOpDraft(raw);                                 // keep the field clearable; don't snap empty back
+              if (raw === '' || !canEdit) return;              // and don't read empty as 0%
+              const n = Number(raw);
+              if (!Number.isFinite(n)) return;
+              setLayer(active.id, { opacity: n >= 100 ? null : Math.max(0, Math.min(100, n)) / 100 });
+            }}
+            onBlur={() => setOpDraft(null)}
+          />
+          <span className="opacity-pct" aria-hidden="true">%</span>
         </div>
       </div>
 

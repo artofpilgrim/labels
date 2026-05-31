@@ -1,69 +1,262 @@
+import { useState } from 'react';
 import { BARCODE_VARIANTS, sanitizeCode39 } from '../barcode.js';
 import { starPoints } from '../templates/index.js';
 import { uid } from '../uid.js';
 import { PinSidesControl, CornerRadius } from './layerControls.jsx';
 import { readImageFile, SymbolPicker } from './SymbolPicker.jsx';
+import { LayerGlyph, AlignIcon } from './editorChrome.jsx';
 import { Field, Section, Row, Seg, NumberInput, ColorInput, Slider } from './ui.jsx';
 
-// ----------- Properties panel (per layer type) -----------
-function PropertiesPanel({ layer, onChange, cache }) {
-  // When the layer is locked, every property is read-only. Show a notice and
-  // the lock toggle only — the user has to unlock the layer to edit anything.
-  if (layer.locked) {
+// Compact quick-action icons (match the app's 1.4-stroke chrome).
+const qaSvg = (children) => (
+  <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor"
+       strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">{children}</svg>
+);
+const IconCenter = qaSvg(<><rect x="2" y="2" width="12" height="12" rx="1.5" strokeDasharray="2 2" /><rect x="6" y="6" width="4" height="4" rx="0.5" fill="currentColor" stroke="none" /></>);
+const IconDup = qaSvg(<><rect x="2.5" y="2.5" width="7.5" height="7.5" rx="1.2" /><rect x="6" y="6" width="7.5" height="7.5" rx="1.2" /></>);
+const IconRot = qaSvg(<><path d="M3.4 8a4.6 4.6 0 1 0 1.5-3.4" /><path d="M2.8 3.1V5.6h2.5" /></>);
+const IconEye = qaSvg(<><path d="M1.8 8S4.2 4.2 8 4.2 14.2 8 14.2 8 11.8 11.8 8 11.8 1.8 8 1.8 8Z" /><circle cx="8" cy="8" r="1.7" /></>);
+const IconEyeOff = qaSvg(<><path d="M2.5 8s2.2-3.4 5.5-3.4c1 0 1.9.2 2.6.6M13.5 8s-.8 1.3-2.2 2.3M6.5 6.6A2 2 0 0 0 8 10" /><line x1="3" y1="3" x2="13" y2="13" /></>);
+const IconLock = qaSvg(<><rect x="3.5" y="7" width="9" height="6" rx="1.3" /><path d="M5.6 7V5.2a2.4 2.4 0 0 1 4.8 0V7" /></>);
+const IconUnlock = qaSvg(<><rect x="3.5" y="7" width="9" height="6" rx="1.3" /><path d="M5.6 7V5.2a2.4 2.4 0 0 1 4.7-.6" /></>);
+const IconTrash = qaSvg(<><path d="M3 4.5h10M6.2 4.5V3.2h3.6V4.5M4.8 4.5 5.4 13h5.2l.6-8.5" /></>);
+
+function QABtn({ title, onClick, disabled, danger, children }) {
+  return (
+    <button type="button" className={`qa-btn${danger ? ' danger' : ''}`}
+            title={title} disabled={disabled} onClick={onClick}>{children}</button>
+  );
+}
+
+// Per-object quick actions hosted in the properties header (single selection).
+function QuickActions({ layer, setLayer, alignLayer, duplicateLayer, deleteSelected }) {
+  const locked = !!layer.locked;
+  return (
+    <div className="qa-bar">
+      <QABtn title="Center on canvas" disabled={locked} onClick={() => alignLayer('center')}>{IconCenter}</QABtn>
+      <QABtn title="Duplicate" disabled={locked} onClick={duplicateLayer}>{IconDup}</QABtn>
+      <QABtn title="Reset rotation" disabled={locked || !layer.rotation} onClick={() => setLayer(layer.id, { rotation: 0 })}>{IconRot}</QABtn>
+      <QABtn title={layer.hidden ? 'Show' : 'Hide'} onClick={() => setLayer(layer.id, { hidden: !layer.hidden })}>{layer.hidden ? IconEyeOff : IconEye}</QABtn>
+      <QABtn title={locked ? 'Unlock' : 'Lock'} onClick={() => setLayer(layer.id, { locked: !locked })}>{locked ? IconLock : IconUnlock}</QABtn>
+      <QABtn title="Delete" danger disabled={locked} onClick={deleteSelected}>{IconTrash}</QABtn>
+    </div>
+  );
+}
+
+// Inline-editable layer name in the header (double-click to rename).
+function InlineName({ layer, setLayer }) {
+  const [editing, setEditing] = useState(false);
+  if (editing) {
     return (
-      <div className="pad">
-        <Field label={layer.name || layer.type}>
-          <div className="empty-note">
-            This layer is locked. Unlock it to edit position, color, text, or any other property.
-          </div>
-        </Field>
-        <Field label="Layer">
-          <Row>
-            <Seg
-              value="locked"
-              onChange={v => onChange({ locked: v === 'locked' })}
-              options={[
-                { value: 'free', label: 'Editable' },
-                { value: 'locked', label: 'Locked' },
-              ]}
-            />
-          </Row>
-        </Field>
+      <input className="ph-name-input" autoFocus defaultValue={layer.name || layer.type}
+             onBlur={e => { setLayer(layer.id, { name: e.target.value.trim() || layer.type }); setEditing(false); }}
+             onKeyDown={e => {
+               if (e.key === 'Enter') e.currentTarget.blur();
+               else if (e.key === 'Escape') setEditing(false);
+             }} />
+    );
+  }
+  return <span className="ph-name" title={layer.locked ? undefined : 'Double-click to rename'}
+               onDoubleClick={() => { if (!layer.locked) setEditing(true); }}>{layer.name || layer.type}</span>;
+}
+
+const layerStat = (l) => {
+  const rot = l.rotation ? ` · ${Math.round(l.rotation)}°` : '';
+  return `${l.type.toUpperCase()} · ${Math.round(l.w)}×${Math.round(l.h)}${rot}`;
+};
+
+// "You are here" identity strip at the top of the properties area. Renders in
+// three modes — single layer (glyph + name + stat + quick actions), multi-
+// select (count + type summary), and no selection (the canvas itself).
+function PropsHeader({ canvasW, canvasH, selectedLayer, selectedLayers, selectedIds, setLayer, alignLayer, duplicateLayer, deleteSelected }) {
+  if (selectedLayer) {
+    const l = selectedLayer;
+    return (
+      <div className="props-head">
+        <span className="ph-glyph"><LayerGlyph type={l.type} /></span>
+        <div className="ph-id">
+          {/* key by id so an in-progress rename can't leak onto a newly
+              selected layer (uncontrolled input keeps its frozen defaultValue). */}
+          <InlineName key={l.id} layer={l} setLayer={setLayer} />
+          <span className="ph-stat">{layerStat(l)}</span>
+        </div>
+        <QuickActions layer={l} setLayer={setLayer} alignLayer={alignLayer}
+                      duplicateLayer={duplicateLayer} deleteSelected={deleteSelected} />
+      </div>
+    );
+  }
+  if (selectedIds.length >= 2) {
+    const types = [...new Set(selectedLayers.map(l => l.type))];
+    return (
+      <div className="props-head">
+        <span className="ph-glyph" aria-hidden="true">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.3">
+            <rect x="2" y="4.5" width="7.5" height="7.5" rx="1" /><path d="M4.8 4.5V2.2h7.3V9.5H9.8" />
+          </svg>
+        </span>
+        <div className="ph-id">
+          <span className="ph-name">{selectedIds.length} layers</span>
+          <span className="ph-stat">{types.length === 1 ? `${types[0].toUpperCase()} ×${selectedLayers.length}` : 'MIXED TYPES'}</span>
+        </div>
       </div>
     );
   }
   return (
+    <div className="props-head">
+      <span className="ph-glyph" aria-hidden="true">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.3">
+          <rect x="1.5" y="2.5" width="11" height="9" rx="1" />
+        </svg>
+      </span>
+      <div className="ph-id">
+        <span className="ph-name">Canvas</span>
+        <span className="ph-stat">{canvasW}×{canvasH}</span>
+      </div>
+    </div>
+  );
+}
+
+// Shared Position / Size / Rotation editors — reused for the live panel and the
+// read-only (locked) inspect view.
+function TransformFields({ layer, onChange, canvasW, canvasH, scrub = true }) {
+  const pctW = canvasW ? Math.round((layer.w / canvasW) * 100) : null;
+  const pctH = canvasH ? Math.round((layer.h / canvasH) * 100) : null;
+  return (
     <>
-      <Section title="Dimensions">
-        <Field label="Name">
-          <input className="text-input" value={layer.name || ''}
-                 onChange={e => onChange({ name: e.target.value })} />
-        </Field>
-        <Field label="Position">
-          <Row>
-            <NumberInput value={Math.round(layer.x)} onChange={v => onChange({ x: v })} suffix="X" />
-            <NumberInput value={Math.round(layer.y)} onChange={v => onChange({ y: v })} suffix="Y" />
-          </Row>
-          <Row>
-            <NumberInput value={Math.round(layer.w)} onChange={v => onChange({ w: Math.max(1, v) })} suffix="W" />
-            <NumberInput value={Math.round(layer.h)} onChange={v => onChange({ h: Math.max(1, v) })} suffix="H" />
-          </Row>
-        </Field>
-        <Field label="Rotation">
-          <Slider ariaLabel="Rotation" value={Math.round(layer.rotation || 0)} onChange={v => onChange({ rotation: v })} min={-180} max={180} step={1} />
-        </Field>
+      <Field label="Position">
+        <Row>
+          <NumberInput value={Math.round(layer.x)} onChange={v => onChange({ x: v })} suffix="X" scrub={scrub} />
+          <NumberInput value={Math.round(layer.y)} onChange={v => onChange({ y: v })} suffix="Y" scrub={scrub} />
+        </Row>
+        <Row>
+          <NumberInput value={Math.round(layer.w)} onChange={v => onChange({ w: Math.max(1, v) })} suffix="W" scrub={scrub} />
+          <NumberInput value={Math.round(layer.h)} onChange={v => onChange({ h: Math.max(1, v) })} suffix="H" scrub={scrub} />
+        </Row>
+        {(pctW != null && pctH != null) && (
+          <div className="field-hint" style={{ textAlign: 'right' }}>{pctW}% × {pctH}% of canvas</div>
+        )}
+      </Field>
+      <Field label="Rotation">
+        <Slider ariaLabel="Rotation" unit="°" value={Math.round(layer.rotation || 0)}
+                onChange={v => onChange({ rotation: v })} min={-180} max={180} step={1} />
+      </Field>
+    </>
+  );
+}
+
+// Batch editor for 2+ selected layers — shared Fill/Stroke/Opacity/Rotation
+// (showing "Mixed" when they differ) plus inline align/distribute. Each control
+// applies to all selected (unlocked) layers in one history step.
+function MultiSelectProps({ layers, ids, setLayers, alignLayer, distribute }) {
+  // Distinct sentinel for "values differ". Compute over the UNLOCKED layers
+  // only — setLayers skips locked ones, so a locked member must not drive the
+  // shared value (it would show something the user can't change, or wedge a
+  // field at "Mixed" that no edit can clear).
+  const MIXED = '__mixed_sentinel__';
+  const editable = layers.filter(l => !l.locked);
+  const eids = editable.map(l => l.id);
+  // null and undefined are the same value (both render at full opacity / no
+  // override), so coalesce before comparing — otherwise a touched-then-reset
+  // layer (null) reads as different from an untouched one (undefined).
+  const shared = (key) => {
+    if (!editable.length) return MIXED;
+    const norm = (v) => (v == null ? null : v);
+    const first = norm(editable[0][key]);
+    return editable.every(l => norm(l[key]) === first) ? first : MIXED;
+  };
+  if (!editable.length) {
+    return (
+      <Section title={`${ids.length} layers`} id="multi">
+        <div className="empty-note">Every selected layer is locked. Unlock one to edit shared properties.</div>
+      </Section>
+    );
+  }
+  const fill = shared('fill'), stroke = shared('stroke'), sw = shared('strokeWidth');
+  const op = shared('opacity'), rot = shared('rotation');
+  const mixed = (v) => (v === MIXED ? <span className="mixed-tag">Mixed</span> : null);
+  const opPct = op === MIXED ? 100 : Math.round((op == null ? 1 : op) * 100);
+  const canDist = editable.length >= 3;
+  // Recolouring the stroke must not overwrite per-layer widths: only seed a
+  // width when the layers share no stroke at all (so the new colour is visible).
+  const onStrokeColor = (v) => {
+    const patch = { stroke: v };
+    if (sw !== MIXED && !sw) patch.strokeWidth = 2;
+    setLayers(eids, patch);
+  };
+  return (
+    <Section title={`${ids.length} layers`} id="multi">
+      <Field label={<>Fill {mixed(fill)}</>}>
+        <ColorInput value={(fill === MIXED || fill === 'none' || fill == null) ? '#FFFFFF' : fill}
+                    onChange={v => setLayers(eids, { fill: v, bindSeverity: null })} />
+      </Field>
+      <Field label={<>Stroke {mixed(stroke)}</>}>
+        <ColorInput value={(stroke === MIXED || !stroke) ? '#000000' : stroke} onChange={onStrokeColor} />
+        <Row><Slider ariaLabel="Stroke width" value={sw === MIXED ? 0 : (sw || 0)} min={0} max={40} step={0.5}
+                     onChange={v => setLayers(eids, { strokeWidth: v })} /></Row>
+      </Field>
+      <Field label={<>Opacity {mixed(op)}</>}>
+        <Slider ariaLabel="Opacity" value={opPct} min={0} max={100} step={1}
+                onChange={v => setLayers(eids, { opacity: v >= 100 ? null : v / 100 })} />
+      </Field>
+      <Field label={<>Rotation {mixed(rot)}</>}>
+        <Slider ariaLabel="Rotation" unit="°" value={rot === MIXED ? 0 : Math.round(rot || 0)}
+                min={-180} max={180} step={1} onChange={v => setLayers(eids, { rotation: v })} />
+      </Field>
+      <Field label="Arrange" hint={canDist ? undefined : 'Distribute needs 3+ layers.'}>
+        <div className="ms-align">
+          <button className="icon-btn" title="Align left" onClick={() => alignLayer('left')}><AlignIcon axis="x" pos="start" /></button>
+          <button className="icon-btn" title="Align centre" onClick={() => alignLayer('cx')}><AlignIcon axis="x" pos="center" /></button>
+          <button className="icon-btn" title="Align right" onClick={() => alignLayer('right')}><AlignIcon axis="x" pos="end" /></button>
+          <span className="ms-sep" />
+          <button className="icon-btn" title="Align top" onClick={() => alignLayer('top')}><AlignIcon axis="y" pos="start" /></button>
+          <button className="icon-btn" title="Align middle" onClick={() => alignLayer('cy')}><AlignIcon axis="y" pos="center" /></button>
+          <button className="icon-btn" title="Align bottom" onClick={() => alignLayer('bottom')}><AlignIcon axis="y" pos="end" /></button>
+          <span className="ms-sep" />
+          <button className="icon-btn" title="Distribute horizontally" disabled={!canDist} onClick={() => distribute('x')}>⇿</button>
+          <button className="icon-btn" title="Distribute vertically" disabled={!canDist} onClick={() => distribute('y')}>⇳</button>
+        </div>
+      </Field>
+    </Section>
+  );
+}
+
+// ----------- Properties panel (per layer type) -----------
+function PropertiesPanel({ layer, onChange, cache, canvasW, canvasH }) {
+  // A locked layer is read-only, but its geometry stays legible so you can
+  // check coordinates without unlocking (and risking an accidental nudge).
+  if (layer.locked) {
+    return (
+      <>
+        <div className="locked-banner">
+          <span className="lb-text">Locked — read only</span>
+          <button className="ghost lb-unlock" onClick={() => onChange({ locked: false })}>Unlock</button>
+        </div>
+        <Section title="Transform" id="transform">
+          {/* scrub={false} + .ro-fields pointer-events:none keep the scrub-handle
+              spans inert — a disabled <fieldset> only neutralises form controls. */}
+          <fieldset className="ro-fields" disabled>
+            <TransformFields layer={layer} onChange={onChange} canvasW={canvasW} canvasH={canvasH} scrub={false} />
+          </fieldset>
+        </Section>
+      </>
+    );
+  }
+  return (
+    <>
+      <Section title="Transform" id="transform">
+        <TransformFields layer={layer} onChange={onChange} canvasW={canvasW} canvasH={canvasH} />
       </Section>
 
-      {layer.type === 'text' && <Section title="Typography"><TextProps layer={layer} onChange={onChange} /></Section>}
-      {layer.type === 'bullets' && <Section title="List"><BulletsProps layer={layer} onChange={onChange} /></Section>}
-      {layer.type === 'rect' && <Section title="Appearance"><RectProps layer={layer} onChange={onChange} /></Section>}
-      {layer.type === 'polygon' && <Section title="Appearance"><PolygonProps layer={layer} onChange={onChange} /></Section>}
-      {layer.type === 'ellipse' && <Section title="Appearance"><PolygonProps layer={layer} onChange={onChange} /></Section>}
-      {layer.type === 'image' && <Section title="Symbol"><ImageProps layer={layer} onChange={onChange} cache={cache} /></Section>}
-      {layer.type === 'line' && <Section title="Appearance"><LineProps layer={layer} onChange={onChange} /></Section>}
-      {layer.type === 'barcode' && <Section title="Barcode"><BarcodeProps layer={layer} onChange={onChange} /></Section>}
+      {layer.type === 'text' && <Section title="Typography" id="text"><TextProps layer={layer} onChange={onChange} /></Section>}
+      {layer.type === 'bullets' && <Section title="List" id="text"><BulletsProps layer={layer} onChange={onChange} /></Section>}
+      {layer.type === 'rect' && <Section title="Appearance" id="appearance"><RectProps layer={layer} onChange={onChange} /></Section>}
+      {layer.type === 'polygon' && <Section title="Appearance" id="appearance"><PolygonProps layer={layer} onChange={onChange} /></Section>}
+      {layer.type === 'ellipse' && <Section title="Appearance" id="appearance"><PolygonProps layer={layer} onChange={onChange} /></Section>}
+      {layer.type === 'image' && <Section title="Symbol" id="appearance"><ImageProps layer={layer} onChange={onChange} cache={cache} /></Section>}
+      {layer.type === 'line' && <Section title="Appearance" id="appearance"><LineProps layer={layer} onChange={onChange} /></Section>}
+      {layer.type === 'barcode' && <Section title="Barcode" id="appearance"><BarcodeProps layer={layer} onChange={onChange} /></Section>}
 
-      <Section title="Constraints" defaultOpen={false}>
+      <Section title="Constraints" id="constraints" defaultOpen={false}>
         <Field label="Pin to canvas" hint="When the canvas resizes, the pinned edges stay anchored.">
           <PinSidesControl value={layer.pinSides} onChange={v => onChange({ pinSides: v })} />
         </Field>
@@ -76,13 +269,8 @@ function PropertiesPanel({ layer, onChange, cache }) {
         </Field>
       </Section>
 
-      <Section title="Layer" defaultOpen={false}>
-        <Field label="Opacity">
-          <Slider ariaLabel="Layer opacity"
-                  value={Math.round((layer.opacity == null ? 1 : layer.opacity) * 100)}
-                  min={0} max={100} step={1}
-                  onChange={v => onChange({ opacity: v >= 100 ? null : v / 100 })} />
-        </Field>
+      <Section title="Layer" id="layerstate" defaultOpen={false}>
+        {/* Opacity + blend live in the always-visible Layers header now. */}
         {['rect', 'ellipse', 'polygon'].includes(layer.type) && (
           <Field label="Hole" hint="Punch this shape through the whole label as a transparent cutout (e.g. a tag hole).">
             <Seg
@@ -405,4 +593,4 @@ function BarcodeProps({ layer, onChange }) {
   );
 }
 
-export { PropertiesPanel };
+export { PropertiesPanel, PropsHeader, MultiSelectProps };

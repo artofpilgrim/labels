@@ -198,6 +198,7 @@ export function App({ onHome } = {}) {
 
   const {
     setLayer,
+    setLayers,
     deleteLayer,
     moveLayer,
     addLayer,
@@ -350,6 +351,7 @@ export function App({ onHome } = {}) {
       setCanvasSize={setCanvasSize}
       setWrapOffset={setWrapOffset}
       setLayer={setLayer}
+      setLayers={setLayers}
       selectedIds={selectedIds}
       setSelectedIds={setSelectedIds}
       selectedLayer={selectedLayer}

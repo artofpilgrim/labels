@@ -3,8 +3,10 @@ import {
   CornerRadius,
   Field,
   HelpModal,
+  MultiSelectProps,
   NumberInput,
   PropertiesPanel,
+  PropsHeader,
   Row,
   Section,
   Seg,
@@ -54,6 +56,7 @@ export function EditorShell({
   setCanvasSize,
   setWrapOffset,
   setLayer,
+  setLayers,
   selectedIds,
   setSelectedIds,
   selectedLayer,
@@ -150,18 +153,18 @@ export function EditorShell({
 
   const canvasPropsFields = (
     <>
-      <Section title="Dimensions">{dimensionsBody}</Section>
+      <Section title="Dimensions" id="canvas-dim">{dimensionsBody}</Section>
       {bg && (() => {
         const maxR = Math.floor(Math.min(design.width, design.height) / 2);
         return (
           <>
-            <Section title="Background">
+            <Section title="Background" id="canvas-bg">
               <Field label="Fill">
                 <ColorInput value={bg.fill === 'none' ? '#FFFFFF' : (bg.fill || '#FFFFFF')}
                             onChange={v => setLayer(bg.id, { fill: v, bindSeverity: null })} />
               </Field>
             </Section>
-            <Section title="Appearance">
+            <Section title="Appearance" id="canvas-appearance">
               <Field label="Border">
                 <Row>
                   <ColorInput value={bg.stroke || '#000000'} onChange={v => setLayer(bg.id, { stroke: v, strokeWidth: bg.strokeWidth || 2 })} />
@@ -401,23 +404,36 @@ export function EditorShell({
       {/* ---------- Right panel ---------- */}
       <aside className="rightpanel">
         <div className="panel">
-          {/* Layers on top, then the context-sensitive properties below. */}
-          <Section title="Layers">{layerStackField}</Section>
+          {/* Layers on top, then the "you are here" header, then the
+              context-sensitive properties for the current selection. */}
+          <Section title="Layers" id="layers">{layerStackField}</Section>
+          <PropsHeader
+            canvasW={design.width}
+            canvasH={design.height}
+            selectedLayer={selectedLayer}
+            selectedLayers={selectedLayers}
+            selectedIds={selectedIds}
+            setLayer={setLayer}
+            alignLayer={alignLayer}
+            duplicateLayer={duplicateLayer}
+            deleteSelected={deleteSelected}
+          />
           {selectedLayer ? (
             <PropertiesPanel
               layer={selectedLayer}
               onChange={patch => setLayer(selectedLayer.id, patch)}
               cache={symbolCache}
+              canvasW={design.width}
+              canvasH={design.height}
             />
           ) : selectedIds.length >= 2 ? (
-            <div className="pad">
-              <Field label={`${selectedIds.length} layers selected`}>
-                <div className="empty-note">
-                  Align or distribute from the toolbar, or duplicate / delete.
-                  Shift-click a layer to add or remove it from the selection.
-                </div>
-              </Field>
-            </div>
+            <MultiSelectProps
+              layers={selectedLayers}
+              ids={selectedIds}
+              setLayers={setLayers}
+              alignLayer={alignLayer}
+              distribute={distribute}
+            />
           ) : (
             <>{canvasPropsFields}</>
           )}

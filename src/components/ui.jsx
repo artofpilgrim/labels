@@ -1,6 +1,57 @@
-import { useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
+import { useSectionOpen } from '../hooks/useUiPrefs.js';
 
 // ----------- UI primitives -----------
+// Drag-to-change for a field's unit label (X/Y/W/H/°…). Horizontal drag steps
+// the value — 1px ≈ one `step`, Shift ×10, Alt ×0.1 — reusing the field's own
+// onChange so clamp/commit/history are untouched. A 3px threshold preserves a
+// plain click. Returns an onPointerDown to spread on the handle element.
+function usePointerScrub({ value, onChange, step = 1, min, max }) {
+  const start = useRef(null);
+  // Holds the active gesture's teardown so an unmount mid-drag (e.g. the layer
+  // is deleted, or the selection switches) tears down the window listeners and
+  // clears the global scrubbing cursor instead of leaking them.
+  const cleanupRef = useRef(null);
+  useEffect(() => () => { if (cleanupRef.current) cleanupRef.current(); }, []);
+  return (e) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    const base = Number(value);
+    start.current = { x: e.clientX, base: Number.isFinite(base) ? base : 0, moved: false };
+    const onMove = (ev) => {
+      const s = start.current;
+      if (!s) return;
+      const dx = ev.clientX - s.x;
+      if (!s.moved && Math.abs(dx) < 3) return;
+      if (!s.moved) { s.moved = true; document.body.classList.add('scrubbing'); }
+      const mult = ev.shiftKey ? 10 : (ev.altKey ? 0.25 : 1);
+      let n = s.base + dx * step * mult;
+      if (max != null) n = Math.min(max, n);
+      if (min != null) n = Math.max(min, n);
+      n = Math.round(n / step) * step;          // snap to step granularity
+      n = Math.round(n * 1e6) / 1e6;             // tidy float drift
+      onChange(n);
+    };
+    const onUp = () => {
+      start.current = null;
+      document.body.classList.remove('scrubbing');
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
+      window.removeEventListener('blur', onUp);
+      cleanupRef.current = null;
+    };
+    cleanupRef.current = onUp;
+    // pointercancel (touch/pen/OS) and window blur (button released off-window,
+    // so pointerup never arrives) both end the gesture — same teardown the
+    // canvas drag uses, so a stuck cursor / leaked listener can't happen.
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
+    window.addEventListener('blur', onUp);
+  };
+}
+
 function Field({ label, hint, children }) {
   // Expose the field's label/hint to assistive tech as a labelled group, since
   // the visible label is a <div> (not a <label htmlFor>) and a field can wrap
@@ -18,12 +69,17 @@ function Field({ label, hint, children }) {
   );
 }
 
-// Collapsible accordion section for the right properties panel.
-function Section({ title, children, defaultOpen = true }) {
-  const [open, setOpen] = useState(defaultOpen);
+// Collapsible accordion section for the right properties panel. When given a
+// stable `id`, its open/closed state persists (keyed by that group id) and
+// survives selection changes; without one it falls back to local state.
+function Section({ title, children, defaultOpen = true, id }) {
+  const [openLocal, setOpenLocal] = useState(defaultOpen);
+  const [openPersisted, togglePersisted] = useSectionOpen(id || '', defaultOpen);
+  const open = id ? openPersisted : openLocal;
+  const toggle = id ? togglePersisted : () => setOpenLocal(o => !o);
   return (
     <div className={`section${open ? '' : ' collapsed'}`}>
-      <button className="section-head" onClick={() => setOpen(o => !o)}>
+      <button className="section-head" onClick={toggle}>
         <span>{title}</span>
         <span className="chev">▾</span>
       </button>
@@ -45,7 +101,9 @@ function Seg({ value, onChange, options }) {
     </div>
   );
 }
-function NumberInput({ value, onChange, min, max, step = 1, suffix, ariaLabel, title, live = true }) {
+function NumberInput({ value, onChange, min, max, step = 1, suffix, ariaLabel, title, live = true, scrub = live }) {
+  // The unit label doubles as a scrub handle (drag to change the value).
+  const onScrub = usePointerScrub({ value, onChange, step, min, max });
   // While the field is focused we show a local draft string of exactly what the
   // user types. Clamping to [min,max] happens on commit (blur / Enter), NOT on
   // every keystroke — otherwise typing "1" on the way to "100" snaps up to the
@@ -92,7 +150,13 @@ function NumberInput({ value, onChange, min, max, step = 1, suffix, ariaLabel, t
                setDraft(null);   // revert to the committed value
              }}
              onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }} />
-      {suffix && <span className="num-suffix">{suffix}</span>}
+      {suffix && (
+        <span className={`num-suffix${scrub ? ' scrub' : ''}`}
+              onPointerDown={scrub ? onScrub : undefined}
+              title={scrub ? 'Drag to change · Shift ×10 · Alt slower' : undefined}>
+          {suffix}
+        </span>
+      )}
       <span className="num-steppers" aria-hidden="true">
         <button type="button" tabIndex={-1} className="num-step" aria-label="Increment"
                 onMouseDown={e => e.preventDefault()} onClick={() => bump(1)}>
@@ -143,7 +207,7 @@ function ColorInput({ value, onChange, ariaLabel = 'Color' }) {
 
 // Range slider with an attached numeric readout/input. Replaces NumberInput
 // where a sweep feels better than typing (radius, opacity-like dials, etc.).
-function Slider({ value, onChange, min = 0, max = 100, step = 1, label, ariaLabel }) {
+function Slider({ value, onChange, min = 0, max = 100, step = 1, label, ariaLabel, unit }) {
   const name = label || ariaLabel || undefined;
   // Safe coercion: preserves a literal 0 (which `Number(value) || 0` would
   // also produce, but distinguishes NaN/undefined explicitly).
@@ -158,9 +222,10 @@ function Slider({ value, onChange, min = 0, max = 100, step = 1, label, ariaLabe
   // commit (blur / Enter) — clamping mid-keystroke corrupts typed values when
   // min > 0 (the same snap-to-min bug as NumberInput).
   const [draft, setDraft] = useState(null);
+  const onScrub = usePointerScrub({ value: v, onChange, step, min, max });
   return (
-    <div className={`slider${label ? ' has-label' : ''}`}>
-      {label && <span className="slider-label">{label}</span>}
+    <div className={`slider${label ? ' has-label' : ''}${unit ? ' has-unit' : ''}`}>
+      {label && <span className="slider-label scrub" onPointerDown={onScrub} title="Drag to change">{label}</span>}
       <input
         className="slider-range"
         type="range"
@@ -189,6 +254,7 @@ function Slider({ value, onChange, min = 0, max = 100, step = 1, label, ariaLabe
         onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }}
         min={min} max={max} step={step}
       />
+      {unit && <span className="slider-unit scrub" aria-hidden="true" onPointerDown={onScrub} title="Drag to change">{unit}</span>}
     </div>
   );
 }
