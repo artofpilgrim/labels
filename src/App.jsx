@@ -1518,6 +1518,15 @@ export function App({ onHome } = {}) {
   // Active alignment guides shown while Ctrl-dragging. Each guide:
   // { orient: 'v' | 'h', value: number }  — value in label coordinates.
   const [snapGuides, setSnapGuides] = useState([]);
+  // Transient on-canvas readout during a drag/resize/rotate gesture. UI-only —
+  // never committed to the design (no history entry, no <Label> re-render).
+  const [hud, setHud] = useState(null); // { kind: 'move'|'resize'|'rotate', x, y, w, h, deg }
+  const hudLabel = (fw, fh) => {
+    if (hud?.kind === 'move') return `X ${Math.round(hud.x)}   Y ${Math.round(hud.y)}`;
+    if (hud?.kind === 'rotate') return `${Math.round(hud.deg)}°`;
+    if (hud?.kind === 'resize') return `${Math.round(hud.w)} × ${Math.round(hud.h)}`;
+    return `${Math.round(fw)} × ${Math.round(fh)}`;
+  };
   const [userPresets, setUserPresets] = useState([]);
   const [newPresetName, setNewPresetName] = useState('');
   // The preset currently loaded into the canvas (if any). Lets "Update" save
@@ -1909,8 +1918,11 @@ export function App({ onHome } = {}) {
       const l = design.layers.find(x => x.id === id);
       if (l && !l.locked) snaps.set(id, { x: l.x, y: l.y });
     }
-    beginDrag(e, (dx, dy) => {
+    const g = selBounds;
+    beginDrag(e, (dx, dy, mods) => {
+      if (mods.shift) { if (Math.abs(dx) >= Math.abs(dy)) dy = 0; else dx = 0; }
       setDesign(d => ({ ...d, layers: d.layers.map(l => snaps.has(l.id) ? { ...l, x: snaps.get(l.id).x + dx, y: snaps.get(l.id).y + dy } : l) }));
+      if (g) setHud({ kind: 'move', x: g.x + dx, y: g.y + dy });
     }, clickedId ? () => setSelectedIds([clickedId]) : undefined);
   }
 
@@ -2044,6 +2056,7 @@ export function App({ onHome } = {}) {
       document.removeEventListener('pointercancel', up);
       window.removeEventListener('blur', up);
       setSnapGuides([]);                  // always clear guides on drag end
+      setHud(null);
       inDragRef.current = false;
       // A press that never moved is a click — let the caller collapse a group
       // selection down to just the clicked layer.
@@ -2061,6 +2074,8 @@ export function App({ onHome } = {}) {
   function startLayerDrag(e, layer) {
     const snap = { x: layer.x, y: layer.y, w: layer.w, h: layer.h };
     beginDrag(e, (dx, dy, mods) => {
+      // Shift constrains the move to the dominant axis.
+      if (mods.shift) { if (Math.abs(dx) >= Math.abs(dy)) dy = 0; else dx = 0; }
       let nx = snap.x + dx;
       let ny = snap.y + dy;
       let guides = [];
@@ -2072,6 +2087,7 @@ export function App({ onHome } = {}) {
       }
       setSnapGuides(guides);
       setLayer(layer.id, { x: nx, y: ny });
+      setHud({ kind: 'move', x: nx, y: ny });
     });
   }
   function startLayerResize(e, mode) {
@@ -2099,6 +2115,7 @@ export function App({ onHome } = {}) {
       if (rot) next = reanchorRotated(snap, next, mode, cos, sin, mods.alt);
       setSnapGuides(guides);
       setLayer(layer.id, { x: next.x, y: next.y, w: next.w, h: next.h });
+      setHud({ kind: 'resize', w: next.w, h: next.h });
     });
   }
   // Drag the rotate grip: set rotation from the angle between the box centre and
@@ -2120,12 +2137,14 @@ export function App({ onHome } = {}) {
       while (deg > 180) deg -= 360;
       while (deg < -180) deg += 360;
       setLayer(layer.id, { rotation: deg });
+      setHud({ kind: 'rotate', deg });
     }
     function up() {
       document.removeEventListener('mousemove', move);
       document.removeEventListener('mouseup', up);
       document.removeEventListener('pointercancel', up);
       window.removeEventListener('blur', up);
+      setHud(null);
       inDragRef.current = false;
       setTimeout(forceCommit, 0);
     }
@@ -2171,12 +2190,14 @@ export function App({ onHome } = {}) {
         if (sn.radius != null) patch.radius = scaleR(sn.radius, s);
         return { ...l, ...patch };
       }) }));
+      setHud({ kind: 'resize', w: g.w * s, h: g.h * s });
     }
     function up() {
       document.removeEventListener('mousemove', move);
       document.removeEventListener('mouseup', up);
       document.removeEventListener('pointercancel', up);
       window.removeEventListener('blur', up);
+      setHud(null);
       inDragRef.current = false;
       setTimeout(forceCommit, 0);
     }
@@ -2217,12 +2238,14 @@ export function App({ onHome } = {}) {
         while (rot < -180) rot += 360;
         return { ...l, x: ncx - sn.w / 2, y: ncy - sn.h / 2, rotation: rot };
       }) }));
+      setHud({ kind: 'rotate', deg });
     }
     function up() {
       document.removeEventListener('mousemove', move);
       document.removeEventListener('mouseup', up);
       document.removeEventListener('pointercancel', up);
       window.removeEventListener('blur', up);
+      setHud(null);
       inDragRef.current = false;
       setTimeout(forceCommit, 0);
     }
@@ -2416,6 +2439,12 @@ export function App({ onHome } = {}) {
       if (mod && (e.key === 'y' || e.key === 'Y')) {
         e.preventDefault(); redo(); return;
       }
+      // Zoom (global; gated on the modifier so it never blocks typing). Overrides
+      // the browser's own Ctrl +/-/0 page zoom.
+      if (mod && (e.key === '=' || e.key === '+' || e.code === 'Equal' || e.code === 'NumpadAdd')) { e.preventDefault(); zoomIn(); return; }
+      if (mod && (e.key === '-' || e.key === '_' || e.code === 'Minus' || e.code === 'NumpadSubtract')) { e.preventDefault(); zoomOut(); return; }
+      if (mod && (e.key === '0' || e.code === 'Digit0' || e.code === 'Numpad0')) { e.preventDefault(); setZoomMode(1); return; }
+      if (mod && (e.key === '9' || e.code === 'Digit9')) { e.preventDefault(); setZoomMode('fit'); return; }
       if (inField) return;   // below: editor shortcuts, suppressed while typing
       // Work regardless of selection:
       if (mod && (e.key === 'a' || e.key === 'A')) { e.preventDefault(); selectAll(); return; }
@@ -2426,6 +2455,19 @@ export function App({ onHome } = {}) {
       if (mod && (e.key === 'd' || e.key === 'D')) { e.preventDefault(); duplicateLayer(); return; }
       if (mod && e.key === ']') { e.preventDefault(); reorderSelected(e.shiftKey ? 'front' : 'forward'); return; }
       if (mod && e.key === '[') { e.preventDefault(); reorderSelected(e.shiftKey ? 'back' : 'backward'); return; }
+      // Align (Alt + key); Alt+Shift on the centre keys distributes. Uses e.code
+      // so it's layout-independent and unaffected by Alt producing glyphs.
+      if (e.altKey && !mod) {
+        const c = e.code;
+        if (c === 'KeyA') { e.preventDefault(); alignLayer('left'); return; }
+        if (c === 'KeyD') { e.preventDefault(); alignLayer('right'); return; }
+        if (c === 'KeyW') { e.preventDefault(); alignLayer('top'); return; }
+        if (c === 'KeyS') { e.preventDefault(); alignLayer('bottom'); return; }
+        if (c === 'KeyH') { e.preventDefault(); if (e.shiftKey) distribute('x'); else alignLayer('cx'); return; }
+        if (c === 'KeyV') { e.preventDefault(); if (e.shiftKey) distribute('y'); else alignLayer('cy'); return; }
+      }
+      // Zoom to selection.
+      if (e.shiftKey && !mod && !e.altKey && e.code === 'Digit2') { e.preventDefault(); frameSelection(); return; }
       // If an overlay is open, let its own Esc handler close it and leave the
       // selection intact — otherwise one Escape both dismisses the overlay and
       // wipes the selection.
@@ -2449,7 +2491,7 @@ export function App({ onHome } = {}) {
     }
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [selectedIds, deleteSelected, undo, redo, duplicateLayer, copySelected, pasteClipboard, selectAll, reorderSelected, ctxMenu, exportOpen, helpOpen]);
+  }, [selectedIds, deleteSelected, undo, redo, duplicateLayer, copySelected, pasteClipboard, selectAll, reorderSelected, alignLayer, distribute, fit, selBounds, ctxMenu, exportOpen, helpOpen]);
 
   // If undo/redo restores a design that no longer contains a selected layer,
   // prune the selection so handles + property panel don't dangle.
@@ -2551,6 +2593,26 @@ export function App({ onHome } = {}) {
       const newCursorScreenY = newRect.top + labelY * newZoom;
       stage.scrollLeft += newCursorScreenX - clientX;
       stage.scrollTop  += newCursorScreenY - clientY;
+    });
+  }
+
+  // Frame the current selection: zoom so its bounds fill the viewport (with a
+  // margin) and scroll it to the centre. No-op without a selection.
+  function frameSelection() {
+    const b = selBounds;
+    const stage = canvasRef.current;
+    const wrap = wrapRef.current;
+    if (!b || !stage || !wrap || b.w < 1 || b.h < 1) return;
+    const margin = 80; // screen-px breathing room around the selection
+    const sw = stage.clientWidth, sh = stage.clientHeight;
+    const z = Math.max(0.05, Math.min(4, Math.min((sw - margin) / b.w, (sh - margin) / b.h)));
+    setZoomMode(z);
+    requestAnimationFrame(() => {
+      const w = wrapRef.current, st = canvasRef.current;
+      if (!w || !st) return;
+      const wr = w.getBoundingClientRect(), sr = st.getBoundingClientRect();
+      st.scrollLeft += (wr.left + (b.x + b.w / 2) * z) - (sr.left + sw / 2);
+      st.scrollTop  += (wr.top  + (b.y + b.h / 2) * z) - (sr.top  + sh / 2);
     });
   }
 
@@ -3304,7 +3366,7 @@ export function App({ onHome } = {}) {
                   left: (selectedLayer.x + selectedLayer.w / 2) * fit,
                   top: (selectedLayer.y + selectedLayer.h) * fit + 8,
                 }}>
-                  {Math.round(selectedLayer.w)} × {Math.round(selectedLayer.h)}
+                  {hudLabel(selectedLayer.w, selectedLayer.h)}
                 </div>
                 <Handles
                   kind="layer"
@@ -3327,6 +3389,12 @@ export function App({ onHome } = {}) {
                     transformOrigin: 'center',
                   }} />
                 ))}
+                <div className="dim-chip" style={{
+                  left: (selBounds.x + selBounds.w / 2) * fit,
+                  top: (selBounds.y + selBounds.h) * fit + 8,
+                }}>
+                  {hudLabel(selBounds.w, selBounds.h)}
+                </div>
                 <div className="group-box" style={{
                   left: selBounds.x * fit, top: selBounds.y * fit,
                   width: selBounds.w * fit, height: selBounds.h * fit,
