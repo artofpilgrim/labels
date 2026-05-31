@@ -495,10 +495,6 @@ body.space-pan .label-wrap * { cursor: grab; }
 body.space-pan .overlay,
 body.space-pan .overlay * { pointer-events: none !important; }
 
-.label-wrap {
-  filter: drop-shadow(0 28px 56px rgba(40, 30, 20, 0.18))
-          drop-shadow(0 4px 12px rgba(40, 30, 20, 0.12));
-}
 
 /* ---------- Selection + canvas overlay ---------- */
 .overlay {

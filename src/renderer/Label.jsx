@@ -32,8 +32,15 @@ const Label = memo(forwardRef(function Label({ design, symbolsReady, onLayerPoin
   // inherits the bg's rounded corners and stays inside the canvas outline.
   const bg = design.layers.find(l => l.syncCanvas === 'fill');
   const canvasClipId = 'canvas-clip';
+  // Inset the clip by the frame's stroke so clipToCanvas layers (bands) tuck
+  // UNDER the strokeOnTop frame instead of reaching its antialiased outer edge —
+  // otherwise a band's colour bleeds through that edge as a hairline (visible on
+  // a coloured band under a dark frame; hidden when band ≈ frame colour). Passing
+  // the stroke width to rectPath insets by sw/2 and shrinks the radius to match.
+  const clipSW = (bg && bg.strokeOnTop && (bg.strokeWidth || 0) > 0 && bg.stroke && bg.stroke !== 'none')
+    ? bg.strokeWidth : 0;
   const canvasClipD = bg
-    ? rectPath(0, 0, design.width, design.height, bg.radius, 0, bg.corner)
+    ? rectPath(0, 0, design.width, design.height, bg.radius, clipSW, bg.corner)
     : null;
 
   // Layers flagged `hole` knock a transparent cutout through the whole label via
