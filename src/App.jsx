@@ -1538,10 +1538,6 @@ export function App({ onHome } = {}) {
   // once with an empty-dep effect, so it must read the live value via this ref).
   const wrapOffsetRef = useRef(wrapOffset);
   wrapOffsetRef.current = wrapOffset;
-  // Live mirrors so keyboard/imperative handlers read the current value without
-  // re-binding their effect every frame (fit/selBounds change each drag/zoom tick).
-  const fitRef = useRef(fit); fitRef.current = fit;
-  const selBoundsRef = useRef(selBounds); selBoundsRef.current = selBounds;
   // True while a pan drag is live, so the stage's scroll listener doesn't
   // recompute rulers mid-drag — that re-render would reset the wrap's
   // imperatively-set transform and make translate-panning jitter.
@@ -1631,6 +1627,10 @@ export function App({ onHome } = {}) {
   const [autoFit, setAutoFit] = useState(1);
   const [zoomMode, setZoomMode] = useState('fit');
   const fit = zoomMode === 'fit' ? autoFit : zoomMode;
+  // Live mirrors so keyboard/imperative handlers read the current value without
+  // re-binding their effect every frame (fit/selBounds change each drag/zoom tick).
+  const fitRef = useRef(fit); fitRef.current = fit;
+  const selBoundsRef = useRef(selBounds); selBoundsRef.current = selBounds;
 
   const labelRef = useRef(null);
   const canvasRef = useRef(null);
