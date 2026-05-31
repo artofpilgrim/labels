@@ -1622,7 +1622,7 @@ function holeMaskNode(l) {
   return null;
 }
 
-const Label = memo(forwardRef(function Label({ design, symbolsReady, onLayerPointerDown, onCanvasPointerDown, onLayerContextMenu }, ref) {
+const Label = memo(forwardRef(function Label({ design, symbolsReady, onLayerPointerDown, onCanvasPointerDown, onLayerContextMenu, onLayerDoubleClick, editingId }, ref) {
   const svgRef = useRef(null);
   useImperativeHandle(ref, () => ({ getSvg: () => svgRef.current }));
 
@@ -1677,6 +1677,7 @@ const Label = memo(forwardRef(function Label({ design, symbolsReady, onLayerPoin
       )}
       <g mask={holes.length > 0 ? `url(#${holeMaskId})` : undefined}>
       {design.layers.map(l => {
+        if (editingId && l.id === editingId) return null; // hidden while inline-editing
         const node = renderLayer(l, sev, symbolsReady);
         if (!node) return null;
         const interactive = !l.locked && !l.hidden;
@@ -1693,6 +1694,7 @@ const Label = memo(forwardRef(function Label({ design, symbolsReady, onLayerPoin
             clipPath={clip}
             onMouseDown={(e) => onLayerPointerDown && onLayerPointerDown(l.id, e)}
             onContextMenu={(e) => onLayerContextMenu && onLayerContextMenu(l.id, e)}
+            onDoubleClick={(e) => onLayerDoubleClick && onLayerDoubleClick(l.id, e)}
           >
             {/* Invisible hit rect so the whole layer box is clickable
                 (text/line glyphs don't fill their box on their own). For
@@ -1749,4 +1751,4 @@ const Label = memo(forwardRef(function Label({ design, symbolsReady, onLayerPoin
   );
 }));
 
-export { SEVERITY, FORMATS, PRESETS, newLayer, starPoints, Label };
+export { SEVERITY, FONTS, FORMATS, PRESETS, newLayer, starPoints, Label };

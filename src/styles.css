@@ -998,6 +998,19 @@ body.space-pan .overlay * { pointer-events: none !important; }
   color: var(--ink); background: transparent; border: 0; padding: 0; cursor: pointer;
 }
 .canvas-zoom .zoom-pct:hover { color: var(--accent); }
+.inline-edit {
+  position: absolute;
+  margin: 0; padding: 0;
+  border: 1px solid var(--accent);
+  background: transparent;
+  outline: none;
+  resize: none;
+  overflow: hidden;
+  box-sizing: border-box;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  caret-color: var(--accent);
+}
 .canvas-grid-ctl { display: flex; align-items: center; gap: 4px; flex: 0 0 auto; }
 .canvas-grid-ctl .icon-btn { width: 26px; height: 26px; color: var(--ink); }
 .canvas-grid-ctl .icon-btn.on { background: var(--ink); color: var(--bg); border-color: var(--ink); }

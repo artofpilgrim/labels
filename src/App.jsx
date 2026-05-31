@@ -1,6 +1,6 @@
 // Label Studio — layer-based label editor.
 import { useState, useRef, useEffect, useCallback, useMemo, useId } from 'react';
-import { SEVERITY, FORMATS, PRESETS, newLayer, starPoints, Label } from './Label.jsx';
+import { SEVERITY, FONTS, FORMATS, PRESETS, newLayer, starPoints, Label } from './Label.jsx';
 import { PICTOGRAMS } from './pictograms.js';
 import { loadSymbols } from './symbols.js';
 import { BARCODE_VARIANTS, sanitizeCode39 } from './barcode.js';
@@ -1553,6 +1553,10 @@ export function App({ onHome } = {}) {
     return { show: false, snap: false, step: 10 };
   });
   const quantize = (v, step) => Math.round(v / Math.max(1, step)) * step;
+  // Inline (on-canvas) text editing: the edited layer is hidden in <Label> and
+  // replaced by a positioned <textarea>; commit writes the draft text back.
+  const [editingTextId, setEditingTextId] = useState(null);
+  const [editingDraft, setEditingDraft] = useState('');
   const [userPresets, setUserPresets] = useState([]);
   const [newPresetName, setNewPresetName] = useState('');
   // The preset currently loaded into the canvas (if any). Lets "Update" save
@@ -2514,6 +2518,26 @@ export function App({ onHome } = {}) {
   const onLayerPointerDown = useCallback((layerId, e) => labelHandlers.current.onLayerPointerDown(layerId, e), []);
   const onCanvasPointerDown = useCallback((e) => labelHandlers.current.onCanvasPointerDown(e), []);
   const onLayerContextMenu = useCallback((layerId, e) => labelHandlers.current.onLayerContextMenu(layerId, e), []);
+  labelHandlers.current.onLayerDoubleClick = (layerId, e) => {
+    const layer = design.layers.find(l => l.id === layerId);
+    if (!layer || layer.type !== 'text' || layer.locked) return;
+    e.preventDefault(); e.stopPropagation();
+    forceCommit();
+    setSelectedIds([layerId]);
+    setEditingDraft(layer.text || '');
+    setEditingTextId(layerId);
+  };
+  const onLayerDoubleClick = useCallback((layerId, e) => labelHandlers.current.onLayerDoubleClick(layerId, e), []);
+  const commitTextEdit = () => {
+    if (editingTextId) setLayer(editingTextId, { text: editingDraft });
+    setEditingTextId(null);
+    setTimeout(forceCommit, 0);
+  };
+  const cancelTextEdit = () => setEditingTextId(null);
+  // Drop the inline editor if its layer disappears (undo / delete).
+  useEffect(() => {
+    if (editingTextId && !design.layers.some(l => l.id === editingTextId)) setEditingTextId(null);
+  }, [design.layers, editingTextId]);
 
   // ----- keyboard -----
   useEffect(() => {
@@ -3447,9 +3471,11 @@ export function App({ onHome } = {}) {
                 ref={labelRef}
                 design={design}
                 symbolsReady={!!symbolCache}
+                editingId={editingTextId}
                 onLayerPointerDown={onLayerPointerDown}
                 onCanvasPointerDown={onCanvasPointerDown}
                 onLayerContextMenu={onLayerContextMenu}
+                onLayerDoubleClick={onLayerDoubleClick}
               />
             </div>
 
@@ -3487,7 +3513,7 @@ export function App({ onHome } = {}) {
             )}
 
             {/* Selected-layer handles + dimension chip */}
-            {selectedLayer && !selectedLayer.locked && !preview && (
+            {selectedLayer && !selectedLayer.locked && !preview && editingTextId !== selectedLayer.id && (
               <div className="overlay">
                 <div className="dim-chip" style={{
                   left: (selectedLayer.x + selectedLayer.w / 2) * fit,
@@ -3547,6 +3573,48 @@ export function App({ onHome } = {}) {
                 }} />
               </div>
             )}
+
+            {/* Inline text editor — a positioned textarea over the (hidden) text layer */}
+            {editingTextId && !preview && (() => {
+              const l = design.layers.find(x => x.id === editingTextId);
+              if (!l || l.type !== 'text') return null;
+              const sev = SEVERITY[design.severity] || SEVERITY.danger;
+              const fontSize = Math.max(4, l.fontSize || 16);
+              const color = l.bindSeverity === 'band' ? sev.band
+                : l.bindSeverity === 'bandInk' ? sev.bandInk
+                : (l.fill || '#000000');
+              return (
+                <div className="overlay">
+                  <textarea
+                    className="inline-edit"
+                    autoFocus
+                    value={editingDraft}
+                    onChange={e => setEditingDraft(e.target.value)}
+                    onKeyDown={e => {
+                      e.stopPropagation();
+                      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); commitTextEdit(); }
+                      else if (e.key === 'Escape') { e.preventDefault(); cancelTextEdit(); }
+                    }}
+                    onBlur={commitTextEdit}
+                    style={{
+                      left: l.x * fit, top: l.y * fit,
+                      width: l.w * fit, height: l.h * fit,
+                      transform: l.rotation ? `rotate(${l.rotation}deg)` : undefined,
+                      transformOrigin: 'center',
+                      fontFamily: FONTS[l.fontFamily] || FONTS.sans,
+                      fontSize: fontSize * fit,
+                      fontWeight: l.fontWeight || 400,
+                      fontStyle: l.italic ? 'italic' : 'normal',
+                      lineHeight: l.lineHeight || 1.2,
+                      letterSpacing: (l.letterSpacing || 0) * fontSize * fit,
+                      textAlign: l.align === 'middle' ? 'center' : l.align === 'end' ? 'right' : 'left',
+                      textTransform: l.uppercase ? 'uppercase' : 'none',
+                      color,
+                    }}
+                  />
+                </div>
+              );
+            })()}
           </div>
           </div>
         </div>
