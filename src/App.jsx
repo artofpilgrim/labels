@@ -740,6 +740,30 @@ function FormatIcon({ id, active }) {
         <path d="M24 30 l5 -6" fill="none" stroke={active ? '#C8102E' : ink} strokeWidth="1.4" strokeLinecap="round" />
         <circle cx="24" cy="30" r="1.5" fill={ink} />
       </svg>);
+    case 'biohazard':
+      return (<svg viewBox={`0 0 ${w} ${h}`} width={w} height={h}>
+        <rect x="2" y="2" width={w - 4} height={h - 4} fill="none" stroke={ink} strokeWidth="1.2" />
+        <rect x="2" y="2" width={w - 4} height="9" fill={accent} />
+        <circle cx={w / 2} cy="19" r="3.6" fill="none" stroke={ink} strokeWidth="1.5" />
+        <circle cx={w / 2 - 4.6} cy="27" r="3.6" fill="none" stroke={ink} strokeWidth="1.5" />
+        <circle cx={w / 2 + 4.6} cy="27" r="3.6" fill="none" stroke={ink} strokeWidth="1.5" />
+        <circle cx={w / 2} cy="24.5" r="1.6" fill={ink} />
+      </svg>);
+    case 'laser-radiation':
+      return (<svg viewBox={`0 0 ${w} ${h}`} width={w} height={h}>
+        <rect x="2" y="2" width={w - 4} height={h - 4} fill="none" stroke={ink} strokeWidth="1.2" />
+        <rect x="2" y="2" width={w - 4} height="9" fill={accent} />
+        <path d="M19 24 H38 M19 24 L35 17 M19 24 L35 31 M19 24 L31 14 M19 24 L31 34"
+              fill="none" stroke={ink} strokeWidth="1.1" />
+        <circle cx="18" cy="24" r="2.2" fill={ink} />
+      </svg>);
+    case 'site-access':
+      return (<svg viewBox={`0 0 ${w} ${h}`} width={w} height={h}>
+        <rect x="2" y="2" width={w - 4} height={h - 4} fill="none" stroke={ink} strokeWidth="1.2" />
+        <rect x="2" y="2" width={w - 4} height="9" fill={active ? '#1057A8' : '#bdb398'} />
+        <rect x={w / 2 - 8} y="15" width="16" height="17" rx="2.5" fill={active ? '#1057A8' : '#bdb398'} />
+        <path d="M21 29 V18 H25.5 a3.2 3.2 0 0 1 0 6.4 H21" fill="none" stroke="#fff" strokeWidth="1.8" strokeLinejoin="round" />
+      </svg>);
     default:
       return <svg viewBox={`0 0 ${w} ${h}`} width={w} height={h} />;
   }

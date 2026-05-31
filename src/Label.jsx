@@ -419,6 +419,9 @@ const FORMATS = [
   { id: 'confined-space',   name: 'Confined Space',   default: [600, 800] },
   { id: 'forklift-traffic', name: 'Forklift Traffic', default: [680, 480] },
   { id: 'emergency-exit',   name: 'Emergency Exit',   default: [760, 360] },
+  { id: 'biohazard',        name: 'Biohazard',        default: [600, 800] },
+  { id: 'laser-radiation',  name: 'Laser Radiation',  default: [600, 780] },
+  { id: 'site-access',      name: 'Site Access',      default: [600, 780] },
   { id: 'barcode-label',  name: 'Barcode Label',  default: [620, 360] },
   { id: 'asset-tag',      name: 'Asset Tag',       default: [560, 380] },
   { id: 'shipping-label', name: 'Shipping Label',  default: [600, 800] },
@@ -1353,6 +1356,172 @@ function makeShippingHandling(W, H) {
   ];
 }
 
+// Biohazard / infection-control sign: severity header, the biohazard
+// pictogram, a restricted-area message, and an infection-control PPE row
+// (mask / gloves / wash hands).
+function makeBiohazard(W, H, severity) {
+  const sev = SEVERITY[severity];
+  const headerH = Math.max(64, H * 0.15);
+  const signalSize = headerH * 0.56;
+  const padX = W * 0.07;
+  const contentW = W - padX * 2;
+  const pictoBox = Math.min(W * 0.46, H * 0.32);
+  const pictoX = W / 2 - pictoBox / 2;
+  const pictoY = headerH + H * 0.04;
+  const titleSize = Math.min(contentW / 9, 56);
+  const titleY = pictoY + pictoBox + H * 0.035;
+  const msgSize = Math.min(contentW / 24, 22);
+  const msgY = titleY + titleSize * 1.45;
+  const count = 3;
+  const symbols = ['M016', 'M009', 'M011'];
+  const captions = ['Wear a mask', 'Wear gloves', 'Wash hands'];
+  const ppeBox = Math.min(W * 0.18, H * 0.13);
+  const gap = (contentW - ppeBox * count) / (count + 1);
+  const ppeY = H - H * 0.18;
+  const capSize = Math.min(ppeBox * 0.2, 14);
+  const layers = [
+    L({ name: 'Background', type: 'rect', x: 0, y: 0, w: W, h: H,
+        fill: '#FFFFFF', stroke: '#000000', strokeWidth: 3,
+        locked: true, syncCanvas: 'fill', strokeOnTop: true }),
+    L({ name: 'Signal band', type: 'rect', x: 0, y: 0, w: W, h: headerH,
+        fill: sev.band, bindSeverity: 'band',
+        pinSides: { top: true, left: true, right: true }, clipToCanvas: true }),
+    L({ name: 'Signal word', type: 'text',
+        x: 0, y: headerH / 2 - signalSize / 2 + signalSize * 0.04, w: W, h: signalSize * 1.2,
+        text: sev.word, fontSize: signalSize, fontWeight: 900,
+        fill: sev.bandInk, bindSeverity: 'bandInk',
+        align: 'middle', uppercase: true, letterSpacing: 0.05,
+        pinSides: { top: true, left: true, right: true } }),
+    L({ name: 'Pictogram', type: 'image', x: pictoX, y: pictoY, w: pictoBox, h: pictoBox,
+        symbol: 'biohazard', preserveAspect: true, pinSides: { top: true } }),
+    L({ name: 'Title', type: 'text', x: padX, y: titleY, w: contentW, h: titleSize * 1.3,
+        text: 'Biohazard', fontSize: titleSize, fontWeight: 900,
+        fill: '#000000', align: 'middle', uppercase: true,
+        pinSides: { top: true, left: true, right: true } }),
+    L({ name: 'Message', type: 'text', x: padX, y: msgY, w: contentW, h: msgSize * 3,
+        text: 'Infection control area. Authorized personnel only.',
+        fontSize: msgSize, fontWeight: 500, fill: '#000000', align: 'middle', lineHeight: 1.3,
+        pinSides: { top: true, left: true, right: true } }),
+  ];
+  for (let i = 0; i < count; i++) {
+    const cx = padX + gap + i * (ppeBox + gap);
+    layers.push(L({ name: `PPE ${i + 1}`, type: 'image', x: cx, y: ppeY, w: ppeBox, h: ppeBox,
+      symbol: symbols[i], preserveAspect: true, pinSides: { bottom: true } }));
+    layers.push(L({ name: `PPE caption ${i + 1}`, type: 'text', x: cx - gap / 2, y: ppeY + ppeBox + 4,
+      w: ppeBox + gap, h: capSize * 1.4, text: captions[i], fontSize: capSize, fontWeight: 600,
+      fill: '#000000', align: 'middle', pinSides: { bottom: true } }));
+  }
+  return layers;
+}
+
+// Laser-radiation warning: severity header, a large laser pictogram, exposure
+// message, and a class / wavelength / max-output spec block.
+function makeLaserRadiation(W, H, severity) {
+  const sev = SEVERITY[severity];
+  const headerH = Math.max(64, H * 0.15);
+  const signalSize = headerH * 0.56;
+  const padX = W * 0.07;
+  const contentW = W - padX * 2;
+  const pictoBox = Math.min(W * 0.44, H * 0.3);
+  const pictoX = W / 2 - pictoBox / 2;
+  const pictoY = headerH + H * 0.035;
+  const titleSize = Math.min(contentW / 10, 48);
+  const titleY = pictoY + pictoBox + H * 0.03;
+  const msgSize = Math.min(contentW / 24, 22);
+  const msgY = titleY + titleSize * 1.4;
+  const specY = H - H * 0.2;
+  const specSize = Math.min(contentW / 30, 16);
+  return [
+    L({ name: 'Background', type: 'rect', x: 0, y: 0, w: W, h: H,
+        fill: '#FFFFFF', stroke: '#000000', strokeWidth: 3,
+        locked: true, syncCanvas: 'fill', strokeOnTop: true }),
+    L({ name: 'Signal band', type: 'rect', x: 0, y: 0, w: W, h: headerH,
+        fill: sev.band, bindSeverity: 'band',
+        pinSides: { top: true, left: true, right: true }, clipToCanvas: true }),
+    L({ name: 'Signal word', type: 'text',
+        x: 0, y: headerH / 2 - signalSize / 2 + signalSize * 0.04, w: W, h: signalSize * 1.2,
+        text: sev.word, fontSize: signalSize, fontWeight: 900,
+        fill: sev.bandInk, bindSeverity: 'bandInk',
+        align: 'middle', uppercase: true, letterSpacing: 0.05,
+        pinSides: { top: true, left: true, right: true } }),
+    L({ name: 'Pictogram', type: 'image', x: pictoX, y: pictoY, w: pictoBox, h: pictoBox,
+        symbol: 'laser', preserveAspect: true, pinSides: { top: true } }),
+    L({ name: 'Title', type: 'text', x: padX, y: titleY, w: contentW, h: titleSize * 1.3,
+        text: 'Laser Radiation', fontSize: titleSize, fontWeight: 900,
+        fill: '#000000', align: 'middle', uppercase: true,
+        pinSides: { top: true, left: true, right: true } }),
+    L({ name: 'Message', type: 'text', x: padX, y: msgY, w: contentW, h: msgSize * 4,
+        text: 'Avoid eye or skin exposure to direct or scattered radiation.',
+        fontSize: msgSize, fontWeight: 500, fill: '#000000', align: 'middle', lineHeight: 1.3,
+        pinSides: { top: true, left: true, right: true } }),
+    L({ name: 'Spec divider', type: 'line', x: padX, y: specY - H * 0.03, w: contentW, h: 2,
+        stroke: '#000000', strokeWidth: 1.5, pinSides: { bottom: true, left: true, right: true } }),
+    L({ name: 'Class', type: 'text', x: padX, y: specY, w: contentW, h: specSize * 1.4,
+        text: 'CLASS — 3B / 4', fontFamily: 'mono', fontSize: specSize, fontWeight: 700,
+        fill: '#000000', align: 'start', letterSpacing: 0.04, uppercase: true,
+        pinSides: { bottom: true, left: true, right: true } }),
+    L({ name: 'Wavelength', type: 'text', x: padX, y: specY + specSize * 2, w: contentW, h: specSize * 1.4,
+        text: 'WAVELENGTH — ___ nm', fontFamily: 'mono', fontSize: specSize, fontWeight: 700,
+        fill: '#000000', align: 'start', letterSpacing: 0.04, uppercase: true,
+        pinSides: { bottom: true, left: true, right: true } }),
+    L({ name: 'Max output', type: 'text', x: padX, y: specY + specSize * 4, w: contentW, h: specSize * 1.4,
+        text: 'MAX OUTPUT — ___ mW', fontFamily: 'mono', fontSize: specSize, fontWeight: 700,
+        fill: '#000000', align: 'start', letterSpacing: 0.04, uppercase: true,
+        pinSides: { bottom: true, left: true, right: true } }),
+  ];
+}
+
+// Parking / site-access control sign: blue header and footer bands, a parking
+// pictogram, and an access ruleset.
+function makeSiteAccess(W, H) {
+  const blue = '#1057A8';
+  const white = '#FFFFFF';
+  const ink = '#1a1814';
+  const headerH = Math.max(72, H * 0.16);
+  const footerH = Math.max(44, H * 0.1);
+  const padX = W * 0.07;
+  const contentW = W - padX * 2;
+  const headerFont = Math.min(contentW / 11, headerH * 0.42);
+  const pictoBox = Math.min(W * 0.4, H * 0.26);
+  const pictoX = W / 2 - pictoBox / 2;
+  const pictoY = headerH + H * 0.05;
+  const subY = pictoY + pictoBox + H * 0.03;
+  const subSize = Math.min(contentW / 16, 28);
+  const rulesY = subY + subSize * 1.8;
+  const footerFont = Math.min(contentW / 26, footerH * 0.42);
+  return [
+    L({ name: 'Background', type: 'rect', x: 0, y: 0, w: W, h: H, fill: white,
+        stroke: ink, strokeWidth: 3, locked: true, syncCanvas: 'fill', strokeOnTop: true }),
+    L({ name: 'Header band', type: 'rect', x: 0, y: 0, w: W, h: headerH, fill: blue,
+        clipToCanvas: true, pinSides: { top: true, left: true, right: true } }),
+    L({ name: 'Header text', type: 'text',
+        x: padX, y: headerH / 2 - headerFont / 2 + headerFont * 0.04, w: contentW, h: headerFont * 1.2,
+        text: 'Site Access', fontSize: headerFont, fontWeight: 900, fill: white,
+        align: 'middle', uppercase: true, letterSpacing: 0.06, pinSides: { top: true, left: true, right: true } }),
+    L({ name: 'Pictogram', type: 'image', x: pictoX, y: pictoY, w: pictoBox, h: pictoBox,
+        symbol: 'TF014', preserveAspect: true, pinSides: { top: true } }),
+    L({ name: 'Subtitle', type: 'text', x: padX, y: subY, w: contentW, h: subSize * 1.4,
+        text: 'Authorised access only', fontSize: subSize, fontWeight: 700,
+        fill: ink, align: 'middle', uppercase: true, letterSpacing: 0.02,
+        pinSides: { top: true, left: true, right: true } }),
+    L({ name: 'Rules', type: 'bullets', x: padX, y: rulesY, w: contentW, h: H * 0.22,
+        items: [
+          { id: uid(), text: 'Report to the site office on arrival.' },
+          { id: uid(), text: 'Permit holders only beyond this point.' },
+          { id: uid(), text: 'Hi-vis clothing required on site.' },
+          { id: uid(), text: 'Observe the 5 mph speed limit.' },
+        ],
+        fontSize: Math.min(contentW / 26, 19), fontWeight: 500, fill: ink, lineHeight: 1.45,
+        pinSides: { top: true, left: true, right: true } }),
+    L({ name: 'Footer band', type: 'rect', x: 0, y: H - footerH, w: W, h: footerH, fill: blue,
+        clipToCanvas: true, pinSides: { bottom: true, left: true, right: true } }),
+    L({ name: 'Footer text', type: 'text',
+        x: padX, y: H - footerH / 2 - footerFont / 2 + footerFont * 0.04, w: contentW, h: footerFont * 1.2,
+        text: 'All visitors must sign in', fontSize: footerFont, fontWeight: 700, fill: white,
+        align: 'middle', uppercase: true, letterSpacing: 0.05, pinSides: { bottom: true, left: true, right: true } }),
+  ];
+}
+
 const PRESETS = {
   'ansi-header': makeAnsiHeader,
   'ansi-side':   makeAnsiSide,
@@ -1370,6 +1539,9 @@ const PRESETS = {
   'confined-space':   makeConfinedSpace,
   'forklift-traffic': makeForkliftTraffic,
   'emergency-exit':   makeEmergencyExit,
+  'biohazard':        makeBiohazard,
+  'laser-radiation':  makeLaserRadiation,
+  'site-access':      makeSiteAccess,
   'barcode-label':  makeBarcodeLabel,
   'asset-tag':      makeAssetTag,
   'shipping-label': makeShippingLabel,
