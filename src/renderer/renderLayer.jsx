@@ -209,8 +209,16 @@ function renderLayer(l, sev, symbolsReady) {
     case 'rect': {
       const sw = l.strokeWidth || 0;
       const stroke = resolveFill(l.stroke || 'none', l.bindSeverity, sev);
-      const drawStrokeHere = sw > 0 && !l.strokeOnTop && stroke !== 'none';
-      const fillPath = rectPath(l.x, l.y, l.w, l.h, l.radius, 0, l.corner);
+      const hasStroke = sw > 0 && stroke !== 'none';
+      const drawStrokeHere = hasStroke && !l.strokeOnTop;
+      // Inset the fill by sw/2 when there's a stroke so the fill's antialiased
+      // edge tucks UNDER the opaque stroke ring. A full-bounds fill bleeds its
+      // colour through the ring's antialiased outer edge — a hairline of fill /
+      // underlying showing at fractional zoom. The ring still covers the inset
+      // band, so no gutter appears.
+      const fillPath = hasStroke
+        ? rectPath(l.x, l.y, l.w, l.h, l.radius, sw, l.corner)
+        : rectPath(l.x, l.y, l.w, l.h, l.radius, 0, l.corner);
       return (
         <g transform={transform}>
           <path
