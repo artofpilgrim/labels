@@ -3,7 +3,7 @@ import { starPoints } from '../templates/index.js';
 import { uid } from '../uid.js';
 import { PinSidesControl, CornerRadius } from './layerControls.jsx';
 import { readImageFile, SymbolPicker } from './SymbolPicker.jsx';
-import { Field, Section, Row, Seg, NumberInput, ColorInput, Slider, BLEND_MODES } from './ui.jsx';
+import { Field, Section, Row, Seg, NumberInput, ColorInput, Slider } from './ui.jsx';
 
 // ----------- Properties panel (per layer type) -----------
 function PropertiesPanel({ layer, onChange, cache }) {
@@ -34,15 +34,6 @@ function PropertiesPanel({ layer, onChange, cache }) {
   }
   return (
     <>
-      <Section title="Blend">
-        <Field label="Blend mode">
-          <select className="select-input" value={layer.blend || 'normal'}
-                  onChange={e => onChange({ blend: e.target.value === 'normal' ? null : e.target.value })}>
-            {BLEND_MODES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-          </select>
-        </Field>
-      </Section>
-
       <Section title="Dimensions">
         <Field label="Name">
           <input className="text-input" value={layer.name || ''}

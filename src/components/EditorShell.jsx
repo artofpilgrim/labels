@@ -186,10 +186,16 @@ export function EditorShell({
       design={design}
       selectedIds={selectedIds}
       setSelectedIds={setSelectedIds}
+      selectedLayer={selectedLayer}
+      symbolsReady={!!symbolCache}
       setLayer={setLayer}
       moveLayer={moveLayer}
       deleteLayer={deleteLayer}
       moveLayersToTarget={moveLayersToTarget}
+      addLayer={addLayer}
+      duplicateLayer={duplicateLayer}
+      deleteSelected={deleteSelected}
+      reorderSelected={reorderSelected}
     />
   );
 
