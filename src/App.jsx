@@ -1538,6 +1538,10 @@ export function App({ onHome } = {}) {
   // once with an empty-dep effect, so it must read the live value via this ref).
   const wrapOffsetRef = useRef(wrapOffset);
   wrapOffsetRef.current = wrapOffset;
+  // Live mirrors so keyboard/imperative handlers read the current value without
+  // re-binding their effect every frame (fit/selBounds change each drag/zoom tick).
+  const fitRef = useRef(fit); fitRef.current = fit;
+  const selBoundsRef = useRef(selBounds); selBoundsRef.current = selBounds;
   // True while a pan drag is live, so the stage's scroll listener doesn't
   // recompute rulers mid-drag — that re-render would reset the wrap's
   // imperatively-set transform and make translate-panning jitter.
@@ -1558,7 +1562,10 @@ export function App({ onHome } = {}) {
   const [grid, setGrid] = useState(() => {
     try {
       const s = JSON.parse(localStorage.getItem('hazardLabelStudio.grid') || 'null');
-      if (s && typeof s === 'object') return { show: !!s.show, snap: !!s.snap, step: Math.max(2, Math.min(200, s.step || 10)), smart: !!s.smart };
+      if (s && typeof s === 'object') {
+        const smart = !!s.smart; // snap/smart are mutually exclusive; smart wins on a stale persisted value
+        return { show: !!s.show, snap: smart ? false : !!s.snap, smart, step: Math.max(2, Math.min(200, s.step || 10)) };
+      }
     } catch { /* ignore */ }
     return { show: false, snap: false, step: 10, smart: false };
   });
@@ -1611,7 +1618,7 @@ export function App({ onHome } = {}) {
   // Set when Escape cancels an inline edit, so the unmount-triggered blur
   // (which would otherwise fire commitTextEdit and write the discarded draft)
   // becomes a no-op write.
-  const cancelEditRef = useRef(false);
+  const editClosedRef = useRef(false);
   const [userPresets, setUserPresets] = useState([]);
   const [newPresetName, setNewPresetName] = useState('');
   // The preset currently loaded into the canvas (if any). Lets "Update" save
@@ -1823,9 +1830,12 @@ export function App({ onHome } = {}) {
       return layers === d.layers ? d : { ...d, layers };
     });
   }, [setDesign]);
-  const addLayer = useCallback((type) => {
+  const addLayer = useCallback((type, at) => {
     const nl = newLayer(type, design.width, design.height);
     if (!nl) return;
+    // Optional drop point (label coords) — centre the new layer there. Used by the
+    // canvas right-click "Add …" items; the rail buttons omit it and add at centre.
+    if (at) { nl.x = Math.round(at.x - nl.w / 2); nl.y = Math.round(at.y - nl.h / 2); }
     setDesign(d => ({ ...d, layers: [...d.layers, nl] }));
     setSelectedIds([nl.id]);
   }, [design.width, design.height]);
@@ -1927,8 +1937,9 @@ export function App({ onHome } = {}) {
         return Object.keys(patch).length ? { ...l, ...patch } : l;
       }
       if (l.type === 'text' && H) {
-        if (l.align === 'start') return { ...l, align: 'end' };
-        if (l.align === 'end') return { ...l, align: 'start' };
+        const a = l.align || 'start'; // renderer treats undefined as 'start'
+        if (a === 'start') return { ...l, align: 'end' };
+        if (a === 'end') return { ...l, align: 'start' };
       }
       return l;
     };
@@ -2069,11 +2080,15 @@ export function App({ onHome } = {}) {
     }
     const g = selBounds;
     beginDrag(e, (dx, dy, mods) => {
-      if (mods.shift) { if (Math.abs(dx) >= Math.abs(dy)) dy = 0; else dx = 0; }
+      let lockX = false, lockY = false;
+      if (mods.shift) { if (Math.abs(dx) >= Math.abs(dy)) { dy = 0; lockY = true; } else { dx = 0; lockX = true; } }
       // Snap the group's top-left to the grid (absolute reference), matching the
       // single-layer behaviour in startLayerDrag — not the raw delta, which would
       // shift the box by a grid-multiple from an arbitrary origin.
       if (grid.snap && !mods.ctrl && g) { dx = quantize(g.x + dx, grid.step) - g.x; dy = quantize(g.y + dy, grid.step) - g.y; }
+      // Re-assert the axis lock — grid snapping must not move the frozen axis.
+      if (lockY) dy = 0;
+      if (lockX) dx = 0;
       setDesign(d => ({ ...d, layers: d.layers.map(l => snaps.has(l.id) ? { ...l, x: snaps.get(l.id).x + dx, y: snaps.get(l.id).y + dy } : l) }));
       if (g) setHud({ kind: 'move', x: g.x + dx, y: g.y + dy });
     }, clickedId ? () => setSelectedIds([clickedId]) : undefined);
@@ -2594,21 +2609,28 @@ export function App({ onHome } = {}) {
     if (!layer || layer.type !== 'text' || layer.locked) return;
     e.preventDefault(); e.stopPropagation();
     forceCommit();
+    editClosedRef.current = false;
     setSelectedIds([layerId]);
     setEditingDraft(layer.text || '');
     setEditingTextId(layerId);
   };
   const onLayerDoubleClick = useCallback((layerId, e) => labelHandlers.current.onLayerDoubleClick(layerId, e), []);
+  // commit/cancel each fire twice: once from the key/blur handler, then again
+  // from the native blur React fires when setEditingTextId(null) unmounts the
+  // textarea. editClosedRef makes the second call a no-op, so Enter doesn't write
+  // twice and Esc discards cleanly.
   const commitTextEdit = () => {
-    // A cancel (Escape) sets the flag, then unmounts the textarea; React fires a
-    // native blur on the removed element which lands here with the stale closure.
-    // Bail so the draft is discarded instead of written.
-    if (cancelEditRef.current) { cancelEditRef.current = false; setEditingTextId(null); return; }
+    if (editClosedRef.current) return;
+    editClosedRef.current = true;
     if (editingTextId) setLayer(editingTextId, { text: editingDraft });
     setEditingTextId(null);
     setTimeout(forceCommit, 0);
   };
-  const cancelTextEdit = () => { cancelEditRef.current = true; setEditingTextId(null); };
+  const cancelTextEdit = () => {
+    if (editClosedRef.current) return;
+    editClosedRef.current = true;
+    setEditingTextId(null);
+  };
   // Drop the inline editor if its layer disappears (undo / delete).
   useEffect(() => {
     if (editingTextId && !design.layers.some(l => l.id === editingTextId)) setEditingTextId(null);
@@ -2694,7 +2716,7 @@ export function App({ onHome } = {}) {
     }
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [selectedIds, deleteSelected, undo, redo, duplicateLayer, copySelected, pasteClipboard, selectAll, reorderSelected, alignLayer, distribute, fit, selBounds, ctxMenu, exportOpen, helpOpen]);
+  }, [selectedIds, deleteSelected, undo, redo, duplicateLayer, copySelected, pasteClipboard, selectAll, reorderSelected, alignLayer, distribute, ctxMenu, exportOpen, helpOpen]);
 
   // If undo/redo restores a design that no longer contains a selected layer,
   // prune the selection so handles + property panel don't dangle.
@@ -2751,12 +2773,12 @@ export function App({ onHome } = {}) {
   // Zoom helpers — step through a fixed ladder of magnifications.
   const ZOOM_STEPS = [0.05, 0.1, 0.15, 0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 2.0, 3.0, 4.0];
   function zoomIn() {
-    const cur = fit;
+    const cur = fitRef.current;
     const next = ZOOM_STEPS.find(s => s > cur * 1.001) || ZOOM_STEPS[ZOOM_STEPS.length - 1];
     setZoomMode(next);
   }
   function zoomOut() {
-    const cur = fit;
+    const cur = fitRef.current;
     const next = [...ZOOM_STEPS].reverse().find(s => s < cur * 0.999) || ZOOM_STEPS[0];
     setZoomMode(next);
   }
@@ -2802,7 +2824,7 @@ export function App({ onHome } = {}) {
   // Frame the current selection: zoom so its bounds fill the viewport (with a
   // margin) and scroll it to the centre. No-op without a selection.
   function frameSelection() {
-    const b = selBounds;
+    const b = selBoundsRef.current;
     const stage = canvasRef.current;
     const wrap = wrapRef.current;
     if (!b || !stage || !wrap || b.w < 1 || b.h < 1) return;
@@ -3770,13 +3792,13 @@ export function App({ onHome } = {}) {
               </svg>
             </button>
             <button className={`icon-btn${grid.snap ? ' on' : ''}`} aria-pressed={grid.snap} title="Snap to grid"
-                    onClick={() => setGrid(g => ({ ...g, snap: !g.snap }))}>
+                    onClick={() => setGrid(g => { const snap = !g.snap; return { ...g, snap, smart: snap ? false : g.smart }; })}>
               <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor">
                 {[3, 8, 13].flatMap(x => [3, 8, 13].map(y => <circle key={`${x}-${y}`} cx={x} cy={y} r="1.3" />))}
               </svg>
             </button>
             <button className={`icon-btn${grid.smart ? ' on' : ''}`} aria-pressed={grid.smart} title="Smart guides (align + equal spacing)"
-                    onClick={() => setGrid(g => ({ ...g, smart: !g.smart }))}>
+                    onClick={() => setGrid(g => { const smart = !g.smart; return { ...g, smart, snap: smart ? false : g.snap }; })}>
               <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.3">
                 <line x1="2.5" y1="3" x2="2.5" y2="13" /><line x1="13.5" y1="3" x2="13.5" y2="13" /><line x1="8" y1="5" x2="8" y2="11" />
                 <path d="M4 8 H6.5 M9.5 8 H12" strokeWidth="1" />
@@ -3842,13 +3864,13 @@ export function App({ onHome } = {}) {
             <button disabled={!(clipboardRef.current && clipboardRef.current.length)} onClick={() => { pasteClipboardAt(ctxMenu.labelX, ctxMenu.labelY); setCtxMenu(null); }}>Paste here <span>Ctrl+V</span></button>
             <button onClick={() => { selectAll(); setCtxMenu(null); }}>Select all <span>Ctrl+A</span></button>
             <div className="ctx-sep" />
-            <button onClick={() => { addLayer('text'); setCtxMenu(null); }}>Add text</button>
-            <button onClick={() => { addLayer('rect'); setCtxMenu(null); }}>Add rectangle</button>
-            <button onClick={() => { addLayer('ellipse'); setCtxMenu(null); }}>Add ellipse</button>
-            <button onClick={() => { addLayer('line'); setCtxMenu(null); }}>Add line</button>
+            <button onClick={() => { addLayer('text', { x: ctxMenu.labelX, y: ctxMenu.labelY }); setCtxMenu(null); }}>Add text</button>
+            <button onClick={() => { addLayer('rect', { x: ctxMenu.labelX, y: ctxMenu.labelY }); setCtxMenu(null); }}>Add rectangle</button>
+            <button onClick={() => { addLayer('ellipse', { x: ctxMenu.labelX, y: ctxMenu.labelY }); setCtxMenu(null); }}>Add ellipse</button>
+            <button onClick={() => { addLayer('line', { x: ctxMenu.labelX, y: ctxMenu.labelY }); setCtxMenu(null); }}>Add line</button>
             <div className="ctx-sep" />
             <button onClick={() => { setZoomMode('fit'); setCtxMenu(null); }}>Fit to viewport</button>
-            <button disabled={!selBounds} onClick={() => { frameSelection(); setCtxMenu(null); }}>Zoom to selection <span>Shift+2</span></button>
+            <button disabled={!selBounds || selBounds.w < 1 || selBounds.h < 1} onClick={() => { frameSelection(); setCtxMenu(null); }}>Zoom to selection <span>Shift+2</span></button>
           </div>
           ) : (
           <div className="ctx-menu" style={{ left: ctxMenu.x, top: ctxMenu.y }}>
