@@ -1331,7 +1331,9 @@ function HelpModal({ onClose }) {
               <li><b>Rotate</b>: set the angle in Properties → Dimensions (° field).</li>
               <li><b>Multi-select</b>: Shift-click layers, drag a marquee on empty space, then drag any selected layer as a group. Alt-click overlapping artwork to cycle through layers under the cursor.</li>
               <li><b>Pan</b>: middle-mouse drag (or hold <K>Space</K> and drag). <b>Zoom</b>: scroll the mouse wheel, or the bottom-right slider.</li>
-              <li><b>Snap</b>: hold <K>Ctrl</K>/<K>⌘</K> while dragging to align to other layers and the canvas.</li>
+              <li><b>Edit text</b>: double-click a text layer to edit it directly on the canvas (<K>Enter</K> commits, <K>Esc</K> cancels).</li>
+              <li><b>Flip</b>: mirror a layer with the flip buttons in the arrange toolbar.</li>
+              <li><b>Snap</b>: hold <K>Ctrl</K>/<K>⌘</K> while dragging to align to other layers; or turn on the <b>grid</b> / <b>Smart guides</b> in the bottom bar for always-on snapping and equal spacing. Hold <K>Shift</K> while dragging to lock to one axis.</li>
             </ul>
           </section>
 
@@ -1342,6 +1344,14 @@ function HelpModal({ onClose }) {
               <span className="kbd-keys"><K>Ctrl</K>/<K>⌘</K> <K>Shift</K> <K>Z</K></span><span className="kbd-label">Redo</span>
               <span className="kbd-keys"><K>Delete</K> / <K>Backspace</K></span><span className="kbd-label">Delete selected layer(s)</span>
               <span className="kbd-keys"><K>↑</K><K>↓</K><K>←</K><K>→</K></span><span className="kbd-label">Nudge (hold <K>Shift</K> for 10px)</span>
+              <span className="kbd-keys"><K>Ctrl</K>/<K>⌘</K> <K>C</K> · <K>V</K> · <K>D</K></span><span className="kbd-label">Copy · Paste · Duplicate</span>
+              <span className="kbd-keys"><K>Ctrl</K>/<K>⌘</K> <K>A</K></span><span className="kbd-label">Select all</span>
+              <span className="kbd-keys"><K>Ctrl</K>/<K>⌘</K> <K>[</K> · <K>]</K></span><span className="kbd-label">Send back · bring forward (<K>Shift</K> = to back / front)</span>
+              <span className="kbd-keys"><K>Ctrl</K>/<K>⌘</K> <K>+</K> · <K>−</K> · <K>0</K></span><span className="kbd-label">Zoom in · out · 100%</span>
+              <span className="kbd-keys"><K>Shift</K> <K>1</K> · <K>2</K></span><span className="kbd-label">Fit · zoom to selection</span>
+              <span className="kbd-keys"><K>Alt</K> <K>A</K> <K>W</K> <K>S</K> · <K>Alt</K> <K>Shift</K> <K>D</K></span><span className="kbd-label">Align left · top · bottom · right</span>
+              <span className="kbd-keys"><K>Alt</K> <K>H</K> · <K>V</K></span><span className="kbd-label">Align centre (<K>Shift</K> = distribute)</span>
+              <span className="kbd-keys"><K>Double-click</K></span><span className="kbd-label">Edit a text layer on the canvas</span>
               <span className="kbd-keys"><K>Esc</K></span><span className="kbd-label">Deselect</span>
             </div>
           </section>
@@ -3768,9 +3778,8 @@ export function App({ onHome } = {}) {
                 <path d="M4 8 H6.5 M9.5 8 H12" strokeWidth="1" />
               </svg>
             </button>
-            <input className="grid-step" type="number" min={2} max={200} value={grid.step}
-                   onChange={e => setGrid(g => ({ ...g, step: Math.max(2, Math.min(200, Math.round(Number(e.target.value)) || g.step)) }))}
-                   title="Grid size (px)" aria-label="Grid size (px)" />
+            <NumberInput value={grid.step} min={2} max={200} step={1} live={false} ariaLabel="Grid size (px)"
+                         onChange={v => setGrid(g => ({ ...g, step: Math.max(2, Math.min(200, Math.round(v) || g.step)) }))} />
           </div>
           <div className="canvas-zoom">
             <button className={`icon-btn${zoomMode === 'fit' ? ' on' : ''}`} aria-pressed={zoomMode === 'fit'} title="Fit to viewport" onClick={() => setZoomMode('fit')}>⤢</button>

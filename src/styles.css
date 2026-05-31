@@ -1017,11 +1017,9 @@ body.space-pan .overlay * { pointer-events: none !important; }
 .canvas-grid-ctl { display: flex; align-items: center; gap: 4px; flex: 0 0 auto; }
 .canvas-grid-ctl .icon-btn { width: 26px; height: 26px; color: var(--ink); }
 .canvas-grid-ctl .icon-btn.on { background: var(--ink); color: var(--bg); border-color: var(--ink); }
-.grid-step {
-  width: 46px; height: 26px; padding: 0 6px;
-  font-size: 11px; font-family: var(--mono); color: var(--ink);
-  background: var(--bg-2); border: 1px solid var(--line); border-radius: var(--r);
-}
+.canvas-grid-ctl .num-input { flex: 0 0 auto; width: 58px; }
+.canvas-grid-ctl .num-input input { padding: 4px 0 4px 7px; font-size: 11px; font-family: var(--mono); }
+.canvas-grid-ctl .num-step { width: 15px; height: 11px; }
 .zoom-slider {
   -webkit-appearance: none; appearance: none;
   width: 120px; height: 3px; background: var(--line-strong);
