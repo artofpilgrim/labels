@@ -1,5 +1,5 @@
 // Layer-based label renderer.
-import { forwardRef, useImperativeHandle, useRef, memo } from 'react';
+import { forwardRef, useId, useImperativeHandle, useRef, memo } from 'react';
 import { SEVERITY } from '../core/constants.js';
 import { rectPath, rectStrokeRingPath, renderLayer, resolveFill } from './renderLayer.jsx';
 
@@ -24,6 +24,11 @@ function holeMaskNode(l) {
 const Label = memo(forwardRef(function Label({ design, symbolsReady, onLayerPointerDown, onCanvasPointerDown, onLayerContextMenu, onLayerDoubleClick, editingId }, ref) {
   const svgRef = useRef(null);
   useImperativeHandle(ref, () => ({ getSvg: () => svgRef.current }));
+  // Per-instance suffix so clip/mask element ids are unique — otherwise a second
+  // <Label> on the page (e.g. a document thumbnail) collides with the canvas's
+  // ids and url(#…) references resolve to the wrong shape. Colons from useId are
+  // stripped so they're safe inside url(#…).
+  const rid = useId().replace(/:/g, '');
 
   const sev = SEVERITY[design.severity] || SEVERITY.danger;
 
@@ -31,7 +36,7 @@ const Label = memo(forwardRef(function Label({ design, symbolsReady, onLayerPoin
   // `clipToCanvas: true` is rendered through this clip, so it automatically
   // inherits the bg's rounded corners and stays inside the canvas outline.
   const bg = design.layers.find(l => l.syncCanvas === 'fill');
-  const canvasClipId = 'canvas-clip';
+  const canvasClipId = `canvas-clip-${rid}`;
   // Inset the clip by the frame's stroke so clipToCanvas layers (bands) tuck
   // UNDER the strokeOnTop frame instead of reaching its antialiased outer edge —
   // otherwise a band's colour bleeds through that edge as a hairline (visible on
@@ -47,7 +52,7 @@ const Label = memo(forwardRef(function Label({ design, symbolsReady, onLayerPoin
   // a luminance mask. The white field is oversized so off-canvas content still
   // shows; the black hole shapes are the only thing removed.
   const holes = design.layers.filter(l => l.hole && !l.hidden);
-  const holeMaskId = 'hole-mask';
+  const holeMaskId = `hole-mask-${rid}`;
   const W = design.width, H = design.height;
 
   return (

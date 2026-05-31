@@ -133,8 +133,39 @@ input, textarea { font-family: inherit; }
 /* Brief splash while the open document loads from IndexedDB. */
 .app-booting { position: fixed; inset: 0; background: var(--bg); }
 
-/* "My labels" library: full-width new-document button. */
+/* "My labels" library: full-width new-document button + document cards. */
 .lp-new-doc { width: 100%; justify-content: center; }
+.doc-list { margin-top: 8px; max-height: 62vh; overflow-y: auto; padding-right: 2px; }
+.doc-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 6px 7px; margin-bottom: 5px;
+  border: 1px solid var(--line); border-radius: var(--r);
+  background: var(--white); cursor: pointer;
+  transition: border-color .12s ease, background .12s ease;
+}
+.doc-row:hover { border-color: var(--line-strong); }
+.doc-row.on { border-color: var(--accent-soft-border); background: var(--accent-soft); }
+.doc-thumb {
+  flex: 0 0 auto; width: 46px; height: 34px;
+  border: 1px solid var(--line); border-radius: 3px; overflow: hidden;
+  background: var(--bg-2); display: block; pointer-events: none;
+}
+.doc-thumb svg { width: 100%; height: 100%; display: block; }
+.doc-row.on .doc-thumb { border-color: var(--accent-soft-border); }
+.doc-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.doc-name2 {
+  font-size: 12.5px; color: var(--ink); cursor: text;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.doc-time { font-family: var(--mono); font-size: 9px; letter-spacing: .04em; color: var(--muted); }
+.doc-rename {
+  font-size: 12.5px; color: var(--ink); width: 100%; padding: 1px 4px;
+  background: var(--white); border: 1px solid var(--accent); border-radius: 3px; outline: none;
+}
+.doc-actions { flex: 0 0 auto; display: flex; align-items: center; gap: 1px; }
+.doc-row .icon-btn { width: 24px; height: 24px; border-color: transparent; color: var(--muted); }
+.doc-row .icon-btn:hover { color: var(--ink); border-color: var(--line); background: var(--bg); }
+.doc-row .doc-del:hover { color: var(--accent); border-color: var(--accent-soft-border); }
 
 /* ---------- Field primitives ---------- */
 /* One column rhythm everywhere — inside Sections and bare .pad blocks alike,
