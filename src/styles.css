@@ -130,6 +130,12 @@ input, textarea { font-family: inherit; }
 .panel::-webkit-scrollbar { width: 8px; }
 .panel::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius: 4px; }
 
+/* Brief splash while the open document loads from IndexedDB. */
+.app-booting { position: fixed; inset: 0; background: var(--bg); }
+
+/* "My labels" library: full-width new-document button. */
+.lp-new-doc { width: 100%; justify-content: center; }
+
 /* ---------- Field primitives ---------- */
 /* One column rhythm everywhere — inside Sections and bare .pad blocks alike,
    so no-selection / multi-select panels don't loosen vs the rest. */

@@ -42,6 +42,18 @@ export function useHistoryState(initialDesign) {
     return () => {};
   }, [editor.design]);
 
+  // Swap in a different design as a fresh baseline (opening another document):
+  // clears undo/redo so history never crosses a document boundary.
+  const resetHistory = useCallback((nextDesign) => {
+    if (commitTimerRef.current) {
+      clearTimeout(commitTimerRef.current);
+      commitTimerRef.current = null;
+    }
+    inDragRef.current = false;          // a switch can land mid-gesture; don't carry it over
+    lastCommittedDesign.current = nextDesign;
+    setEditor({ design: nextDesign, past: [], future: [] });
+  }, []);
+
   const forceCommit = useCallback(() => {
     if (commitTimerRef.current) {
       clearTimeout(commitTimerRef.current);
@@ -100,6 +112,7 @@ export function useHistoryState(initialDesign) {
   return {
     design,
     setDesign,
+    resetHistory,
     forceCommit,
     inDragRef,
     undo,

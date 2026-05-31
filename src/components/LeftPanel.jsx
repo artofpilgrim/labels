@@ -1,9 +1,60 @@
+import { useState } from 'react';
 import { SEVERITY } from '../core/constants.js';
 import { FORMATS, newLayer } from '../templates/index.js';
 import { Field, Row } from './ui.jsx';
 import { FormatIcon } from './FormatIcon.jsx';
 import { SymbolPicker } from './SymbolPicker.jsx';
 import { SHAPES } from './editorChrome.jsx';
+
+// "5m ago" / "2h ago" / "3d ago" / a date — last-edited stamp for the library.
+function relTime(ts) {
+  if (!ts) return '';
+  const s = Math.max(0, (Date.now() - ts) / 1000);
+  if (s < 45) return 'just now';
+  if (s < 3600) return `${Math.round(s / 60)}m ago`;
+  if (s < 86400) return `${Math.round(s / 3600)}h ago`;
+  if (s < 86400 * 7) return `${Math.round(s / 86400)}d ago`;
+  return new Date(ts).toLocaleDateString();
+}
+
+// One row in the "My labels" library. Click to open; double-click the name (or
+// the pencil) to rename inline; × deletes after a confirm.
+function DocumentRow({ doc, current, onOpen, onRename, onDelete }) {
+  const [renaming, setRenaming] = useState(false);
+  return (
+    <div className={`layer-row ${current ? 'on' : ''}`}
+         onClick={() => { if (!renaming) onOpen(doc.id); }}
+         title={current ? 'Current label' : 'Open label'}>
+      <span className="layer-glyph">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.2">
+          <path d="M3 2h5l1 1.4h2v8.6H3z" />
+        </svg>
+      </span>
+      {renaming ? (
+        <input className="layer-rename" autoFocus defaultValue={doc.name}
+               onClick={e => e.stopPropagation()}
+               onBlur={e => { onRename(doc.id, e.target.value); setRenaming(false); }}
+               onKeyDown={e => {
+                 e.stopPropagation();
+                 if (e.key === 'Enter') e.currentTarget.blur();
+                 else if (e.key === 'Escape') setRenaming(false);
+               }} />
+      ) : (
+        <span className="layer-name" onDoubleClick={e => { e.stopPropagation(); setRenaming(true); }}>{doc.name}</span>
+      )}
+      <span className="layer-meta">{relTime(doc.updatedAt)}</span>
+      <button className="icon-btn" title="Rename"
+              onClick={e => { e.stopPropagation(); setRenaming(true); }}>
+        <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor"
+             strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M10.5 2.5 13.5 5.5 5.5 13.5H2.5v-3z" />
+        </svg>
+      </button>
+      <button className="icon-btn" title="Delete"
+              onClick={e => { e.stopPropagation(); if (window.confirm(`Delete "${doc.name}"? This can't be undone.`)) onDelete(doc.id); }}>×</button>
+    </div>
+  );
+}
 
 export function LeftPanel({
   leftPanel,
@@ -30,8 +81,29 @@ export function LeftPanel({
   setDesign,
   setSelectedIds,
   addLayer,
+  currentDocId,
+  docs,
+  newDocument,
+  openDocument,
+  renameDocument,
+  deleteDocument,
 }) {
   const bg = design.layers.find(l => l.syncCanvas === 'fill');
+
+  const filesField = (
+    <Field label="My labels">
+      <button className="ghost dashed lp-new-doc" onClick={() => newDocument()}>+ New label</button>
+      <div className="field-hint" style={{ marginTop: 6 }}>Saved locally to this browser.</div>
+      {docs && docs.length > 0 && (
+        <div className="layer-list" style={{ marginTop: 8 }}>
+          {docs.map(d => (
+            <DocumentRow key={d.id} doc={d} current={d.id === currentDocId}
+                         onOpen={openDocument} onRename={renameDocument} onDelete={deleteDocument} />
+          ))}
+        </div>
+      )}
+    </Field>
+  );
 
   const severityField = (
     <Field label="Severity">
@@ -183,6 +255,8 @@ export function LeftPanel({
         )}
 
         <div className="panel">
+          {leftPanel === 'files' && filesField}
+
           {leftPanel === 'templates' && (
             <>
               {severityField}

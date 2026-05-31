@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
 import { isRenderableDesign } from '../core/design.js';
+import { idb } from '../core/idb.js';
 import { uid } from '../uid.js';
-
-const USER_PRESETS_KEY = 'hazardLabelStudio.userPresets';
 
 export function useUserPresets({
   design,
@@ -18,30 +17,21 @@ export function useUserPresets({
   const [activePresetId, setActivePresetId] = useState(null);
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(USER_PRESETS_KEY);
-      if (!raw) return;
-      const v = JSON.parse(raw);
-      if (Array.isArray(v)) {
+    let alive = true;
+    idb.kvGet('userPresets').then(v => {
+      if (alive && Array.isArray(v)) {
         setUserPresets(v.filter(p => p && p.id && p.design && Array.isArray(p.design.layers)));
       }
-    } catch {
-      // Corrupted storage is ignored.
-    }
+    }).catch(() => { /* corrupted/unavailable storage → start empty */ });
+    return () => { alive = false; };
   }, []);
 
   function persistUserPresets(next) {
-    try {
-      localStorage.setItem(USER_PRESETS_KEY, JSON.stringify(next));
-      setUserPresets(next);
-    } catch (err) {
-      setExportMsg(
-        err && err.name === 'QuotaExceededError'
-          ? 'Storage full - delete some presets'
-          : 'Could not save preset'
-      );
+    setUserPresets(next);   // optimistic — IndexedDB writes are async
+    idb.kvSet('userPresets', next).catch(() => {
+      setExportMsg('Could not save preset');
       setTimeout(() => setExportMsg(''), 2800);
-    }
+    });
   }
 
   function saveCurrentAsPreset(name) {
@@ -100,7 +90,8 @@ export function useUserPresets({
       format: 'custom',
       layers,
     });
-    setDocName(p.name);
+    // A preset is a layout applied to the open document — keep the document's
+    // own name (under the IndexedDB model, docName IS the open file's title).
     setActivePresetId(id);
     setSelectedIds([]);
     setWrapOffset({ x: 0, y: 0 });

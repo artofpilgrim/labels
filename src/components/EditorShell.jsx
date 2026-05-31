@@ -120,6 +120,12 @@ export function EditorShell({
   setCtxMenu,
   frameSelection,
   copySelected,
+  currentDocId,
+  docs,
+  newDocument,
+  openDocument,
+  renameDocument,
+  deleteDocument,
   onHome
 }) {
   // ----- Shared panel blocks (reused across the new 4-zone layout) -----
@@ -203,6 +209,7 @@ export function EditorShell({
   );
 
   const railBtns = [
+    { id: 'files', title: 'My labels', kind: 'panel', icon: 'M2 4.5h4l1.4 1.6H14V12.5H2z' },
     { id: 'templates', title: 'Templates', kind: 'panel', icon: 'M2 2h5v5H2zM9 2h5v5H9zM2 9h5v5H2zM9 9h5v5H9z' },
     { id: 'shapes', title: 'Shapes', kind: 'panel', icon: 'M8 2 L14 6.5 L11.6 13.5 H4.4 L2 6.5 Z' },
     { id: 'symbols', title: 'Symbols', kind: 'panel', icon: 'M8 2l6 11H2z' },
@@ -350,6 +357,12 @@ export function EditorShell({
         setDesign={setDesign}
         setSelectedIds={setSelectedIds}
         addLayer={addLayer}
+        currentDocId={currentDocId}
+        docs={docs}
+        newDocument={newDocument}
+        openDocument={openDocument}
+        renameDocument={renameDocument}
+        deleteDocument={deleteDocument}
       />
       <CanvasArea
         design={design}

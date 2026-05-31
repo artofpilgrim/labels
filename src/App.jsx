@@ -4,8 +4,9 @@ import { EditorShell } from './components/EditorShell.jsx';
 import { PRESETS } from './templates/index.js';
 import { slug } from './core/design.js';
 import { applyPins } from './core/geometry.js';
-import { DESIGN_AUTOSAVE_KEY, DOC_NAME_KEY, loadSavedDesign } from './core/persistence.js';
+import { loadInitialDocument } from './core/persistence.js';
 import { useCanvasViewport } from './hooks/useCanvasViewport.js';
+import { useDocuments } from './hooks/useDocuments.js';
 import { useCanvasInteractions } from './hooks/useCanvasInteractions.js';
 import { useExportActions } from './hooks/useExportActions.js';
 import { useGridSettings } from './hooks/useGridSettings.js';
@@ -29,17 +30,18 @@ function makeInitialDesign() {
   };
 }
 
-export function App({ onHome } = {}) {
+function Studio({ initialDoc, onHome }) {
   const {
     design,
     setDesign,
+    resetHistory,
     forceCommit,
     inDragRef,
     undo: historyUndo,
     redo: historyRedo,
     canUndo,
     canRedo,
-  } = useHistoryState(() => loadSavedDesign() || makeInitialDesign());
+  } = useHistoryState(() => initialDoc.design);
 
   // Resize the canvas the same way the canvas-resize drag does: stretch the
   // synced background (its strokeOnTop border IS the label frame) and re-anchor
@@ -86,10 +88,7 @@ export function App({ onHome } = {}) {
   // layer reveals its properties without any tab switch.
   const [leftPanel, setLeftPanel] = useState('templates'); // 'templates' | 'shapes' | 'symbols'
   // Editable document title in the top bar; restored from + saved to localStorage.
-  const [docName, setDocName] = useState(() => {
-    try { return localStorage.getItem(DOC_NAME_KEY) || 'Untitled Label'; }
-    catch { return 'Untitled Label'; }
-  });
+  const [docName, setDocName] = useState(() => initialDoc.name);
   const [exportOpen, setExportOpen] = useState(false);      // export popover
   const [helpOpen, setHelpOpen] = useState(false);          // help / workflows dialog
   const [ctxMenu, setCtxMenu] = useState(null);             // right-click menu { x, y }
@@ -182,19 +181,28 @@ export function App({ onHome } = {}) {
     setSnapGuides([]);
   }, [historyRedo]);
 
-  // Persist the working design (debounced) so a refresh doesn't lose work.
-  // Independent of the undo history; only the current design is stored.
-  useEffect(() => {
-    setSaveState('saving');
-    const t = setTimeout(() => {
-      try {
-        localStorage.setItem(DESIGN_AUTOSAVE_KEY, JSON.stringify(design));
-        localStorage.setItem(DOC_NAME_KEY, docName);
-      } catch { /* quota or serialization failure — non-fatal */ }
-      setSaveState('saved');
-    }, 500);
-    return () => clearTimeout(t);
-  }, [design, docName]);
+  // Local "my labels" file system — owns the document list, the open document,
+  // and the per-document autosave (which drives the top-bar save status).
+  const {
+    currentDocId,
+    docs,
+    newDocument,
+    openDocument,
+    renameDocument,
+    deleteDocument,
+  } = useDocuments({
+    initialDoc,
+    design,
+    docName,
+    setDocName,
+    setSaveState,
+    resetHistory,
+    setSelectedIds,
+    setWrapOffset,
+    setActivePresetId,
+    makeDefaultDesign: makeInitialDesign,
+    setExportMsg,
+  });
 
   const {
     setLayer,
@@ -415,8 +423,28 @@ export function App({ onHome } = {}) {
       setCtxMenu={setCtxMenu}
       frameSelection={frameSelection}
       copySelected={copySelected}
+      currentDocId={currentDocId}
+      docs={docs}
+      newDocument={newDocument}
+      openDocument={openDocument}
+      renameDocument={renameDocument}
+      deleteDocument={deleteDocument}
       onHome={onHome}
     />
   );
 
+}
+
+// Hydration gate: the open document loads from IndexedDB (async), so we resolve
+// it before mounting the editor — keeping useHistoryState synchronous from an
+// already-loaded design (no flash, no spurious undo step on first paint).
+export function App({ onHome } = {}) {
+  const [initialDoc, setInitialDoc] = useState(null);
+  useEffect(() => {
+    let alive = true;
+    loadInitialDocument(makeInitialDesign).then(doc => { if (alive) setInitialDoc(doc); });
+    return () => { alive = false; };
+  }, []);
+  if (!initialDoc) return <div className="app-booting" aria-hidden="true" />;
+  return <Studio initialDoc={initialDoc} onHome={onHome} />;
 }
