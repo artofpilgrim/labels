@@ -765,23 +765,14 @@ body.space-pan .overlay * { pointer-events: none !important; }
   border-radius: var(--r);
   cursor: pointer;
   font-size: 12px;
-  position: relative;
 }
 .layer-row:hover { background: var(--bg-2); }
 .layer-row.drop-target { border-color: var(--accent); }
-.layer-row.drop-above::before,
-.layer-row.drop-below::after {
-  content: '';
-  position: absolute;
-  left: 5px; right: 5px;
-  height: 2px;
-  border-radius: 2px;
-  background: var(--accent);
-  pointer-events: none;
-  z-index: 1;
-}
-.layer-row.drop-above::before { top: -3px; }
-.layer-row.drop-below::after { bottom: -3px; }
+/* Inset accent edge instead of a gap line: the scrolling layer list clips an
+   absolutely-positioned line at the first/last row, but an inset shadow always
+   paints inside the row. */
+.layer-row.drop-above { box-shadow: inset 0 2px 0 0 var(--accent); }
+.layer-row.drop-below { box-shadow: inset 0 -2px 0 0 var(--accent); }
 .layer-row[draggable="true"]:active { cursor: grabbing; }
 .layer-row.on {
   border-color: var(--sel);
@@ -808,9 +799,9 @@ body.space-pan .overlay * { pointer-events: none !important; }
   display: flex;
   align-items: center;
   gap: 2px;
-  max-width: 90px;
-  overflow: hidden;
-  flex: 0 1 auto;
+  /* Don't shrink or clip the chips; the layer name (flex:1, min-width:0) gives
+     up space instead, and LayerBadges caps the count with a trailing +N. */
+  flex: 0 0 auto;
 }
 .layer-badge {
   flex: 0 0 auto;

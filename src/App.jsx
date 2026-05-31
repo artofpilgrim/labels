@@ -805,22 +805,41 @@ function LayerGlyph({ type }) {
   }
 }
 
+// Short, unambiguous labels for the blend badge (the full mode name stays in
+// the tooltip). An explicit map avoids the collisions a naive truncation makes
+// — color-dodge / color-burn / color all begin "colo".
+const BLEND_ABBR = {
+  multiply: 'mult', screen: 'scrn', overlay: 'ovr', darken: 'dark',
+  lighten: 'lite', 'color-dodge': 'dodge', 'color-burn': 'burn',
+  'hard-light': 'hard', 'soft-light': 'soft', difference: 'diff',
+  exclusion: 'excl', hue: 'hue', saturation: 'sat', color: 'color',
+  luminosity: 'lum', normal: 'norm',
+};
+
 function LayerBadges({ layer }) {
   const badges = [];
   const pins = layer.pinSides && Object.values(layer.pinSides).some(Boolean);
   if (isStackBoundary(layer)) badges.push(['base', 'base', 'Stack boundary']);
   if (layer.clipToCanvas) badges.push(['clip', 'clip', 'Clipped to canvas']);
-  if (layer.blend) badges.push(['blend', 'blend', `Blend: ${layer.blend}`]);
+  if (layer.blend) badges.push(['blend', BLEND_ABBR[layer.blend] || layer.blend, `Blend: ${layer.blend}`]);
   if (layer.opacity != null) badges.push(['opacity', `${Math.round(layer.opacity * 100)}%`, 'Opacity']);
   if (layer.hole) badges.push(['hole', 'hole', 'Transparent cutout']);
   if (layer.strokeOnTop) badges.push(['top', 'top', 'Stroke renders above the stack']);
   if (pins) badges.push(['pin', 'pin', 'Pinned to canvas']);
   if (!badges.length) return null;
+  // Cap the visible chips and roll the rest into a "+N" badge (its tooltip
+  // lists the hidden flags) so a flag is never silently clipped.
+  const MAX = 4;
+  const shown = badges.slice(0, MAX);
+  const hidden = badges.slice(MAX);
   return (
     <span className="layer-badges" aria-label="Layer flags">
-      {badges.map(([key, label, title]) => (
+      {shown.map(([key, label, title]) => (
         <span key={key} className={`layer-badge ${key}`} title={title}>{label}</span>
       ))}
+      {hidden.length > 0 && (
+        <span className="layer-badge more" title={hidden.map(b => b[2]).join('\n')}>+{hidden.length}</span>
+      )}
     </span>
   );
 }
@@ -1263,10 +1282,12 @@ export function App({ onHome } = {}) {
   }));
   const design = editor.design;
   const setDesign = useCallback((updater) => {
-    setEditor(e => ({
-      ...e,
-      design: typeof updater === 'function' ? updater(e.design) : updater,
-    }));
+    setEditor(e => {
+      const nd = typeof updater === 'function' ? updater(e.design) : updater;
+      // Skip the re-render when an updater returns the same design reference
+      // (the reorder helpers preserve identity on a no-op).
+      return nd === e.design ? e : { ...e, design: nd };
+    });
   }, []);
 
   // Resize the canvas the same way the canvas-resize drag does: stretch the
@@ -2214,8 +2235,21 @@ export function App({ onHome } = {}) {
       .reverse()
       .filter(l => !l.hidden && !l.locked)
       .filter(l => {
-        const b = layerAABB(l);
-        return x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h;
+        // Match the canvas hit-rect (Label.jsx): inverse-rotate the pointer into
+        // the layer's local frame and test the same HIT_MIN-expanded box, so a
+        // rotated layer's empty AABB corners aren't counted as hits.
+        const HIT_MIN = 8;
+        const cx = l.x + l.w / 2, cy = l.y + l.h / 2;
+        let px = x, py = y;
+        if (l.rotation) {
+          const r = -l.rotation * Math.PI / 180, c = Math.cos(r), s = Math.sin(r);
+          const dx = x - cx, dy = y - cy;
+          px = cx + dx * c - dy * s;
+          py = cy + dx * s + dy * c;
+        }
+        const hw = Math.max(l.w, HIT_MIN), hh = Math.max(l.h, HIT_MIN);
+        const hx = l.x - (hw - l.w) / 2, hy = l.y - (hh - l.h) / 2;
+        return px >= hx && px <= hx + hw && py >= hy && py <= hy + hh;
       })
       .map(l => l.id);
   }

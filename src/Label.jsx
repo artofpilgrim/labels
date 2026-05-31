@@ -53,7 +53,6 @@ function L(props) {
     rotation: 0,
     hidden: false,
     locked: false,
-    role: isCanvasFill ? 'background' : 'content',
     stackLocked: isCanvasFill,
     ...props,
   };
