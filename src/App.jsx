@@ -1544,6 +1544,15 @@ export function App({ onHome } = {}) {
     if (hud?.kind === 'resize') return `${Math.round(hud.w)} × ${Math.round(hud.h)}`;
     return `${Math.round(fw)} × ${Math.round(fh)}`;
   };
+  // Optional editing grid (overlay + snap). Persisted to localStorage.
+  const [grid, setGrid] = useState(() => {
+    try {
+      const s = JSON.parse(localStorage.getItem('hazardLabelStudio.grid') || 'null');
+      if (s && typeof s === 'object') return { show: !!s.show, snap: !!s.snap, step: Math.max(2, Math.min(200, s.step || 10)) };
+    } catch { /* ignore */ }
+    return { show: false, snap: false, step: 10 };
+  });
+  const quantize = (v, step) => Math.round(v / Math.max(1, step)) * step;
   const [userPresets, setUserPresets] = useState([]);
   const [newPresetName, setNewPresetName] = useState('');
   // The preset currently loaded into the canvas (if any). Lets "Update" save
@@ -1983,6 +1992,7 @@ export function App({ onHome } = {}) {
     const g = selBounds;
     beginDrag(e, (dx, dy, mods) => {
       if (mods.shift) { if (Math.abs(dx) >= Math.abs(dy)) dy = 0; else dx = 0; }
+      if (grid.snap && !mods.ctrl) { dx = quantize(dx, grid.step); dy = quantize(dy, grid.step); }
       setDesign(d => ({ ...d, layers: d.layers.map(l => snaps.has(l.id) ? { ...l, x: snaps.get(l.id).x + dx, y: snaps.get(l.id).y + dy } : l) }));
       if (g) setHud({ kind: 'move', x: g.x + dx, y: g.y + dy });
     }, clickedId ? () => setSelectedIds([clickedId]) : undefined);
@@ -2146,6 +2156,8 @@ export function App({ onHome } = {}) {
         const r = snapMove({ x: nx, y: ny, w: snap.w, h: snap.h },
                            snapTargets(design, layer.id), threshold);
         nx = r.x; ny = r.y; guides = r.guides;
+      } else if (grid.snap) {
+        nx = quantize(nx, grid.step); ny = quantize(ny, grid.step);
       }
       setSnapGuides(guides);
       setLayer(layer.id, { x: nx, y: ny });
@@ -2816,6 +2828,11 @@ export function App({ onHome } = {}) {
     try { localStorage.setItem('hazardLabelStudio.theme', theme); } catch { /* ignore */ }
   }, [theme]);
 
+  // Persist grid preferences.
+  useEffect(() => {
+    try { localStorage.setItem('hazardLabelStudio.grid', JSON.stringify(grid)); } catch { /* ignore */ }
+  }, [grid]);
+
   // Close the right-click context menu on Escape (click-away is handled by its backdrop).
   useEffect(() => {
     if (!ctxMenu) return;
@@ -3396,6 +3413,14 @@ export function App({ onHome } = {}) {
               />
             </div>
 
+            {grid.show && (
+              <div className="overlay" style={{
+                backgroundImage: 'linear-gradient(to right, var(--line-strong) 1px, transparent 1px), linear-gradient(to bottom, var(--line-strong) 1px, transparent 1px)',
+                backgroundSize: `${grid.step * fit}px ${grid.step * fit}px`,
+                opacity: 0.5,
+              }} />
+            )}
+
             {/* Canvas dimension handles (hidden in preview) */}
             {!preview && (
               <div className="overlay">
@@ -3538,6 +3563,23 @@ export function App({ onHome } = {}) {
           <span className="canvas-credit" title="Labels are provided as-is — you are responsible for ensuring they meet applicable safety regulations. Symbols from Wikimedia Commons (ISO 7010, GHS, ISO 7001).">
             Provided as-is — you're responsible for meeting applicable safety regulations. Symbols: Wikimedia Commons (ISO 7010 · GHS · ISO 7001).
           </span>
+          <div className="canvas-grid-ctl">
+            <button className={`icon-btn${grid.show ? ' on' : ''}`} aria-pressed={grid.show} title="Show grid"
+                    onClick={() => setGrid(g => ({ ...g, show: !g.show }))}>
+              <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.2">
+                <rect x="2" y="2" width="12" height="12" rx="1" /><line x1="6" y1="2" x2="6" y2="14" /><line x1="10" y1="2" x2="10" y2="14" /><line x1="2" y1="6" x2="14" y2="6" /><line x1="2" y1="10" x2="14" y2="10" />
+              </svg>
+            </button>
+            <button className={`icon-btn${grid.snap ? ' on' : ''}`} aria-pressed={grid.snap} title="Snap to grid"
+                    onClick={() => setGrid(g => ({ ...g, snap: !g.snap }))}>
+              <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor">
+                {[3, 8, 13].flatMap(x => [3, 8, 13].map(y => <circle key={`${x}-${y}`} cx={x} cy={y} r="1.3" />))}
+              </svg>
+            </button>
+            <input className="grid-step" type="number" min={2} max={200} value={grid.step}
+                   onChange={e => setGrid(g => ({ ...g, step: Math.max(2, Math.min(200, Math.round(Number(e.target.value)) || g.step)) }))}
+                   title="Grid size (px)" aria-label="Grid size (px)" />
+          </div>
           <div className="canvas-zoom">
             <button className={`icon-btn${zoomMode === 'fit' ? ' on' : ''}`} aria-pressed={zoomMode === 'fit'} title="Fit to viewport" onClick={() => setZoomMode('fit')}>⤢</button>
             <button className="icon-btn" title="Zoom out" onClick={zoomOut}>−</button>
