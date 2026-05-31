@@ -47,7 +47,16 @@ function wrapLines(text, maxWidth, fontSize, charW = 0.55) {
 
 // ----------- Layer factory -----------
 function L(props) {
-  return { id: uid(), rotation: 0, hidden: false, locked: false, ...props };
+  const isCanvasFill = props.syncCanvas === 'fill';
+  return {
+    id: uid(),
+    rotation: 0,
+    hidden: false,
+    locked: false,
+    role: isCanvasFill ? 'background' : 'content',
+    stackLocked: isCanvasFill,
+    ...props,
+  };
 }
 
 // Resolve a possibly severity-bound color on a layer.

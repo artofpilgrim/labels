@@ -39,6 +39,126 @@ function isRenderableDesign(d) {
         && ['x', 'y', 'w', 'h'].every(k => Number.isFinite(l[k]))));
 }
 
+// `locked` means "do not edit this layer"; `stackLocked` means "do not cross
+// this layer while reordering". Legacy saved designs did not have stackLocked,
+// so the synced canvas fill remains a boundary by role.
+function isStackBoundary(l) {
+  return !!(l && (l.stackLocked || l.syncCanvas === 'fill'));
+}
+function canMoveInStack(l) {
+  return !!(l && !l.locked && !isStackBoundary(l));
+}
+function uniqueIds(ids) {
+  const seen = new Set();
+  return (ids || []).filter(id => {
+    if (seen.has(id)) return false;
+    seen.add(id);
+    return true;
+  });
+}
+function stackSegments(layers) {
+  const segments = [];
+  let start = 0;
+  for (let i = 0; i < layers.length; i++) {
+    // Locked layers split segments too, so drags cannot slide a layer past them.
+    if (!canMoveInStack(layers[i])) {
+      if (start < i) segments.push({ start, end: i });
+      start = i + 1;
+    }
+  }
+  if (start < layers.length) segments.push({ start, end: layers.length });
+  return segments;
+}
+function segmentForIndex(layers, index) {
+  return stackSegments(layers).find(s => s.start <= index && index < s.end) || null;
+}
+function segmentForSlot(layers, slot) {
+  return stackSegments(layers).find(s => s.start <= slot && slot <= s.end) || null;
+}
+function sameSegment(a, b) {
+  return !!(a && b && a.start === b.start && a.end === b.end);
+}
+function sameStackOrder(a, b) {
+  return a.length === b.length && a.every((layer, i) => layer.id === b[i].id);
+}
+function stepStackLayers(layers, ids, dir) {
+  const movable = uniqueIds(ids).filter(id => {
+    const l = layers.find(x => x.id === id);
+    return canMoveInStack(l);
+  });
+  if (!movable.length) return layers;
+
+  // Only fellow movers block a swap; locked/boundary layers are handled below.
+  const blockers = new Set(movable);
+  const next = layers.slice();
+  const idxOf = id => next.findIndex(l => l.id === id);
+  const ordered = movable.slice().sort((a, b) => idxOf(a) - idxOf(b));
+  const sequence = dir === 'up' ? ordered.reverse() : ordered;
+  let moved = false;
+
+  for (const id of sequence) {
+    const i = idxOf(id);
+    const j = dir === 'up' ? i + 1 : i - 1;
+    if (j < 0 || j >= next.length) continue;
+    // Do not cross a stack boundary, a user-locked layer, or a fellow mover.
+    if (isStackBoundary(next[j]) || next[j].locked || blockers.has(next[j].id)) continue;
+    [next[i], next[j]] = [next[j], next[i]];
+    moved = true;
+  }
+
+  return moved ? next : layers;
+}
+function insertStackLayers(layers, ids, targetId, placement) {
+  const targetIndex = layers.findIndex(l => l.id === targetId);
+  if (targetIndex < 0) return layers;
+
+  const targetSlot = placement === 'after' ? targetIndex + 1 : targetIndex;
+  const targetSegment = segmentForSlot(layers, targetSlot);
+  if (!targetSegment) return layers;
+
+  const movableIds = uniqueIds(ids).filter(id => {
+    const index = layers.findIndex(l => l.id === id);
+    if (index < 0 || !canMoveInStack(layers[index])) return false;
+    return sameSegment(segmentForIndex(layers, index), targetSegment);
+  });
+  if (!movableIds.length || movableIds.includes(targetId)) return layers;
+
+  const moveSet = new Set(movableIds);
+  const moving = layers.filter(l => moveSet.has(l.id));
+  const rest = layers.filter(l => !moveSet.has(l.id));
+  const restTargetIndex = rest.findIndex(l => l.id === targetId);
+  if (restTargetIndex < 0) return layers;
+
+  let insertAt = placement === 'after' ? restTargetIndex + 1 : restTargetIndex;
+  const restSegment = segmentForSlot(rest, insertAt);
+  if (!restSegment) return layers;
+  insertAt = Math.max(restSegment.start, Math.min(restSegment.end, insertAt));
+
+  const next = rest.slice();
+  next.splice(insertAt, 0, ...moving);
+  return sameStackOrder(layers, next) ? layers : next;
+}
+function moveStackLayers(layers, ids, action) {
+  if (!action || !ids || !ids.length) return layers;
+  if (action.kind === 'insert') {
+    return insertStackLayers(layers, ids, action.targetId, action.placement);
+  }
+  if (action.kind === 'step') {
+    return stepStackLayers(layers, ids, action.dir);
+  }
+  if (action.kind === 'edge') {
+    const dir = action.to === 'front' ? 'up' : 'down';
+    let next = layers;
+    for (let guard = 0; guard < layers.length * layers.length; guard++) {
+      const moved = stepStackLayers(next, ids, dir);
+      if (moved === next) break;
+      next = moved;
+    }
+    return next;
+  }
+  return layers;
+}
+
 // Restore the last working design from localStorage. Returns null when nothing
 // is stored or the payload is unusable, so the caller falls back to a preset.
 function loadSavedDesign() {
@@ -685,6 +805,26 @@ function LayerGlyph({ type }) {
   }
 }
 
+function LayerBadges({ layer }) {
+  const badges = [];
+  const pins = layer.pinSides && Object.values(layer.pinSides).some(Boolean);
+  if (isStackBoundary(layer)) badges.push(['base', 'base', 'Stack boundary']);
+  if (layer.clipToCanvas) badges.push(['clip', 'clip', 'Clipped to canvas']);
+  if (layer.blend) badges.push(['blend', 'blend', `Blend: ${layer.blend}`]);
+  if (layer.opacity != null) badges.push(['opacity', `${Math.round(layer.opacity * 100)}%`, 'Opacity']);
+  if (layer.hole) badges.push(['hole', 'hole', 'Transparent cutout']);
+  if (layer.strokeOnTop) badges.push(['top', 'top', 'Stroke renders above the stack']);
+  if (pins) badges.push(['pin', 'pin', 'Pinned to canvas']);
+  if (!badges.length) return null;
+  return (
+    <span className="layer-badges" aria-label="Layer flags">
+      {badges.map(([key, label, title]) => (
+        <span key={key} className={`layer-badge ${key}`} title={title}>{label}</span>
+      ))}
+    </span>
+  );
+}
+
 // ----------- Shape tools (Shapes panel) -----------
 // Each adds a layer via addLayer(type); newLayer() builds the geometry.
 const SHAPES = [
@@ -1076,7 +1216,7 @@ function HelpModal({ onClose }) {
               <li><b>Move</b>: drag a layer. <b>Resize</b>: drag its handles.</li>
               <li><b>Text size</b> is set in <b>Typography → Size</b> — a text layer's box only controls where it wraps, so dragging its handles reflows the text rather than scaling the glyphs.</li>
               <li><b>Rotate</b>: set the angle in Properties → Dimensions (° field).</li>
-              <li><b>Multi-select</b>: Shift-click layers, or drag a marquee on empty space. Drag any selected layer to move the whole group; with 3+ selected you can distribute.</li>
+              <li><b>Multi-select</b>: Shift-click layers, drag a marquee on empty space, then drag any selected layer as a group. Alt-click overlapping artwork to cycle through layers under the cursor.</li>
               <li><b>Pan</b>: middle-mouse drag (or hold <K>Space</K> and drag). <b>Zoom</b>: scroll the mouse wheel, or the bottom-right slider.</li>
               <li><b>Snap</b>: hold <K>Ctrl</K>/<K>⌘</K> while dragging to align to other layers and the canvas.</li>
             </ul>
@@ -1487,15 +1627,8 @@ export function App({ onHome } = {}) {
   }, [setDesign]);
   const moveLayer = useCallback((id, dir) => {
     setDesign(d => {
-      const i = d.layers.findIndex(l => l.id === id);
-      if (i < 0) return d;
-      if (d.layers[i].locked) return d;     // locked layers don't reorder
-      const j = dir === 'up' ? i + 1 : i - 1;
-      if (j < 0 || j >= d.layers.length) return d;
-      if (d.layers[j].locked) return d; // don't swap past a locked layer (e.g. background)
-      const layers = d.layers.slice();
-      [layers[i], layers[j]] = [layers[j], layers[i]];
-      return { ...d, layers };
+      const layers = moveStackLayers(d.layers, [id], { kind: 'step', dir });
+      return layers === d.layers ? d : { ...d, layers };
     });
   }, [setDesign]);
   const addLayer = useCallback((type) => {
@@ -1645,55 +1778,29 @@ export function App({ onHome } = {}) {
     if (ids.length) setSelectedIds(ids);
   }, []);
 
-  // Reorder the selected (unlocked) layers within the stack. 'forward'/'backward'
-  // move one step; 'front'/'back' move as far as possible. Never crosses a locked
-  // layer (e.g. the canvas-fill background) and never swaps within the selection.
+  // Reorder selected layers within their stack segment. Locked layers are not
+  // moved, while stack-locked boundaries such as the canvas background cannot be
+  // crossed.
   const reorderSelected = useCallback((mode) => {
+    const action = mode === 'forward'
+      ? { kind: 'step', dir: 'up' }
+      : mode === 'backward'
+        ? { kind: 'step', dir: 'down' }
+        : mode === 'front'
+          ? { kind: 'edge', to: 'front' }
+          : { kind: 'edge', to: 'back' };
     setDesign(d => {
-      const selSet = new Set(selectedIds);
-      const layers = d.layers.slice();
-      const idxOf = id => layers.findIndex(l => l.id === id);
-      const movable = selectedIds.filter(id => { const l = layers.find(x => x.id === id); return l && !l.locked; });
-      if (!movable.length) return d;
-      const stepOnce = (dir) => {
-        const sorted = movable.slice().sort((a, b) => idxOf(a) - idxOf(b));
-        const seq = dir === 'up' ? sorted.reverse() : sorted;
-        let moved = false;
-        for (const id of seq) {
-          const i = idxOf(id);
-          const j = dir === 'up' ? i + 1 : i - 1;
-          if (j < 0 || j >= layers.length) continue;
-          if (layers[j].locked || selSet.has(layers[j].id)) continue;
-          [layers[i], layers[j]] = [layers[j], layers[i]];
-          moved = true;
-        }
-        return moved;
-      };
-      if (mode === 'forward') stepOnce('up');
-      else if (mode === 'backward') stepOnce('down');
-      else if (mode === 'front') { let g = 0; while (stepOnce('up') && g++ < 2000) { /* climb */ } }
-      else if (mode === 'back') { let g = 0; while (stepOnce('down') && g++ < 2000) { /* sink */ } }
-      return { ...d, layers };
+      const layers = moveStackLayers(d.layers, selectedIds, action);
+      return layers === d.layers ? d : { ...d, layers };
     });
   }, [selectedIds, setDesign]);
 
-  // Move a single layer to an absolute index (used by drag-to-reorder in the
-  // layer list). Clamps so it can't move below/above a locked boundary layer.
-  const moveLayerToIndex = useCallback((id, targetId) => {
+  // Move a dragged layer or multi-selection relative to another row in the
+  // layer list. The helper preserves relative order and respects stack segments.
+  const moveLayersToTarget = useCallback((ids, targetId, placement) => {
     setDesign(d => {
-      const from = d.layers.findIndex(l => l.id === id);
-      const to = d.layers.findIndex(l => l.id === targetId);
-      if (from < 0 || to < 0 || from === to) return d;
-      if (d.layers[from].locked) return d;
-      const layers = d.layers.slice();
-      const [moved] = layers.splice(from, 1);
-      let insertAt = layers.findIndex(l => l.id === targetId);
-      if (insertAt < 0) return d;
-      // Keep above any locked bottom layer (e.g. background) and below a locked top one.
-      const lockedBottom = layers.findIndex(l => l.locked);
-      if (lockedBottom === 0) insertAt = Math.max(insertAt, 1);
-      layers.splice(insertAt, 0, moved);
-      return { ...d, layers };
+      const layers = moveStackLayers(d.layers, ids, { kind: 'insert', targetId, placement });
+      return layers === d.layers ? d : { ...d, layers };
     });
   }, [setDesign]);
 
@@ -2096,6 +2203,23 @@ export function App({ onHome } = {}) {
     });
   }
 
+  function layerIdsAtPointer(e) {
+    const wrap = wrapRef.current;
+    if (!wrap) return [];
+    const rect = wrap.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / fit;
+    const y = (e.clientY - rect.top) / fit;
+    return design.layers
+      .slice()
+      .reverse()
+      .filter(l => !l.hidden && !l.locked)
+      .filter(l => {
+        const b = layerAABB(l);
+        return x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h;
+      })
+      .map(l => l.id);
+  }
+
   // ----- canvas → layer event router -----
   // <Label> is memoized, so these props MUST keep a stable identity or the whole
   // SVG re-renders on every App state change (and every drag frame). Keep the
@@ -2111,6 +2235,21 @@ export function App({ onHome } = {}) {
     if (e.button !== 0 || spaceHeldRef.current) return;
     const layer = design.layers.find(l => l.id === layerId);
     if (!layer) return;
+    if (e.altKey) {
+      const hits = layerIdsAtPointer(e);
+      if (hits.length) {
+        // Cycle from the CURRENT selection, not the pressed layer: the topmost
+        // overlapping layer always receives the event, so keying off layerId
+        // would never advance past the second layer. i = -1 (nothing under the
+        // cursor is selected) falls back to the topmost hit.
+        const cur = selectedIds.length === 1 ? selectedIds[0] : null;
+        const i = cur ? hits.indexOf(cur) : -1;
+        setSelectedIds([hits[(i + 1) % hits.length]]);
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+    }
     // Locked layers (incl. the canvas-fill background) aren't selectable here —
     // pressing one starts a marquee so you can rubber-band over the artwork.
     if (layer.locked) { startMarquee(e); return; }
@@ -2683,46 +2822,93 @@ export function App({ onHome } = {}) {
   );
 
   const dragLayerRef = useRef(null);
-  const [dropTargetId, setDropTargetId] = useState(null);
+  const [dropTarget, setDropTarget] = useState(null);
+  const dropPlacementFromEvent = (e) => {
+    const r = e.currentTarget.getBoundingClientRect();
+    // The visible list is reversed: above a row means higher/front in stack.
+    return e.clientY < r.top + r.height / 2 ? 'after' : 'before';
+  };
   const layerStackField = (
-    <Field hint="Top of list = front. Click to select, drag to reorder.">
+    <Field hint="Top of list = front. Click to select, drag selected rows to reorder.">
       <div className="layer-list">
-        {design.layers.slice().reverse().map((l) => (
-          <div
-            key={l.id}
-            className={`layer-row ${selectedIds.includes(l.id) ? 'on' : ''} ${l.hidden ? 'hidden' : ''} ${l.locked ? 'locked' : ''} ${dropTargetId === l.id ? 'drop-target' : ''}`}
-            draggable={!l.locked}
-            onDragStart={e => { dragLayerRef.current = l.id; e.dataTransfer.effectAllowed = 'move'; }}
-            onDragOver={e => { if (dragLayerRef.current && dragLayerRef.current !== l.id) { e.preventDefault(); if (dropTargetId !== l.id) setDropTargetId(l.id); } }}
-            onDragLeave={() => { setDropTargetId(t => (t === l.id ? null : t)); }}
-            onDrop={e => { e.preventDefault(); const from = dragLayerRef.current; dragLayerRef.current = null; setDropTargetId(null); if (from && from !== l.id) moveLayerToIndex(from, l.id); }}
-            onDragEnd={() => { dragLayerRef.current = null; setDropTargetId(null); }}
-            onClick={e => {
-              if (e.shiftKey) setSelectedIds(ids => ids.includes(l.id) ? ids.filter(i => i !== l.id) : [...ids, l.id]);
-              else setSelectedIds([l.id]);
-            }}
-          >
-            <span className="layer-glyph"><LayerGlyph type={l.type} /></span>
-            <span className="layer-name">{l.name || l.type}</span>
-            <button className="icon-btn" title={l.hidden ? 'Show' : 'Hide'}
-                    onClick={e => { e.stopPropagation(); setLayer(l.id, { hidden: !l.hidden }); }}>
-              {l.hidden ? '◌' : '●'}
-            </button>
-            <button className="icon-btn" title={l.locked ? 'Unlock' : 'Lock'}
-                    onClick={e => { e.stopPropagation(); setLayer(l.id, { locked: !l.locked }); }}>
-              {l.locked ? '🔒' : '🔓'}
-            </button>
-            <button className="icon-btn" title="Bring forward"
-                    disabled={l.locked}
-                    onClick={e => { e.stopPropagation(); if (!l.locked) moveLayer(l.id, 'up'); }}>▲</button>
-            <button className="icon-btn" title="Send back"
-                    disabled={l.locked}
-                    onClick={e => { e.stopPropagation(); if (!l.locked) moveLayer(l.id, 'down'); }}>▼</button>
-            <button className="icon-btn" title={l.locked ? 'Unlock first to delete' : 'Delete'}
-                    disabled={l.locked}
-                    onClick={e => { e.stopPropagation(); if (!l.locked) deleteLayer(l.id); }}>×</button>
-          </div>
-        ))}
+        {design.layers.slice().reverse().map((l) => {
+          const selected = selectedIds.includes(l.id);
+          const movable = canMoveInStack(l);
+          const activeDrop = dropTarget && dropTarget.id === l.id;
+          const dropClass = activeDrop
+            ? ` drop-target ${dropTarget.placement === 'after' ? 'drop-above' : 'drop-below'}`
+            : '';
+          return (
+            <div
+              key={l.id}
+              className={`layer-row ${selected ? 'on' : ''} ${l.hidden ? 'hidden' : ''} ${l.locked ? 'locked' : ''} ${isStackBoundary(l) ? 'stack-locked' : ''}${dropClass}`}
+              draggable={movable}
+              onDragStart={e => {
+                if (!movable) { e.preventDefault(); return; }
+                const ids = selected ? selectedIds : [l.id];
+                dragLayerRef.current = { ids, sourceId: l.id };
+                if (!selected) setSelectedIds([l.id]);
+                e.dataTransfer.effectAllowed = 'move';
+                e.dataTransfer.setData('text/plain', l.id);
+              }}
+              onDragOver={e => {
+                const drag = dragLayerRef.current;
+                if (!drag || drag.ids.includes(l.id)) return;
+                const placement = dropPlacementFromEvent(e);
+                const canDrop = moveStackLayers(design.layers, drag.ids, {
+                  kind: 'insert',
+                  targetId: l.id,
+                  placement,
+                }) !== design.layers;
+                if (!canDrop) {
+                  if (dropTarget && dropTarget.id === l.id) setDropTarget(null);
+                  return;
+                }
+                e.preventDefault();
+                if (!dropTarget || dropTarget.id !== l.id || dropTarget.placement !== placement) {
+                  setDropTarget({ id: l.id, placement });
+                }
+              }}
+              onDragLeave={() => {
+                setDropTarget(t => (t && t.id === l.id ? null : t));
+              }}
+              onDrop={e => {
+                e.preventDefault();
+                const drag = dragLayerRef.current;
+                const placement = dropPlacementFromEvent(e);
+                dragLayerRef.current = null;
+                setDropTarget(null);
+                if (drag && !drag.ids.includes(l.id)) moveLayersToTarget(drag.ids, l.id, placement);
+              }}
+              onDragEnd={() => { dragLayerRef.current = null; setDropTarget(null); }}
+              onClick={e => {
+                if (e.shiftKey) setSelectedIds(ids => ids.includes(l.id) ? ids.filter(i => i !== l.id) : [...ids, l.id]);
+                else setSelectedIds([l.id]);
+              }}
+            >
+              <span className="layer-glyph"><LayerGlyph type={l.type} /></span>
+              <span className="layer-name">{l.name || l.type}</span>
+              <LayerBadges layer={l} />
+              <button className="icon-btn" title={l.hidden ? 'Show' : 'Hide'}
+                      onClick={e => { e.stopPropagation(); setLayer(l.id, { hidden: !l.hidden }); }}>
+                {l.hidden ? '◌' : '●'}
+              </button>
+              <button className="icon-btn" title={l.locked ? 'Unlock' : 'Lock'}
+                      onClick={e => { e.stopPropagation(); setLayer(l.id, { locked: !l.locked }); }}>
+                {l.locked ? '🔒' : '🔓'}
+              </button>
+              <button className="icon-btn" title={isStackBoundary(l) ? 'Stack boundary' : 'Bring forward'}
+                      disabled={!movable}
+                      onClick={e => { e.stopPropagation(); if (movable) moveLayer(l.id, 'up'); }}>▲</button>
+              <button className="icon-btn" title={isStackBoundary(l) ? 'Stack boundary' : 'Send back'}
+                      disabled={!movable}
+                      onClick={e => { e.stopPropagation(); if (movable) moveLayer(l.id, 'down'); }}>▼</button>
+              <button className="icon-btn" title={l.locked ? 'Unlock first to delete' : 'Delete'}
+                      disabled={l.locked}
+                      onClick={e => { e.stopPropagation(); if (!l.locked) deleteLayer(l.id); }}>×</button>
+            </div>
+          );
+        })}
       </div>
     </Field>
   );
