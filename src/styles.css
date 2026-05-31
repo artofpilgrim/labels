@@ -1011,6 +1011,9 @@ body.space-pan .overlay * { pointer-events: none !important; }
   overflow-wrap: break-word;
   caret-color: var(--accent);
 }
+.gap-guide { position: absolute; pointer-events: none; background: var(--accent); z-index: 1; }
+.gap-guide.h { height: 2px; transform: translateY(-1px); }
+.gap-guide.v { width: 2px; transform: translateX(-1px); }
 .canvas-grid-ctl { display: flex; align-items: center; gap: 4px; flex: 0 0 auto; }
 .canvas-grid-ctl .icon-btn { width: 26px; height: 26px; color: var(--ink); }
 .canvas-grid-ctl .icon-btn.on { background: var(--ink); color: var(--bg); border-color: var(--ink); }

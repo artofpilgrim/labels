@@ -1548,11 +1548,52 @@ export function App({ onHome } = {}) {
   const [grid, setGrid] = useState(() => {
     try {
       const s = JSON.parse(localStorage.getItem('hazardLabelStudio.grid') || 'null');
-      if (s && typeof s === 'object') return { show: !!s.show, snap: !!s.snap, step: Math.max(2, Math.min(200, s.step || 10)) };
+      if (s && typeof s === 'object') return { show: !!s.show, snap: !!s.snap, step: Math.max(2, Math.min(200, s.step || 10)), smart: !!s.smart };
     } catch { /* ignore */ }
-    return { show: false, snap: false, step: 10 };
+    return { show: false, snap: false, step: 10, smart: false };
   });
   const quantize = (v, step) => Math.round(v / Math.max(1, step)) * step;
+  // Equalize the gap to the nearest neighbour on each side (Figma-style spacing).
+  // Returns adjusted x/y plus gap-guide entries to render. Pure.
+  const smartSpacing = (box, others, threshold) => {
+    let { x, y } = box;
+    const guides = [];
+    {
+      const band = others.filter(o => o.y < y + box.h && o.y + o.h > y);
+      let L = null, R = null;
+      for (const o of band) {
+        if (o.x + o.w <= x) { if (!L || o.x + o.w > L.x + L.w) L = o; }
+        else if (o.x >= x + box.w) { if (!R || o.x < R.x) R = o; }
+      }
+      if (L && R) {
+        const gapL = x - (L.x + L.w), gapR = R.x - (x + box.w);
+        if (Math.abs(gapL - gapR) <= threshold * 2) {
+          x = (L.x + L.w) + ((R.x - (L.x + L.w)) - box.w) / 2;
+          const yBar = y + box.h / 2;
+          guides.push({ kind: 'gap', orient: 'h', y: yBar, x1: L.x + L.w, x2: x });
+          guides.push({ kind: 'gap', orient: 'h', y: yBar, x1: x + box.w, x2: R.x });
+        }
+      }
+    }
+    {
+      const band = others.filter(o => o.x < x + box.w && o.x + o.w > x);
+      let T = null, B = null;
+      for (const o of band) {
+        if (o.y + o.h <= y) { if (!T || o.y + o.h > T.y + T.h) T = o; }
+        else if (o.y >= y + box.h) { if (!B || o.y < B.y) B = o; }
+      }
+      if (T && B) {
+        const gapT = y - (T.y + T.h), gapB = B.y - (y + box.h);
+        if (Math.abs(gapT - gapB) <= threshold * 2) {
+          y = (T.y + T.h) + ((B.y - (T.y + T.h)) - box.h) / 2;
+          const xBar = x + box.w / 2;
+          guides.push({ kind: 'gap', orient: 'v', x: xBar, y1: T.y + T.h, y2: y });
+          guides.push({ kind: 'gap', orient: 'v', x: xBar, y1: y + box.h, y2: B.y });
+        }
+      }
+    }
+    return { x, y, guides };
+  };
   // Inline (on-canvas) text editing: the edited layer is hidden in <Label> and
   // replaced by a positioned <textarea>; commit writes the draft text back.
   const [editingTextId, setEditingTextId] = useState(null);
@@ -2168,18 +2209,27 @@ export function App({ onHome } = {}) {
 
   function startLayerDrag(e, layer) {
     const snap = { x: layer.x, y: layer.y, w: layer.w, h: layer.h };
+    // Snapshot neighbours once for smart equal-spacing (only the dragged layer moves).
+    const others = grid.smart
+      ? design.layers.filter(l => l.id !== layer.id && !l.hidden && !l.locked).map(layerAABB)
+      : null;
     beginDrag(e, (dx, dy, mods) => {
       // Shift constrains the move to the dominant axis.
       if (mods.shift) { if (Math.abs(dx) >= Math.abs(dy)) dy = 0; else dx = 0; }
       let nx = snap.x + dx;
       let ny = snap.y + dy;
       let guides = [];
-      if (mods.ctrl) {
-        const threshold = 8 / fit; // ~8 screen pixels regardless of zoom
+      const threshold = 8 / fit; // ~8 screen pixels regardless of zoom
+      // Ctrl (manual) or Smart (always-on) → align snapping to layer edges/centres.
+      if (mods.ctrl || grid.smart) {
         const r = snapMove({ x: nx, y: ny, w: snap.w, h: snap.h },
                            snapTargets(design, layer.id), threshold);
         nx = r.x; ny = r.y; guides = r.guides;
-      } else if (grid.snap) {
+      }
+      if (grid.smart && others) {
+        const sp = smartSpacing({ x: nx, y: ny, w: snap.w, h: snap.h }, others, threshold);
+        nx = sp.x; ny = sp.y; guides = guides.concat(sp.guides);
+      } else if (grid.snap && !mods.ctrl) {
         nx = quantize(nx, grid.step); ny = quantize(ny, grid.step);
       }
       setSnapGuides(guides);
@@ -3502,13 +3552,20 @@ export function App({ onHome } = {}) {
             {/* Snap guides (only during Ctrl-drag) */}
             {snapGuides.length > 0 && (
               <div className="overlay">
-                {snapGuides.map((g, i) => g.orient === 'v' ? (
-                  <div key={`v${i}`} className="snap-guide v"
-                       style={{ left: g.value * fit }} />
-                ) : (
-                  <div key={`h${i}`} className="snap-guide h"
-                       style={{ top: g.value * fit }} />
-                ))}
+                {snapGuides.map((g, i) => {
+                  if (g.kind === 'gap') {
+                    return g.orient === 'h' ? (
+                      <div key={`g${i}`} className="gap-guide h" style={{ left: Math.min(g.x1, g.x2) * fit, top: g.y * fit, width: Math.abs(g.x2 - g.x1) * fit }} />
+                    ) : (
+                      <div key={`g${i}`} className="gap-guide v" style={{ left: g.x * fit, top: Math.min(g.y1, g.y2) * fit, height: Math.abs(g.y2 - g.y1) * fit }} />
+                    );
+                  }
+                  return g.orient === 'v' ? (
+                    <div key={`v${i}`} className="snap-guide v" style={{ left: g.value * fit }} />
+                  ) : (
+                    <div key={`h${i}`} className="snap-guide h" style={{ top: g.value * fit }} />
+                  );
+                })}
               </div>
             )}
 
@@ -3682,6 +3739,13 @@ export function App({ onHome } = {}) {
                     onClick={() => setGrid(g => ({ ...g, snap: !g.snap }))}>
               <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor">
                 {[3, 8, 13].flatMap(x => [3, 8, 13].map(y => <circle key={`${x}-${y}`} cx={x} cy={y} r="1.3" />))}
+              </svg>
+            </button>
+            <button className={`icon-btn${grid.smart ? ' on' : ''}`} aria-pressed={grid.smart} title="Smart guides (align + equal spacing)"
+                    onClick={() => setGrid(g => ({ ...g, smart: !g.smart }))}>
+              <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.3">
+                <line x1="2.5" y1="3" x2="2.5" y2="13" /><line x1="13.5" y1="3" x2="13.5" y2="13" /><line x1="8" y1="5" x2="8" y2="11" />
+                <path d="M4 8 H6.5 M9.5 8 H12" strokeWidth="1" />
               </svg>
             </button>
             <input className="grid-step" type="number" min={2} max={200} value={grid.step}
