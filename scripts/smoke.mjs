@@ -36,6 +36,7 @@ async function waitForServer(ms = 30000) {
 }
 
 const errors = [];
+const ui = [];   // missing-UI assertions (a "renders nothing" bug throws no error)
 let browser;
 let code = 0;
 try {
@@ -51,6 +52,9 @@ try {
 
   // Exercise the main surfaces (each interaction is best-effort).
   await page.locator('.layer-row').first().click().catch(() => {});       // → Properties panel
+  await page.waitForTimeout(300);
+  if ((await page.locator('.align-toolbar').count()) === 0) ui.push('align toolbar missing after selecting a layer');
+  if ((await page.locator('.properties-panel, .rightpanel .pad, .rightpanel .panel').count()) === 0) ui.push('properties/right panel missing');
   const rail = page.locator('.rail-btn');
   const railCount = await rail.count();
   for (let i = 0; i < railCount; i++) {                                    // panel switches + add-layer + help
@@ -64,7 +68,7 @@ try {
 
   const mounted = (await page.locator('.canvas-stage, .leftpanel').count()) > 0;
   const layerRows = await page.locator('.layer-row').count();
-  const fatal = errors.filter(e => e.startsWith('PAGEERROR'));
+  const fatal = [...errors.filter(e => e.startsWith('PAGEERROR')), ...ui];
   if (!mounted) fatal.push('EDITOR DID NOT MOUNT');
 
   console.log(`mounted=${mounted} layerRows=${layerRows} pageErrors=${fatal.filter(e => e.startsWith('PAGEERROR')).length}`);

@@ -9,8 +9,9 @@ export function AlignToolbar({
   duplicateLayer,
   deleteSelected,
 }) {
-        {/* ---------- Align / arrange toolbar ---------- */}
-        {editableSel.length >= 1 && !preview && (
+  // ---------- Align / arrange toolbar ----------
+  if (editableSel.length < 1 || preview) return null;
+  return (
           <div className="align-toolbar">
             <button className="icon-btn" title="Align left" onClick={() => alignLayer('left')}><AlignIcon axis="x" pos="start" /></button>
             <button className="icon-btn" title="Align horizontal center" onClick={() => alignLayer('cx')}><AlignIcon axis="x" pos="center" /></button>
@@ -54,5 +55,5 @@ export function AlignToolbar({
               </svg>
             </button>
           </div>
-        )}
+  );
 }
