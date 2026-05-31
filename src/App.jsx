@@ -1598,6 +1598,10 @@ export function App({ onHome } = {}) {
   // replaced by a positioned <textarea>; commit writes the draft text back.
   const [editingTextId, setEditingTextId] = useState(null);
   const [editingDraft, setEditingDraft] = useState('');
+  // Set when Escape cancels an inline edit, so the unmount-triggered blur
+  // (which would otherwise fire commitTextEdit and write the discarded draft)
+  // becomes a no-op write.
+  const cancelEditRef = useRef(false);
   const [userPresets, setUserPresets] = useState([]);
   const [newPresetName, setNewPresetName] = useState('');
   // The preset currently loaded into the canvas (if any). Lets "Update" save
@@ -2056,7 +2060,10 @@ export function App({ onHome } = {}) {
     const g = selBounds;
     beginDrag(e, (dx, dy, mods) => {
       if (mods.shift) { if (Math.abs(dx) >= Math.abs(dy)) dy = 0; else dx = 0; }
-      if (grid.snap && !mods.ctrl) { dx = quantize(dx, grid.step); dy = quantize(dy, grid.step); }
+      // Snap the group's top-left to the grid (absolute reference), matching the
+      // single-layer behaviour in startLayerDrag — not the raw delta, which would
+      // shift the box by a grid-multiple from an arbitrary origin.
+      if (grid.snap && !mods.ctrl && g) { dx = quantize(g.x + dx, grid.step) - g.x; dy = quantize(g.y + dy, grid.step) - g.y; }
       setDesign(d => ({ ...d, layers: d.layers.map(l => snaps.has(l.id) ? { ...l, x: snaps.get(l.id).x + dx, y: snaps.get(l.id).y + dy } : l) }));
       if (g) setHud({ kind: 'move', x: g.x + dx, y: g.y + dy });
     }, clickedId ? () => setSelectedIds([clickedId]) : undefined);
@@ -2215,7 +2222,8 @@ export function App({ onHome } = {}) {
       : null;
     beginDrag(e, (dx, dy, mods) => {
       // Shift constrains the move to the dominant axis.
-      if (mods.shift) { if (Math.abs(dx) >= Math.abs(dy)) dy = 0; else dx = 0; }
+      let lockX = false, lockY = false;
+      if (mods.shift) { if (Math.abs(dx) >= Math.abs(dy)) { dy = 0; lockY = true; } else { dx = 0; lockX = true; } }
       let nx = snap.x + dx;
       let ny = snap.y + dy;
       let guides = [];
@@ -2232,6 +2240,9 @@ export function App({ onHome } = {}) {
       } else if (grid.snap && !mods.ctrl) {
         nx = quantize(nx, grid.step); ny = quantize(ny, grid.step);
       }
+      // Keep the axis lock strict — snapping/spacing must not move the frozen axis.
+      if (lockY) ny = snap.y;
+      if (lockX) nx = snap.x;
       setSnapGuides(guides);
       setLayer(layer.id, { x: nx, y: ny });
       setHud({ kind: 'move', x: nx, y: ny });
@@ -2579,11 +2590,15 @@ export function App({ onHome } = {}) {
   };
   const onLayerDoubleClick = useCallback((layerId, e) => labelHandlers.current.onLayerDoubleClick(layerId, e), []);
   const commitTextEdit = () => {
+    // A cancel (Escape) sets the flag, then unmounts the textarea; React fires a
+    // native blur on the removed element which lands here with the stale closure.
+    // Bail so the draft is discarded instead of written.
+    if (cancelEditRef.current) { cancelEditRef.current = false; setEditingTextId(null); return; }
     if (editingTextId) setLayer(editingTextId, { text: editingDraft });
     setEditingTextId(null);
     setTimeout(forceCommit, 0);
   };
-  const cancelTextEdit = () => setEditingTextId(null);
+  const cancelTextEdit = () => { cancelEditRef.current = true; setEditingTextId(null); };
   // Drop the inline editor if its layer disappears (undo / delete).
   useEffect(() => {
     if (editingTextId && !design.layers.some(l => l.id === editingTextId)) setEditingTextId(null);
@@ -2613,11 +2628,14 @@ export function App({ onHome } = {}) {
       if (mod && (e.key === '=' || e.key === '+' || e.code === 'Equal' || e.code === 'NumpadAdd')) { e.preventDefault(); zoomIn(); return; }
       if (mod && (e.key === '-' || e.key === '_' || e.code === 'Minus' || e.code === 'NumpadSubtract')) { e.preventDefault(); zoomOut(); return; }
       if (mod && (e.key === '0' || e.code === 'Digit0' || e.code === 'Numpad0')) { e.preventDefault(); setZoomMode(1); return; }
-      if (mod && (e.key === '9' || e.code === 'Digit9')) { e.preventDefault(); setZoomMode('fit'); return; }
+      // Zoom-to-fit lives on Shift+1 (below the inField guard, like Shift+2). Ctrl+9
+      // is a browser tab-switch accelerator that page preventDefault can't intercept.
       if (inField) return;   // below: editor shortcuts, suppressed while typing
       // Work regardless of selection:
       if (mod && (e.key === 'a' || e.key === 'A')) { e.preventDefault(); selectAll(); return; }
       if (mod && (e.key === 'v' || e.key === 'V')) { e.preventDefault(); pasteClipboard(); return; }
+      // Zoom-to-fit (Shift+1) works regardless of selection.
+      if (e.shiftKey && !mod && !e.altKey && e.code === 'Digit1') { e.preventDefault(); setZoomMode('fit'); return; }
       if (selectedIds.length === 0) return;
       // Need a selection:
       if (mod && (e.key === 'c' || e.key === 'C')) { e.preventDefault(); copySelected(); return; }
@@ -2629,13 +2647,15 @@ export function App({ onHome } = {}) {
       if (e.altKey && !mod) {
         const c = e.code;
         if (c === 'KeyA') { e.preventDefault(); alignLayer('left'); return; }
-        if (c === 'KeyD') { e.preventDefault(); alignLayer('right'); return; }
+        // Align-right is Alt+Shift+D: plain Alt+D is a browser address-bar (omnibox)
+        // accelerator that page preventDefault can't suppress, so it would steal focus.
+        if (c === 'KeyD' && e.shiftKey) { e.preventDefault(); alignLayer('right'); return; }
         if (c === 'KeyW') { e.preventDefault(); alignLayer('top'); return; }
         if (c === 'KeyS') { e.preventDefault(); alignLayer('bottom'); return; }
         if (c === 'KeyH') { e.preventDefault(); if (e.shiftKey) distribute('x'); else alignLayer('cx'); return; }
         if (c === 'KeyV') { e.preventDefault(); if (e.shiftKey) distribute('y'); else alignLayer('cy'); return; }
       }
-      // Zoom to selection.
+      // Zoom to selection (frameSelection no-ops without a selection).
       if (e.shiftKey && !mod && !e.altKey && e.code === 'Digit2') { e.preventDefault(); frameSelection(); return; }
       // If an overlay is open, let its own Esc handler close it and leave the
       // selection intact — otherwise one Escape both dismisses the overlay and
