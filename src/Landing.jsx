@@ -3,7 +3,8 @@
 // accent system, hazard-stripe motifs and a warning-triangle mark. Reuses the
 // live SEVERITY/FORMATS data so the copy can't drift from the product.
 import { useEffect } from 'react';
-import { SEVERITY, FORMATS } from './Label.jsx';
+import { SEVERITY } from './core/constants.js';
+import { FORMATS } from './templates/index.js';
 import './landing.css';
 
 const SIGNALS = ['danger', 'warning', 'caution', 'notice', 'safety'];
