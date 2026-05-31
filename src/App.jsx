@@ -269,7 +269,7 @@ function Seg({ value, onChange, options }) {
     </div>
   );
 }
-function NumberInput({ value, onChange, min, max, step = 1, suffix, ariaLabel, live = true }) {
+function NumberInput({ value, onChange, min, max, step = 1, suffix, ariaLabel, title, live = true }) {
   // While the field is focused we show a local draft string of exactly what the
   // user types. Clamping to [min,max] happens on commit (blur / Enter), NOT on
   // every keystroke — otherwise typing "1" on the way to "100" snaps up to the
@@ -291,7 +291,7 @@ function NumberInput({ value, onChange, min, max, step = 1, suffix, ariaLabel, l
     onChange(n);
   };
   return (
-    <div className="num-input">
+    <div className="num-input" title={title}>
       <input type="number" value={display} min={min} max={max} step={step}
              aria-label={ariaLabel || suffix || undefined}
              onChange={e => {
@@ -1348,7 +1348,7 @@ function HelpModal({ onClose }) {
               <span className="kbd-keys"><K>Ctrl</K>/<K>⌘</K> <K>A</K></span><span className="kbd-label">Select all</span>
               <span className="kbd-keys"><K>Ctrl</K>/<K>⌘</K> <K>[</K> · <K>]</K></span><span className="kbd-label">Send back · bring forward (<K>Shift</K> = to back / front)</span>
               <span className="kbd-keys"><K>Ctrl</K>/<K>⌘</K> <K>+</K> · <K>−</K> · <K>0</K></span><span className="kbd-label">Zoom in · out · 100%</span>
-              <span className="kbd-keys"><K>Shift</K> <K>1</K> · <K>2</K></span><span className="kbd-label">Fit · zoom to selection</span>
+              <span className="kbd-keys"><K>Shift</K> <K>1</K> · <K>Shift</K> <K>2</K></span><span className="kbd-label">Fit · zoom to selection (needs a selection)</span>
               <span className="kbd-keys"><K>Alt</K> <K>A</K> <K>W</K> <K>S</K> · <K>Alt</K> <K>Shift</K> <K>D</K></span><span className="kbd-label">Align left · top · bottom · right</span>
               <span className="kbd-keys"><K>Alt</K> <K>H</K> · <K>V</K></span><span className="kbd-label">Align centre (<K>Shift</K> = distribute)</span>
               <span className="kbd-keys"><K>Double-click</K></span><span className="kbd-label">Edit a text layer on the canvas</span>
@@ -2617,6 +2617,10 @@ export function App({ onHome } = {}) {
   // ----- keyboard -----
   useEffect(() => {
     function onKey(e) {
+      // A modal overlay owns the screen and brings its own Esc/Tab handling.
+      // Suppress every editor shortcut so documented keys (Ctrl+D, Delete,
+      // arrows, zoom) can't mutate the canvas behind it.
+      if (helpOpen || exportOpen) return;
       const t = e.target;
       const inField = t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA');
 
@@ -3778,7 +3782,7 @@ export function App({ onHome } = {}) {
                 <path d="M4 8 H6.5 M9.5 8 H12" strokeWidth="1" />
               </svg>
             </button>
-            <NumberInput value={grid.step} min={2} max={200} step={1} live={false} ariaLabel="Grid size (px)"
+            <NumberInput value={grid.step} min={2} max={200} step={1} live={false} ariaLabel="Grid size (px)" title="Grid size (px)"
                          onChange={v => setGrid(g => ({ ...g, step: Math.max(2, Math.min(200, Math.round(v) || g.step)) }))} />
           </div>
           <div className="canvas-zoom">
