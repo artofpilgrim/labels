@@ -1951,6 +1951,25 @@ export function App({ onHome } = {}) {
     if (newIds.length) setSelectedIds(newIds);
   }, [setDesign]);
 
+  // Paste the clipboard with its bounding-box top-left at a label point (used by
+  // the canvas "Paste here" menu item).
+  const pasteClipboardAt = useCallback((lx, ly) => {
+    const clip = clipboardRef.current;
+    if (!clip || !clip.length) return;
+    const minX = Math.min(...clip.map(s => s.x || 0));
+    const minY = Math.min(...clip.map(s => s.y || 0));
+    const newIds = [];
+    setDesign(d => {
+      const added = clip.map(src => {
+        const id = uid();
+        newIds.push(id);
+        return { ...JSON.parse(JSON.stringify(src)), id, x: (src.x || 0) - minX + lx, y: (src.y || 0) - minY + ly };
+      });
+      return { ...d, layers: [...d.layers, ...added] };
+    });
+    if (newIds.length) setSelectedIds(newIds);
+  }, [setDesign]);
+
   const selectAll = useCallback(() => {
     const ids = designRef.current.layers.filter(l => !l.locked && !l.hidden).map(l => l.id);
     if (ids.length) setSelectedIds(ids);
@@ -2481,11 +2500,13 @@ export function App({ onHome } = {}) {
   };
   // Right-click a layer → select it (if not already) and open the context menu.
   labelHandlers.current.onLayerContextMenu = (layerId, e) => {
-    e.preventDefault();
     const layer = design.layers.find(l => l.id === layerId);
-    if (!layer || layer.locked) return;
+    if (!layer || layer.locked) return;   // let it bubble to the canvas menu
+    e.preventDefault();
+    e.stopPropagation();
     if (!selectedIds.includes(layerId)) setSelectedIds([layerId]);
     setCtxMenu({
+      kind: 'layer',
       x: Math.min(e.clientX, window.innerWidth - 210),
       y: Math.min(e.clientY, window.innerHeight - 360),
     });
@@ -2757,6 +2778,24 @@ export function App({ onHome } = {}) {
     document.addEventListener('mouseup', up);
     document.addEventListener('pointercancel', up);
     window.addEventListener('blur', up);
+  }
+  // Right-click empty canvas (or the label background) → canvas context menu.
+  // Unlocked-layer right-clicks stopPropagation in onLayerContextMenu, so they
+  // don't reach here; a locked layer (e.g. the background) falls through.
+  function onStageContextMenu(e) {
+    e.preventDefault();
+    const wrap = wrapRef.current;
+    let labelX = 0, labelY = 0;
+    if (wrap) {
+      const r = wrap.getBoundingClientRect();
+      labelX = (e.clientX - r.left) / fit;
+      labelY = (e.clientY - r.top) / fit;
+    }
+    setCtxMenu({
+      kind: 'canvas', labelX, labelY,
+      x: Math.min(e.clientX, window.innerWidth - 210),
+      y: Math.min(e.clientY, window.innerHeight - 300),
+    });
   }
   function onStagePointerDown(e) {
     // Space + left-mouse → pan. (Middle-mouse pan is bound as a native listener
@@ -3386,6 +3425,7 @@ export function App({ onHome } = {}) {
             className="canvas-stage"
             ref={canvasRef}
             onMouseDown={onStagePointerDown}
+            onContextMenu={onStageContextMenu}
           >
           <div
             ref={wrapRef}
@@ -3632,6 +3672,20 @@ export function App({ onHome } = {}) {
           <div className="ctx-backdrop"
                onMouseDown={() => setCtxMenu(null)}
                onContextMenu={e => { e.preventDefault(); setCtxMenu(null); }} />
+          {ctxMenu.kind === 'canvas' ? (
+          <div className="ctx-menu" style={{ left: ctxMenu.x, top: ctxMenu.y }}>
+            <button disabled={!(clipboardRef.current && clipboardRef.current.length)} onClick={() => { pasteClipboardAt(ctxMenu.labelX, ctxMenu.labelY); setCtxMenu(null); }}>Paste here <span>Ctrl+V</span></button>
+            <button onClick={() => { selectAll(); setCtxMenu(null); }}>Select all <span>Ctrl+A</span></button>
+            <div className="ctx-sep" />
+            <button onClick={() => { addLayer('text'); setCtxMenu(null); }}>Add text</button>
+            <button onClick={() => { addLayer('rect'); setCtxMenu(null); }}>Add rectangle</button>
+            <button onClick={() => { addLayer('ellipse'); setCtxMenu(null); }}>Add ellipse</button>
+            <button onClick={() => { addLayer('line'); setCtxMenu(null); }}>Add line</button>
+            <div className="ctx-sep" />
+            <button onClick={() => { setZoomMode('fit'); setCtxMenu(null); }}>Fit to viewport</button>
+            <button disabled={!selBounds} onClick={() => { frameSelection(); setCtxMenu(null); }}>Zoom to selection <span>Shift+2</span></button>
+          </div>
+          ) : (
           <div className="ctx-menu" style={{ left: ctxMenu.x, top: ctxMenu.y }}>
             <button onClick={() => { duplicateLayer(); setCtxMenu(null); }}>Duplicate <span>Ctrl+D</span></button>
             <button onClick={() => { copySelected(); setCtxMenu(null); }}>Copy <span>Ctrl+C</span></button>
@@ -3647,6 +3701,7 @@ export function App({ onHome } = {}) {
             <div className="ctx-sep" />
             <button className="danger" onClick={() => { deleteSelected(); setCtxMenu(null); }}>Delete <span>Del</span></button>
           </div>
+          )}
         </>
       )}
     </div>
