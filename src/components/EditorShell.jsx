@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useMediaQuery } from '../hooks/useMediaQuery.js';
 import {
   ColorInput,
@@ -139,6 +139,7 @@ export function EditorShell({
   const [mobileDrawer, setMobileDrawer] = useState(null);
   // The freehand handwriting capture modal (opened from the rail).
   const [hwOpen, setHwOpen] = useState(false);
+  const uploadInputRef = useRef(null);
   const isMobile = useMediaQuery('(max-width: 900px)');
   // Drawers are a mobile-only concept: drop any open drawer when we grow back to
   // the desktop layout, and let Escape close an open drawer (the capturing
@@ -253,6 +254,7 @@ export function EditorShell({
     { id: 'line', title: 'Add line', kind: 'add', type: 'line', icon: 'M2 8h12' },
     { id: 'barcode', title: 'Add barcode', kind: 'add', type: 'barcode', icon: 'M2.5 3v10M5 3v10M6.5 3v10M9 3v10M10.5 3v10M13.5 3v10' },
     { id: 'handwriting', title: 'Add handwriting', kind: 'handwriting', icon: 'M10.8 2.7 13.3 5.2 5.5 13 3 13.5 3.5 11z M9.6 3.9 12.1 6.4' },
+    { id: 'image', title: 'Upload image', kind: 'upload', icon: 'M2.5 3.5h11v9h-11z M3.2 11.5l3-3.2 2.2 2.2 2.8-3.2 2.6 3 M5.6 6.5a1.1 1.1 0 1 1-2.2 0 1.1 1.1 0 0 1 2.2 0' },
   ];
 
   // ----- Pixel rulers (top + left) -----
@@ -362,6 +364,7 @@ export function EditorShell({
             aria-pressed={b.kind === 'panel' ? leftPanel === b.id : undefined}
             onClick={() => {
               if (b.kind === 'handwriting') { setHwOpen(true); return; }
+              if (b.kind === 'upload') { uploadInputRef.current?.click(); return; }
               if (b.kind === 'add') { addLayer(b.type); return; }
               setLeftPanel(b.id);
               if (isMobile) setMobileDrawer(d => (d === 'left' && leftPanel === b.id) ? null : 'left');
@@ -377,6 +380,13 @@ export function EditorShell({
             <circle cx="8" cy="8" r="6.5" /><path d="M6.2 6.2a1.8 1.8 0 1 1 2.4 1.7c-.6.3-.9.7-.9 1.3M8 11.6v.01" />
           </svg>
         </button>
+        <input
+          ref={uploadInputRef}
+          type="file"
+          accept="image/*,.svg"
+          style={{ display: 'none' }}
+          onChange={e => { const f = e.target.files && e.target.files[0]; if (f) addImageFromFile(f); e.target.value = ''; }}
+        />
       </nav>
 
       <LeftPanel
