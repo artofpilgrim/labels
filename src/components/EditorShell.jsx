@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useMediaQuery } from '../hooks/useMediaQuery.js';
 import {
   ColorInput,
   CornerRadius,
@@ -132,8 +133,19 @@ export function EditorShell({
 }) {
   // ----- Shared panel blocks (reused across the new 4-zone layout) -----
   const bg = design.layers.find(l => l.syncCanvas === 'fill');
-  // Mobile (≤720px): the side panels become slide-over drawers. null | 'left' | 'right'.
+  // Mobile (≤900px): the side panels become slide-over drawers. null | 'left' | 'right'.
   const [mobileDrawer, setMobileDrawer] = useState(null);
+  const isMobile = useMediaQuery('(max-width: 900px)');
+  // Drawers are a mobile-only concept: drop any open drawer when we grow back to
+  // the desktop layout, and let Escape close an open drawer (the capturing
+  // listener stops the global Esc so it doesn't also clear the selection).
+  useEffect(() => { if (!isMobile && mobileDrawer) setMobileDrawer(null); }, [isMobile, mobileDrawer]);
+  useEffect(() => {
+    if (!mobileDrawer) return;
+    const onKey = (e) => { if (e.key === 'Escape') { e.stopPropagation(); setMobileDrawer(null); } };
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, [mobileDrawer]);
   // Uniform outward-padding range, keyed off the (stable) unpadded content size
   // so the slider's max doesn't drift as you pad.
   const padMax = Math.max(20, Math.round((Math.min(design.width, design.height) - 2 * (design.padding || 0)) / 2));
@@ -326,7 +338,7 @@ export function EditorShell({
           </button>
           <div className="export-wrap">
             <button className="btn-lg primary" aria-expanded={exportOpen} aria-haspopup="true"
-                    onClick={() => setExportOpen(o => !o)}>Export ▾</button>
+                    onClick={() => { setMobileDrawer(null); setExportOpen(o => !o); }}>Export ▾</button>
             {exportOpen && <>
               <div className="ctx-backdrop" style={{ zIndex: 39 }} onMouseDown={() => setExportOpen(false)} />
               <div className="export-pop"><ExportPanel docName={docName} design={design} doExport={doExport} doCopyImage={doCopyImage} slug={slug} /></div>
@@ -346,7 +358,7 @@ export function EditorShell({
             onClick={() => {
               if (b.kind !== 'panel') { addLayer(b.type); return; }
               setLeftPanel(b.id);
-              setMobileDrawer(d => (d === 'left' && leftPanel === b.id) ? null : 'left');
+              if (isMobile) setMobileDrawer(d => (d === 'left' && leftPanel === b.id) ? null : 'left');
             }}>
             <svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
               <path d={b.icon} />
@@ -484,6 +496,9 @@ export function EditorShell({
 
       {exportMsg && <div className="export-msg toast">{exportMsg}</div>}
       {mobileDrawer && <div className="m-backdrop" onClick={() => setMobileDrawer(null)} />}
+      {mobileDrawer && (
+        <button className="m-drawer-close" aria-label="Close panel" onClick={() => setMobileDrawer(null)}>✕</button>
+      )}
       {helpOpen && <HelpModal onClose={() => setHelpOpen(false)} />}
 
       {ctxMenu && (

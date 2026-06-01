@@ -28,7 +28,11 @@ export function useCanvasViewport({ design, selBounds }) {
     if (!el) return;
     const compute = () => {
       const rect = el.getBoundingClientRect();
-      const margin = 100;
+      // Responsive margin: keep the original 100px breathing room on roomy
+      // stages, but on small (mobile) stages scale it down so the label isn't
+      // dwarfed — a fixed 100px each side swallowed most of a phone's width.
+      const minDim = Math.min(rect.width, rect.height);
+      const margin = minDim < 500 ? Math.max(16, minDim * 0.1) : 100;
       const sx = (rect.width - margin * 2) / design.width;
       const sy = (rect.height - margin * 2) / design.height;
       setAutoFit(Math.max(0.05, Math.min(4, sx, sy)));
