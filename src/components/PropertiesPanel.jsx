@@ -254,6 +254,7 @@ function PropertiesPanel({ layer, onChange, cache, canvasW, canvasH }) {
       {layer.type === 'ellipse' && <Section title="Appearance" id="appearance"><PolygonProps layer={layer} onChange={onChange} /></Section>}
       {layer.type === 'image' && <Section title="Symbol" id="appearance"><ImageProps layer={layer} onChange={onChange} cache={cache} /></Section>}
       {layer.type === 'line' && <Section title="Appearance" id="appearance"><LineProps layer={layer} onChange={onChange} /></Section>}
+      {layer.type === 'ink' && <Section title="Signature" id="appearance"><InkProps layer={layer} onChange={onChange} /></Section>}
       {layer.type === 'barcode' && <Section title="Barcode" id="appearance"><BarcodeProps layer={layer} onChange={onChange} /></Section>}
 
       <Section title="Constraints" id="constraints" defaultOpen={false}>
@@ -535,6 +536,19 @@ function LineProps({ layer, onChange }) {
           onChange={v => onChange({ dasharray: v === 'dash' ? '8 6' : null })}
           options={[{ value: 'solid', label: 'Solid' }, { value: 'dash', label: 'Dashed' }]}
         />
+      </Field>
+    </>
+  );
+}
+
+function InkProps({ layer, onChange }) {
+  return (
+    <>
+      <Field label="Ink color">
+        <ColorInput value={layer.stroke || '#000000'} onChange={v => onChange({ stroke: v })} />
+      </Field>
+      <Field label="Weight">
+        <Slider ariaLabel="Ink weight" value={layer.strokeWidth || 3} onChange={v => onChange({ strokeWidth: v })} min={0.5} max={40} step={0.5} />
       </Field>
     </>
   );

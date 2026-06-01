@@ -254,6 +254,7 @@ function Studio({ initialDoc, onHome }) {
     moveLayer,
     addLayer,
     addImageFromFile,
+    addInkLayer,
     alignLayer,
     distribute,
     flipSelected,
@@ -418,6 +419,7 @@ function Studio({ initialDoc, onHome }) {
       symbolCache={symbolCache}
       addImageFromFile={addImageFromFile}
       addLayer={addLayer}
+      addInkLayer={addInkLayer}
       moveLayer={moveLayer}
       deleteLayer={deleteLayer}
       moveLayersToTarget={moveLayersToTarget}

@@ -67,6 +67,43 @@ export function useLayerActions({ design, setDesign, selectedIds, setSelectedIds
     });
   }, [design.width, design.height, setDesign]);
 
+  // Add a freehand signature as an ink layer. `strokes` is an array of strokes,
+  // each a list of {x,y} points in the signature pad's pixel space. We tighten to
+  // the strokes' bounding box, normalize the points 0..1 within it (like polygon),
+  // size the layer to fit the canvas preserving aspect, and centre it. penWidth is
+  // the pad's on-screen pen px, scaled by the same factor so the placed stroke
+  // keeps the weight it had while drawing.
+  const addInkLayer = useCallback((strokes, penWidth = 2.6) => {
+    const all = (strokes || []).filter(s => s && s.length);
+    const pts = all.flat();
+    if (!pts.length) return;
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const p of pts) {
+      if (p.x < minX) minX = p.x;
+      if (p.x > maxX) maxX = p.x;
+      if (p.y < minY) minY = p.y;
+      if (p.y > maxY) maxY = p.y;
+    }
+    const bw = Math.max(1, maxX - minX), bh = Math.max(1, maxY - minY);
+    const norm = all.map(s => s.map(p => ({
+      x: +((p.x - minX) / bw).toFixed(4),
+      y: +((p.y - minY) / bh).toFixed(4),
+    })));
+    // Fit within ~55% of the canvas, preserving aspect; don't blow up a small doodle past 4×.
+    const s = Math.min(design.width * 0.55 / bw, design.height * 0.55 / bh, 4);
+    const w = Math.max(8, Math.round(bw * s));
+    const h = Math.max(8, Math.round(bh * s));
+    const nl = newLayer('ink', design.width, design.height);
+    if (!nl) return;
+    nl.strokes = norm;
+    nl.w = w; nl.h = h;
+    nl.x = Math.round(design.width / 2 - w / 2);
+    nl.y = Math.round(design.height / 2 - h / 2);
+    nl.strokeWidth = Math.min(14, Math.max(1.5, Math.round(penWidth * s * 2) / 2));
+    setDesign(d => ({ ...d, layers: [...d.layers, nl] }));
+    setSelectedIds([nl.id]);
+  }, [design.width, design.height, setDesign]);
+
   // Align selected layers. With one selection we align to the canvas; with two
   // or more we align each layer to the selection's bounding box.
   const alignLayer = useCallback((kind) => {
@@ -289,6 +326,7 @@ export function useLayerActions({ design, setDesign, selectedIds, setSelectedIds
     moveLayer,
     addLayer,
     addImageFromFile,
+    addInkLayer,
     alignLayer,
     distribute,
     flipSelected,

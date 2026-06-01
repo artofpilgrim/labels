@@ -397,6 +397,26 @@ function renderLayer(l, sev, symbolsReady) {
         </g>
       );
     }
+    case 'ink': {
+      // Freehand signature: each stroke is a polyline whose points are normalized
+      // (0..1) to the layer box — like polygon — so it resizes and rotates with
+      // the handles. A single-point stroke (a tap) renders as a round dot.
+      const inkStroke = resolveFill(l.stroke || '#000000', l.bindSeverity, sev);
+      const sw = l.strokeWidth || 3;
+      return (
+        <g transform={transform}>
+          {(l.strokes || []).map((stk, i) => (
+            stk.length === 1
+              ? <circle key={i} cx={l.x + stk[0].x * l.w} cy={l.y + stk[0].y * l.h}
+                        r={Math.max(0.5, sw / 2)} fill={inkStroke} />
+              : <polyline key={i}
+                          points={stk.map(p => `${l.x + p.x * l.w},${l.y + p.y * l.h}`).join(' ')}
+                          fill="none" stroke={inkStroke} strokeWidth={sw}
+                          strokeLinecap="round" strokeLinejoin="round" />
+          ))}
+        </g>
+      );
+    }
     case 'barcode':
       return renderBarcode(l, transform);
     default:

@@ -21,4 +21,5 @@ export const KNOWN_LAYER_TYPES = new Set([
   'polygon',
   'ellipse',
   'barcode',
+  'ink',
 ]);
