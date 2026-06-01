@@ -1,6 +1,8 @@
 // Label Studio — layer-based label editor.
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { EditorShell } from './components/EditorShell.jsx';
+import { SwatchContext } from './components/swatches.js';
+import { useCustomSwatches } from './hooks/useCustomSwatches.js';
 import { PRESETS } from './templates/index.js';
 import { slug } from './core/design.js';
 import { applyPins } from './core/geometry.js';
@@ -321,6 +323,9 @@ function Studio({ initialDoc, onHome }) {
     setDesign,
   });
 
+  // Shared saved-colour palette for every ColorInput (provided below).
+  const swatchApi = useCustomSwatches();
+
   // If undo/redo restores a design that no longer contains a selected layer,
   // prune the selection so handles + property panel don't dangle.
   useEffect(() => {
@@ -347,6 +352,7 @@ function Studio({ initialDoc, onHome }) {
   }, [exportOpen]);
 
   return (
+    <SwatchContext.Provider value={swatchApi}>
     <EditorShell
       design={design}
       setDesign={setDesign}
@@ -456,6 +462,7 @@ function Studio({ initialDoc, onHome }) {
       deleteDocument={deleteDocument}
       onHome={onHome}
     />
+    </SwatchContext.Provider>
   );
 
 }

@@ -281,14 +281,54 @@ textarea.text-input { resize: vertical; min-height: 36px; line-height: 1.5; }
    24px on each side. */
 .color-swatches .swatch::before { content: ''; position: absolute; inset: -4px; }
 .color-swatches .swatch.on { outline: 2px solid var(--ink); outline-offset: 1px; }
-.color-input input[type="color"] {
+/* Compact colour control: a chip that opens the picker popover + a hex field. */
+.color-chip {
+  flex: 0 0 auto; width: 32px; height: 32px; padding: 0;
+  border: 1px solid var(--line-strong); border-radius: var(--r);
+  cursor: pointer;
+}
+.color-chip:hover { border-color: var(--ink); }
+.color-hex {
+  flex: 1; min-width: 0;
+  background: var(--white); border: 1px solid var(--line); border-radius: var(--r);
+  padding: 7px 8px; font-size: 12px; color: var(--ink); outline: none;
+}
+.color-hex:focus { border-color: var(--ink); }
+
+/* Picker popover (opened from the chip). Fixed-positioned so it escapes the
+   panel's overflow clip; a transparent backdrop catches the outside click. */
+.color-pop-backdrop { position: fixed; inset: 0; z-index: 59; }
+.color-pop {
+  position: fixed; z-index: 60; width: 224px;
+  background: var(--bg); border: 1px solid var(--line);
+  border-radius: var(--r-lg); box-shadow: var(--shadow);
+  padding: 10px; display: flex; flex-direction: column; gap: 8px;
+}
+.color-pop-custom {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 12px; color: var(--ink); cursor: pointer;
+}
+.color-pop-custom input[type="color"] {
   -webkit-appearance: none; appearance: none;
-  width: 32px; height: 32px; padding: 0;
+  flex: 0 0 auto; width: 28px; height: 28px; padding: 0;
   border: 1px solid var(--line); border-radius: var(--r);
   background: transparent; cursor: pointer;
 }
-.color-input input[type="color"]::-webkit-color-swatch-wrapper { padding: 2px; }
-.color-input input[type="color"]::-webkit-color-swatch { border: 0; border-radius: 2px; }
+.color-pop-custom input[type="color"]::-webkit-color-swatch-wrapper { padding: 2px; }
+.color-pop-custom input[type="color"]::-webkit-color-swatch { border: 0; border-radius: 2px; }
+.swatch-head {
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: var(--muted);
+}
+.swatch-add {
+  width: 18px; height: 18px; padding: 0; line-height: 1;
+  display: grid; place-items: center;
+  border: 1px solid var(--line-strong); border-radius: 4px;
+  background: var(--white); color: var(--ink); font-size: 13px; cursor: pointer;
+}
+.swatch-add:hover:not(:disabled) { border-color: var(--ink); background: var(--bg-2); }
+.swatch-add:disabled { opacity: .4; cursor: default; }
+.swatch-empty { font-size: 11px; color: var(--muted); padding: 2px 0; }
 
 .seg {
   display: flex;

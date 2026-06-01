@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { useSectionOpen } from '../hooks/useUiPrefs.js';
+import { useSwatches } from './swatches.js';
 
 // ----------- UI primitives -----------
 // Drag-to-change for a field's unit label (X/Y/W/H/°…). Horizontal drag steps
@@ -184,23 +185,81 @@ const STANDARD_COLORS = [
   '#9B2423', '#000000', '#1a1814', '#6b7280', '#FFFFFF',
 ];
 
+// Compact colour control: a chip + hex field inline; the native picker and the
+// standard + saved swatches live in a popover opened from the chip, so the
+// palette isn't repeated under every Fill/Stroke/Background field.
 function ColorInput({ value, onChange, ariaLabel = 'Color' }) {
   const cur = (value || '').toLowerCase();
+  const { customSwatches, addSwatch, removeSwatch } = useSwatches();
+  const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState({ left: 0, top: 0 });
+  const chipRef = useRef(null);
+  const POP_W = 224;
+  const canSave = /^#[0-9a-f]{6}$/i.test((value || '').trim());
+  const safeNative = canSave ? value : '#000000';
+
+  const openPop = () => {
+    const r = chipRef.current?.getBoundingClientRect();
+    if (r) {
+      // Fixed-positioned (escapes the panel's overflow clip); clamp to viewport.
+      const left = Math.max(8, Math.min(r.left, window.innerWidth - POP_W - 8));
+      setPos({ left, top: r.bottom + 4 });
+    }
+    setOpen(true);
+  };
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e) => { if (e.key === 'Escape') { e.stopPropagation(); setOpen(false); } };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open]);
+
+  const swatchBtn = (c, removable) => (
+    <button key={c} type="button" title={removable ? `${c} — right-click to remove` : c}
+            aria-label={`Set colour ${c}`}
+            className={`swatch${cur === c.toLowerCase() ? ' on' : ''}`}
+            style={{ background: c }}
+            onClick={() => onChange(c)}
+            onContextMenu={removable ? (e) => { e.preventDefault(); removeSwatch(c); } : undefined} />
+  );
+
   return (
     <div className="color-input">
       <div className="color-input-row">
-        <input type="color" value={value || '#000000'} aria-label={`${ariaLabel} swatch`}
-               onChange={e => onChange(e.target.value)} />
-        <input type="text" value={value || ''} aria-label={`${ariaLabel} hex value`}
+        <button ref={chipRef} type="button" className="color-chip"
+                aria-label={`${ariaLabel} swatch`} aria-haspopup="true" aria-expanded={open}
+                style={{ background: value || '#000000' }}
+                onClick={() => (open ? setOpen(false) : openPop())} />
+        <input type="text" className="color-hex" value={value || ''} aria-label={`${ariaLabel} hex value`}
                onChange={e => onChange(e.target.value)} spellCheck={false} />
       </div>
-      <div className="color-swatches">
-        {STANDARD_COLORS.map(c => (
-          <button key={c} type="button" title={c} aria-label={`Set colour ${c}`}
-                  className={`swatch${cur === c.toLowerCase() ? ' on' : ''}`}
-                  style={{ background: c }} onClick={() => onChange(c)} />
-        ))}
-      </div>
+      {open && (
+        <>
+          <div className="color-pop-backdrop" onMouseDown={() => setOpen(false)} />
+          <div className="color-pop" style={{ left: pos.left, top: pos.top }}
+               role="dialog" aria-label={`${ariaLabel} picker`}>
+            <label className="color-pop-custom">
+              <input type="color" value={safeNative} onChange={e => onChange(e.target.value)}
+                     aria-label="Custom colour" />
+              <span>Custom…</span>
+            </label>
+            <div className="swatch-head"><span>Standard</span></div>
+            <div className="color-swatches">{STANDARD_COLORS.map(c => swatchBtn(c, false))}</div>
+            <div className="swatch-head">
+              <span>Yours</span>
+              <button type="button" className="swatch-add" title="Save current colour"
+                      aria-label="Save current colour" disabled={!canSave}
+                      onClick={() => addSwatch(value)}>+</button>
+            </div>
+            <div className="color-swatches">
+              {customSwatches.length === 0
+                ? <span className="swatch-empty">Save a colour with +</span>
+                : customSwatches.map(c => swatchBtn(c, true))}
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
