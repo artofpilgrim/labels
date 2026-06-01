@@ -1508,21 +1508,60 @@ kbd {
 }
 
 /* ---------- Handwriting capture modal ---------- */
-.hw-modal { width: min(540px, 92vw); }
-/* A paper-white writing area (independent of theme) so the dark ink always
-   reads, and the result matches the black ink placed on the label. */
+.hw-modal {
+  width: min(540px, 94vw);
+  padding: 20px 22px 18px;
+  animation: modal-rise .2s cubic-bezier(.2, .7, .2, 1) both;
+}
+.hw-head { display: flex; align-items: flex-start; gap: 12px; }
+.hw-head-chip {
+  flex: none; width: 34px; height: 34px; border-radius: 10px;
+  display: grid; place-items: center;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--accent);
+}
+.hw-head-text { min-width: 0; }
+.hw-title {
+  margin: 0; font-family: var(--font);
+  font-size: 16px; font-weight: 800; letter-spacing: -0.01em; color: var(--ink);
+}
+.hw-sub { margin: 3px 0 0; font-size: 12.5px; line-height: 1.45; color: var(--muted); }
+
+.hw-canvas-wrap { position: relative; margin-top: 16px; }
+/* A plain recessed writing well using the app's surface tokens — ink is
+   var(--ink) so it stays legible in light and dark. */
 .hw-surface {
-  display: block;
-  width: 100%;
-  height: 200px;
-  margin-top: 4px;
-  background: #fff;
-  border: 1px solid var(--line);
-  border-radius: 10px;
+  display: block; width: 100%; height: 220px;
+  background: var(--bg-2);
+  border: 1px solid var(--line); border-radius: var(--r);
   touch-action: none;          /* finger-draw, don't scroll the modal */
   cursor: crosshair;
 }
-.hw-ink { fill: none; stroke: #111; stroke-linecap: round; stroke-linejoin: round; }
-.hw-dot { fill: #111; }
-.hw-actions { display: flex; justify-content: space-between; gap: 8px; margin-top: 14px; }
+.hw-ink { fill: none; stroke: var(--ink); stroke-linecap: round; stroke-linejoin: round; }
+.hw-dot { fill: var(--ink); }
+.hw-hint {
+  position: absolute; inset: 0; pointer-events: none;
+  display: flex; align-items: center; justify-content: center; gap: 7px;
+  color: var(--muted); font-size: 13px; font-weight: 500; letter-spacing: .01em;
+}
+
+.hw-actions {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 8px; margin-top: 16px;
+}
+.hw-tools { display: flex; gap: 2px; }
 .hw-btns { display: flex; gap: 8px; }
+.hw-tool {
+  background: transparent; border: 0; border-radius: var(--r);
+  padding: 7px 10px; font-size: 12.5px; font-weight: 600;
+  color: var(--muted); cursor: pointer;
+  display: inline-flex; align-items: center; gap: 5px;
+  transition: background .14s ease, color .14s ease;
+}
+.hw-tool:hover:not(:disabled) { background: var(--bg-2); color: var(--ink); }
+.hw-tool:disabled { opacity: .4; cursor: default; }
+.hw-actions .btn-lg { min-width: 92px; justify-content: center; }
+/* Empty state: "Add to label" is disabled — dim it and drop the hover lift so it
+   reads as not-yet-available (only this button is ever disabled here). */
+.hw-actions .btn-lg:disabled { opacity: .45; cursor: default; }
+.hw-actions .btn-lg.on:disabled:hover { background: var(--ink); }

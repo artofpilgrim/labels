@@ -16,6 +16,14 @@ const PEN = 2.6;               // on-screen pen width; passed back so the placed
 const MIN_DIST = 1.5;          // px a finger must move before a new sample is kept
 const MIN_DIST2 = MIN_DIST * MIN_DIST;
 
+const PencilIcon = (props) => (
+  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4"
+       strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <path d="M10.8 2.7 13.3 5.2 5.5 13 3 13.5 3.5 11z" />
+    <path d="M9.6 3.9 12.1 6.4" />
+  </svg>
+);
+
 export function HandwritingModal({ onCancel, onAdd }) {
   const ref = useRef(null);
   const surfaceRef = useRef(null);
@@ -83,27 +91,49 @@ export function HandwritingModal({ onCancel, onAdd }) {
     d: s.length >= 2 ? inkStrokePath(s) : '',
   })), [strokes]);
   const live = liveRef.current;
+  const isEmpty = strokes.length === 0 && !live;
 
   return (
     <div className="modal-backdrop" onMouseDown={onCancel}>
       <div ref={ref} tabIndex={-1} className="modal hw-modal" role="dialog" aria-modal="true"
            aria-labelledby={titleId} onMouseDown={e => e.stopPropagation()}>
-        <h2 id={titleId} className="confirm-title">Add handwriting</h2>
-        <p className="confirm-msg">Write or draw with your mouse, finger, or stylus — it’s added as a layer you can move, resize and recolour.</p>
-        <svg ref={surfaceRef} className="hw-surface"
-             onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up}>
-          {committed.map((c, i) => c.dot
-            ? <circle key={i} className="hw-dot" cx={c.dot.x} cy={c.dot.y} r={PEN / 2} />
-            : <path key={i} className="hw-ink" strokeWidth={PEN} d={c.d} />)}
-          {live && (live.length === 1
-            ? <circle className="hw-dot" cx={live[0].x} cy={live[0].y} r={PEN / 2} />
-            : <path className="hw-ink" strokeWidth={PEN} d={inkStrokePath(live)} />)}
-        </svg>
+        <div className="hw-head">
+          <span className="hw-head-chip" aria-hidden="true"><PencilIcon width="18" height="18" /></span>
+          <div className="hw-head-text">
+            <h2 id={titleId} className="hw-title">Add handwriting</h2>
+            <p className="hw-sub">Write or draw with your mouse, finger, or stylus — it becomes a layer you can restyle.</p>
+          </div>
+        </div>
+
+        <div className="hw-canvas-wrap">
+          <svg ref={surfaceRef} className="hw-surface"
+               onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up}>
+            {committed.map((c, i) => c.dot
+              ? <circle key={i} className="hw-dot" cx={c.dot.x} cy={c.dot.y} r={PEN / 2} />
+              : <path key={i} className="hw-ink" strokeWidth={PEN} d={c.d} />)}
+            {live && (live.length === 1
+              ? <circle className="hw-dot" cx={live[0].x} cy={live[0].y} r={PEN / 2} />
+              : <path className="hw-ink" strokeWidth={PEN} d={inkStrokePath(live)} />)}
+          </svg>
+          {isEmpty && (
+            <div className="hw-hint" aria-hidden="true">
+              <PencilIcon width="15" height="15" />
+              <span>Write or draw here</span>
+            </div>
+          )}
+        </div>
+
         <div className="hw-actions">
-          <div className="hw-btns">
-            <button type="button" className="ghost" disabled={!strokes.length}
-                    onClick={() => setStrokes(s => s.slice(0, -1))}>Undo</button>
-            <button type="button" className="ghost" disabled={!strokes.length}
+          <div className="hw-tools">
+            <button type="button" className="hw-tool" disabled={!strokes.length}
+                    onClick={() => setStrokes(s => s.slice(0, -1))}>
+              <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor"
+                   strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M6 4 3 7l3 3M3.2 7H10a3.2 3.2 0 0 1 0 6.4H6.5" />
+              </svg>
+              Undo
+            </button>
+            <button type="button" className="hw-tool" disabled={!strokes.length}
                     onClick={() => setStrokes([])}>Clear</button>
           </div>
           <div className="hw-btns">
