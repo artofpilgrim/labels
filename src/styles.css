@@ -272,9 +272,14 @@ textarea.text-input { resize: vertical; min-height: 36px; line-height: 1.5; }
 .color-input-row { display: flex; align-items: center; gap: 6px; }
 .color-swatches { display: flex; flex-wrap: wrap; gap: 4px; }
 .color-swatches .swatch {
+  position: relative;
   width: 18px; height: 18px; padding: 0;
   border: 1px solid var(--line-strong); border-radius: 4px; cursor: pointer;
 }
+/* Enlarge the pointer/touch target to 24px without growing the 18px chip.
+   -4px (not -3) clears the 1px border under border-box so the target is a true
+   24px on each side. */
+.color-swatches .swatch::before { content: ''; position: absolute; inset: -4px; }
 .color-swatches .swatch.on { outline: 2px solid var(--ink); outline-offset: 1px; }
 .color-input input[type="color"] {
   -webkit-appearance: none; appearance: none;
@@ -586,6 +591,11 @@ body.space-pan .overlay * { pointer-events: none !important; }
 }
 .handle-rotate:hover { background: var(--accent-soft); }
 .handle-rotate:active { cursor: grabbing; }
+/* Enlarge the grab target beyond the small visible handle for pointer precision.
+   Transparent, so the handle still reads as 10–12px; kept modest (-4px) so
+   adjacent handles on a small selection don't fight for the same clicks. */
+.handle::before,
+.handle-rotate::before { content: ''; position: absolute; inset: -4px; }
 .rotate-stem {
   position: absolute;
   width: 0; height: 22px;

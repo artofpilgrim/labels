@@ -29,7 +29,10 @@ function PinSidesControl({ value, onChange }) {
   ];
   return (
     <div className="pin-control">
-      <div className="pin-diagram">
+      {/* Decorative: every toggle here is also keyboard/AT-accessible via the
+          real checkboxes in .pin-checks below, so hide the tiny diagram targets
+          from assistive tech rather than duplicate them. */}
+      <div className="pin-diagram" aria-hidden="true">
         <div className={`pin-edge pin-top ${v.top ? 'on' : ''}`}
              onClick={() => toggle('top')} title="Pin top" />
         <div className={`pin-edge pin-right ${v.right ? 'on' : ''}`}
