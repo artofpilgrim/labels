@@ -3,3 +3,6 @@ dist
 
 # Machine-local Claude Code permission overrides (not for sharing)
 .claude/settings.local.json
+
+# Local scratch: verify-loop preview screenshots
+_preview/
