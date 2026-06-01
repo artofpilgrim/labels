@@ -10,7 +10,7 @@ export function useUserPresets({
   setDocName,
   setSelectedIds,
   setWrapOffset,
-  setExportMsg,
+  flash,
 }) {
   const [userPresets, setUserPresets] = useState([]);
   const [newPresetName, setNewPresetName] = useState('');
@@ -29,8 +29,7 @@ export function useUserPresets({
   function persistUserPresets(next) {
     setUserPresets(next);   // optimistic — IndexedDB writes are async
     idb.kvSet('userPresets', next).catch(() => {
-      setExportMsg('Could not save preset');
-      setTimeout(() => setExportMsg(''), 2800);
+      flash('Could not save preset', 2800);
     });
   }
 
@@ -66,16 +65,14 @@ export function useUserPresets({
       },
     } : x));
     setActivePresetId(id);
-    setExportMsg(`Updated "${p.name}"`);
-    setTimeout(() => setExportMsg(''), 2200);
+    flash(`Updated "${p.name}"`, 2200);
   }
 
   function applyUserPreset(id) {
     const p = userPresets.find(x => x.id === id);
     if (!p) return;
     if (!isRenderableDesign(p.design)) {
-      setExportMsg('That preset is corrupted and could not be loaded');
-      setTimeout(() => setExportMsg(''), 3000);
+      flash('That preset is corrupted and could not be loaded', 3000);
       return;
     }
     forceCommit();
@@ -95,8 +92,7 @@ export function useUserPresets({
     setActivePresetId(id);
     setSelectedIds([]);
     setWrapOffset({ x: 0, y: 0 });
-    setExportMsg('Preset applied - press Ctrl+Z to undo');
-    setTimeout(() => setExportMsg(''), 3000);
+    flash('Preset applied - press Ctrl+Z to undo', 3000);
   }
 
   function deleteUserPreset(id) {

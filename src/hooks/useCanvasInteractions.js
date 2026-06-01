@@ -26,7 +26,7 @@ export function useCanvasInteractions({
   spaceHeldRef,
   startPan,
   setActivePresetId,
-  setExportMsg,
+  flash,
   setSnapGuides,
   setHud,
   editingTextId,
@@ -148,8 +148,7 @@ export function useCanvasInteractions({
     setActivePresetId(null);   // a template replaces the design — no longer "your preset"
     setSelectedIds([]);
     setWrapOffset({ x: 0, y: 0 });
-    setExportMsg('Template applied — press Ctrl+Z to undo');
-    setTimeout(() => setExportMsg(''), 3000);
+    flash('Template applied — press Ctrl+Z to undo', 3000);
   }
 
   // Reshape the blank canvas's base layer (the syncCanvas:'fill' background)

@@ -1,7 +1,7 @@
 // Layer-based label renderer.
 import { forwardRef, useId, useImperativeHandle, useRef, memo } from 'react';
 import { SEVERITY } from '../core/constants.js';
-import { rectPath, rectStrokeRingPath, renderLayer, resolveFill } from './renderLayer.jsx';
+import { polygonPoints, rectPath, rectStrokeRingPath, renderLayer, resolveFill, rotateTransform } from './renderLayer.jsx';
 
 // ----------- Label component -----------
 // Renders all layers and attaches per-layer mousedown handlers so the parent
@@ -11,11 +11,11 @@ import { rectPath, rectStrokeRingPath, renderLayer, resolveFill } from './render
 // black cuts). Only the area shapes punch — rect (honors radius/chamfer), ellipse
 // and polygon. Rotation is matched to the on-canvas render.
 function holeMaskNode(l) {
-  const t = l.rotation ? `rotate(${l.rotation} ${l.x + l.w / 2} ${l.y + l.h / 2})` : undefined;
+  const t = rotateTransform(l);
   if (l.type === 'rect') return <path key={l.id} d={rectPath(l.x, l.y, l.w, l.h, l.radius, 0, l.corner)} fill="black" transform={t} />;
   if (l.type === 'ellipse') return <ellipse key={l.id} cx={l.x + l.w / 2} cy={l.y + l.h / 2} rx={l.w / 2} ry={l.h / 2} fill="black" transform={t} />;
   if (l.type === 'polygon') {
-    const pts = (l.points || []).map(p => `${l.x + p.x * l.w},${l.y + p.y * l.h}`).join(' ');
+    const pts = polygonPoints(l);
     return <polygon key={l.id} points={pts} fill="black" transform={t} />;
   }
   return null;
@@ -127,9 +127,7 @@ const Label = memo(forwardRef(function Label({ design, symbolsReady, onLayerPoin
                 <rect
                   x={hx} y={hy} width={hw} height={hh}
                   fill="transparent"
-                  transform={l.rotation
-                    ? `rotate(${l.rotation} ${l.x + l.w / 2} ${l.y + l.h / 2})`
-                    : undefined}
+                  transform={rotateTransform(l)}
                 />
               );
             })()}
@@ -157,9 +155,7 @@ const Label = memo(forwardRef(function Label({ design, symbolsReady, onLayerPoin
             fillRule="evenodd"
             clipPath={(l.clipToCanvas && canvasClipD) ? `url(#${canvasClipId})` : undefined}
             style={{ pointerEvents: 'none', mixBlendMode: l.blend || undefined, opacity: l.opacity == null ? undefined : l.opacity }}
-            transform={l.rotation
-              ? `rotate(${l.rotation} ${l.x + l.w / 2} ${l.y + l.h / 2})`
-              : undefined}
+            transform={rotateTransform(l)}
           />
         ))}
       </g>

@@ -145,7 +145,7 @@ function Studio({ initialDoc, onHome }) {
     spaceHeldRef,
   } = useCanvasViewport({ design, selBounds });
 
-  const { exportMsg, setExportMsg, doExport, doCopyImage } = useExportActions({
+  const { exportMsg, flash, doExport, doCopyImage } = useExportActions({
     labelRef,
     symbolCache,
     design,
@@ -191,7 +191,7 @@ function Studio({ initialDoc, onHome }) {
     setDocName,
     setSelectedIds,
     setWrapOffset,
-    setExportMsg,
+    flash,
   });
 
   // ----- Undo / Redo -----
@@ -227,7 +227,7 @@ function Studio({ initialDoc, onHome }) {
     setWrapOffset,
     setActivePresetId,
     makeDefaultDesign: makeInitialDesign,
-    setExportMsg,
+    flash,
   });
 
   const {
@@ -291,7 +291,7 @@ function Studio({ initialDoc, onHome }) {
     spaceHeldRef,
     startPan,
     setActivePresetId,
-    setExportMsg,
+    flash,
     setSnapGuides,
     setHud,
     editingTextId,

@@ -13,6 +13,13 @@ function L(props) {
   };
 }
 
+// Box {y, h} for a single line of text vertically centred on `centerY`. The
+// +0.04·size baseline nudge and the 1.2 line-box were hand-copied across ~13
+// templates — single-sourced here so the fudge can be tuned in one place.
+function centerTextRow(centerY, size) {
+  return { y: centerY - size / 2 + size * 0.04, h: size * 1.2 };
+}
+
 // ----------- Format presets -----------
 // Each preset is a function (W, H, severity) => layers[]; called when user clicks
 // a format tile. Resulting layers fully describe the label and can then be moved /
@@ -70,9 +77,8 @@ function makeAnsiHeader(W, H, severity) {
         pinSides: { top: true, left: true } }),
     L({ name: 'Signal word', type: 'text',
         x: pictoX + pictoBox + headerH * 0.18,
-        y: headerH / 2 - signalSize / 2 + signalSize * 0.04,
         w: W - (pictoX + pictoBox + headerH * 0.18) - padX,
-        h: signalSize * 1.2,
+        ...centerTextRow(headerH / 2, signalSize),
         text: sev.word, fontSize: signalSize, fontWeight: 900,
         fill: sev.bandInk, bindSeverity: 'bandInk',
         align: 'start', uppercase: true, letterSpacing: 0.04,
@@ -176,8 +182,7 @@ function makeBanner(W, H, severity) {
         pinSides: { top: true, left: true, right: true },
         clipToCanvas: true }),
     L({ name: 'Signal word', type: 'text',
-        x: 0, y: headerH / 2 - signalSize / 2 + signalSize * 0.04,
-        w: W, h: signalSize * 1.2,
+        x: 0, w: W, ...centerTextRow(headerH / 2, signalSize),
         text: sev.word, fontSize: signalSize, fontWeight: 900,
         fill: sev.bandInk, bindSeverity: 'bandInk',
         align: 'middle', uppercase: true, letterSpacing: 0.04,
@@ -293,8 +298,7 @@ function makeStop(W, H) {
         points: OCTAGON_POINTS,
         fill: 'none', stroke: '#FFFFFF', strokeWidth: 3 }),
     L({ name: 'Stop word', type: 'text',
-        x: 0, y: H / 2 - fontSize / 2 + fontSize * 0.04,
-        w: W, h: fontSize * 1.2,
+        x: 0, w: W, ...centerTextRow(H / 2, fontSize),
         text: 'STOP', fontSize, fontWeight: 900,
         fill: '#FFFFFF', align: 'middle', uppercase: true, letterSpacing: 0.04 }),
   ];
@@ -329,8 +333,7 @@ function makeTag(W, H, severity) {
         fill: sev.band, bindSeverity: 'band',
         pinSides: { top: true, left: true, right: true } }),
     L({ name: 'Signal word', type: 'text',
-        x: 0, y: headerY + headerH / 2 - signalSize / 2 + signalSize * 0.04,
-        w: W, h: signalSize * 1.2,
+        x: 0, w: W, ...centerTextRow(headerY + headerH / 2, signalSize),
         text: sev.word, fontSize: signalSize, fontWeight: 900,
         fill: sev.bandInk, bindSeverity: 'bandInk',
         align: 'middle', uppercase: true, letterSpacing: 0.05,
@@ -396,8 +399,7 @@ function makeStrip(W, H, severity) {
   layers.push(L({ name: 'Center band', type: 'rect', x: 0, y: H * 0.25, w: W, h: H * 0.5, fill: '#FFFFFF',
       pinSides: { top: true, left: true, right: true, bottom: true } }));
   layers.push(L({ name: 'Signal word', type: 'text',
-      x: 0, y: H / 2 - wordSize / 2 + wordSize * 0.04,
-      w: W, h: wordSize * 1.2,
+      x: 0, w: W, ...centerTextRow(H / 2, wordSize),
       text: sev.word, fontSize: wordSize, fontWeight: 900,
       fill: '#000000', align: 'middle', uppercase: true, letterSpacing: 0.08,
       pinSides: { top: true, left: true, right: true, bottom: true } }));
@@ -646,8 +648,7 @@ function makeElectricalPanel(W, H, severity) {
         symbol: 'bolt', pinSides: { top: true, left: true } }),
     L({ name: 'Signal word', type: 'text',
         x: pictoX + pictoBox + headerH * 0.18,
-        y: headerH / 2 - signalSize / 2 + signalSize * 0.04,
-        w: W - (pictoX + pictoBox + headerH * 0.18) - padX, h: signalSize * 1.2,
+        w: W - (pictoX + pictoBox + headerH * 0.18) - padX, ...centerTextRow(headerH / 2, signalSize),
         text: sev.word, fontSize: signalSize, fontWeight: 900,
         fill: sev.bandInk, bindSeverity: 'bandInk',
         align: 'start', uppercase: true, letterSpacing: 0.04,
@@ -714,8 +715,7 @@ function makeConfinedSpace(W, H, severity) {
         symbol: 'exclamation', pinSides: { top: true, left: true } }),
     L({ name: 'Signal word', type: 'text',
         x: pictoXH + pictoBoxH + headerH * 0.18,
-        y: headerH / 2 - signalSize / 2 + signalSize * 0.04,
-        w: W - (pictoXH + pictoBoxH + headerH * 0.18) - padX, h: signalSize * 1.2,
+        w: W - (pictoXH + pictoBoxH + headerH * 0.18) - padX, ...centerTextRow(headerH / 2, signalSize),
         text: sev.word, fontSize: signalSize, fontWeight: 900,
         fill: sev.bandInk, bindSeverity: 'bandInk',
         align: 'start', uppercase: true, letterSpacing: 0.04,
@@ -772,7 +772,7 @@ function makeForkliftTraffic(W, H, severity) {
         fill: sev.band, bindSeverity: 'band',
         pinSides: { top: true, left: true, right: true }, clipToCanvas: true }),
     L({ name: 'Signal word', type: 'text',
-        x: 0, y: headerH / 2 - signalSize / 2 + signalSize * 0.04, w: W, h: signalSize * 1.2,
+        x: 0, w: W, ...centerTextRow(headerH / 2, signalSize),
         text: sev.word, fontSize: signalSize, fontWeight: 900,
         fill: sev.bandInk, bindSeverity: 'bandInk',
         align: 'middle', uppercase: true, letterSpacing: 0.05,
@@ -943,7 +943,7 @@ function makeShippingHandling(W, H) {
         stroke: ink, strokeWidth: 4, locked: true, syncCanvas: 'fill', strokeOnTop: true }),
     L({ name: 'Header band', type: 'rect', x: 0, y: 0, w: W, h: headerH, fill: ink,
         clipToCanvas: true, pinSides: { top: true, left: true, right: true } }),
-    L({ name: 'Header text', type: 'text', x: padX, y: headerH / 2 - headerFont / 2 + headerFont * 0.04, w: cw, h: headerFont * 1.2,
+    L({ name: 'Header text', type: 'text', x: padX, w: cw, ...centerTextRow(headerH / 2, headerFont),
         text: 'Handle With Care', fontSize: headerFont, fontWeight: 900, fill: '#FFFFFF',
         align: 'middle', uppercase: true, letterSpacing: 0.06, pinSides: { top: true, left: true, right: true } }),
     L({ name: 'Arrow up 1', type: 'polygon', x: a1X, y: arrowAreaY, w: arrowW, h: arrowH,
@@ -1003,7 +1003,7 @@ function makeBiohazard(W, H, severity) {
         fill: sev.band, bindSeverity: 'band',
         pinSides: { top: true, left: true, right: true }, clipToCanvas: true }),
     L({ name: 'Signal word', type: 'text',
-        x: 0, y: headerH / 2 - signalSize / 2 + signalSize * 0.04, w: W, h: signalSize * 1.2,
+        x: 0, w: W, ...centerTextRow(headerH / 2, signalSize),
         text: sev.word, fontSize: signalSize, fontWeight: 900,
         fill: sev.bandInk, bindSeverity: 'bandInk',
         align: 'middle', uppercase: true, letterSpacing: 0.05,
@@ -1055,7 +1055,7 @@ function makeLaserRadiation(W, H, severity) {
         fill: sev.band, bindSeverity: 'band',
         pinSides: { top: true, left: true, right: true }, clipToCanvas: true }),
     L({ name: 'Signal word', type: 'text',
-        x: 0, y: headerH / 2 - signalSize / 2 + signalSize * 0.04, w: W, h: signalSize * 1.2,
+        x: 0, w: W, ...centerTextRow(headerH / 2, signalSize),
         text: sev.word, fontSize: signalSize, fontWeight: 900,
         fill: sev.bandInk, bindSeverity: 'bandInk',
         align: 'middle', uppercase: true, letterSpacing: 0.05,
@@ -1111,7 +1111,7 @@ function makeSiteAccess(W, H) {
     L({ name: 'Header band', type: 'rect', x: 0, y: 0, w: W, h: headerH, fill: blue,
         clipToCanvas: true, pinSides: { top: true, left: true, right: true } }),
     L({ name: 'Header text', type: 'text',
-        x: padX, y: headerH / 2 - headerFont / 2 + headerFont * 0.04, w: contentW, h: headerFont * 1.2,
+        x: padX, w: contentW, ...centerTextRow(headerH / 2, headerFont),
         text: 'Site Access', fontSize: headerFont, fontWeight: 900, fill: white,
         align: 'middle', uppercase: true, letterSpacing: 0.06, pinSides: { top: true, left: true, right: true } }),
     L({ name: 'Pictogram', type: 'image', x: pictoX, y: pictoY, w: pictoBox, h: pictoBox,
@@ -1132,7 +1132,7 @@ function makeSiteAccess(W, H) {
     L({ name: 'Footer band', type: 'rect', x: 0, y: H - footerH, w: W, h: footerH, fill: blue,
         clipToCanvas: true, pinSides: { bottom: true, left: true, right: true } }),
     L({ name: 'Footer text', type: 'text',
-        x: padX, y: H - footerH / 2 - footerFont / 2 + footerFont * 0.04, w: contentW, h: footerFont * 1.2,
+        x: padX, w: contentW, ...centerTextRow(H - footerH / 2, footerFont),
         text: 'All visitors must sign in', fontSize: footerFont, fontWeight: 700, fill: white,
         align: 'middle', uppercase: true, letterSpacing: 0.05, pinSides: { bottom: true, left: true, right: true } }),
   ];

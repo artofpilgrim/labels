@@ -17,7 +17,7 @@ export function useDocuments({
   setWrapOffset,
   setActivePresetId,
   makeDefaultDesign,
-  setExportMsg,
+  flash,
 }) {
   const [currentDocId, setCurrentDocId] = useState(initialDoc.id);
   const [docs, setDocs] = useState([]);              // lightweight {id,name,updatedAt} list
@@ -59,11 +59,10 @@ export function useDocuments({
       return true;
     }).catch(() => {
       savedDesignRef.current = null;            // stay dirty so the next change retries
-      setExportMsg('Could not save — storage may be full');
-      setTimeout(() => setExportMsg(''), 3000);
+      flash('Could not save — storage may be full', 3000);
       return false;
     });
-  }, [setExportMsg]);
+  }, [flash]);
 
   // Debounced autosave of the open document. Skips no-op opens/mounts (not dirty)
   // so viewing a label never re-stamps it. Intentionally NOT guarded against the
@@ -121,14 +120,13 @@ export function useDocuments({
     await flushCurrent();
     const doc = await idb.getDoc(id).catch(() => null);
     if (!doc || !isRenderableDesign(doc.design)) {
-      setExportMsg('That label could not be opened');
-      setTimeout(() => setExportMsg(''), 2600);
+      flash('That label could not be opened', 2600);
       refresh();
       return;
     }
     applyDoc(doc);
     refresh();
-  }, [flushCurrent, applyDoc, refresh, setExportMsg]);
+  }, [flushCurrent, applyDoc, refresh, flash]);
 
   const renameDocument = useCallback(async (id, name) => {
     const trimmed = (name || '').trim() || 'Untitled Label';

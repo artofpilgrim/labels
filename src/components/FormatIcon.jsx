@@ -1,4 +1,9 @@
 // ----------- Format icon -----------
+// Shared outline frame for the 48×36 thumbnails — constant geometry (w-4 / h-4
+// on the fixed tile, themed ink), so a single element used in place of re-typing
+// the rect across most cases. Module scope keeps it from being re-created per render.
+const FRAME = <rect x="2" y="2" width="44" height="32" fill="none" stroke="var(--ink)" strokeWidth="1.2" />;
+
 function FormatIcon({ id, active }) {
   const w = 48, h = 36;
   // Tile outlines/marks track the theme so thumbnails stay legible on dark tiles.
@@ -10,12 +15,12 @@ function FormatIcon({ id, active }) {
   switch (id) {
     case 'ansi-header':
       return (<svg viewBox={`0 0 ${w} ${h}`} width={w} height={h}>
-        <rect x="2" y="2" width={w - 4} height={h - 4} fill="none" stroke={ink} strokeWidth="1.2" />
+        {FRAME}
         <rect x="2" y="2" width={w - 4} height="10" fill={accent} />
       </svg>);
     case 'ansi-side':
       return (<svg viewBox={`0 0 ${w} ${h}`} width={w} height={h}>
-        <rect x="2" y="2" width={w - 4} height={h - 4} fill="none" stroke={ink} strokeWidth="1.2" />
+        {FRAME}
         <rect x="2" y="2" width="12" height={h - 4} fill={accent} />
       </svg>);
     case 'banner':
@@ -71,7 +76,7 @@ function FormatIcon({ id, active }) {
       </svg>);
     case 'ppe':
       return (<svg viewBox={`0 0 ${w} ${h}`} width={w} height={h}>
-        <rect x="2" y="2" width={w - 4} height={h - 4} fill="none" stroke={ink} strokeWidth="1.2" />
+        {FRAME}
         <circle cx={w / 2} cy={h / 2 + 1} r="10" fill={active ? '#1057A8' : '#bdb398'} />
         <circle cx={w / 2} cy={h / 2 - 3} r="2.8" fill="#fff" />
         <path d={`M${w / 2 - 4.5} ${h / 2 + 6} a4.5 4.5 0 0 1 9 0 z`} fill="#fff" />
@@ -91,13 +96,13 @@ function FormatIcon({ id, active }) {
       </svg>);
     case 'prohibition':
       return (<svg viewBox={`0 0 ${w} ${h}`} width={w} height={h}>
-        <rect x="2" y="2" width={w - 4} height={h - 4} fill="none" stroke={ink} strokeWidth="1.2" />
+        {FRAME}
         <circle cx={w / 2} cy={h / 2} r="10" fill="none" stroke={active ? '#C8102E' : '#bdb398'} strokeWidth="2.6" />
         <line x1={w / 2 - 7.1} y1={h / 2 - 7.1} x2={w / 2 + 7.1} y2={h / 2 + 7.1} stroke={active ? '#C8102E' : '#bdb398'} strokeWidth="2.6" />
       </svg>);
     case 'barcode-label':
       return (<svg viewBox={`0 0 ${w} ${h}`} width={w} height={h}>
-        <rect x="2" y="2" width={w - 4} height={h - 4} fill="none" stroke={ink} strokeWidth="1.2" />
+        {FRAME}
         {[7, 10, 12, 16, 19, 23, 26, 30, 33, 37, 40].map((x, i) => (
           <rect key={i} x={x} y="9" width={i % 3 === 0 ? 2 : 1} height="14" fill={ink} />))}
         <rect x={w / 2 - 7} y="27" width="14" height="3" fill={accent} />
@@ -127,13 +132,13 @@ function FormatIcon({ id, active }) {
       </svg>);
     case 'electrical-panel':
       return (<svg viewBox={`0 0 ${w} ${h}`} width={w} height={h}>
-        <rect x="2" y="2" width={w - 4} height={h - 4} fill="none" stroke={ink} strokeWidth="1.2" />
+        {FRAME}
         <rect x="2" y="2" width={w - 4} height="9" fill={accent} />
         <path d="M26 14 L19 25 L23.5 25 L21 33 L31 21 L25.5 21 Z" fill={ink} />
       </svg>);
     case 'confined-space':
       return (<svg viewBox={`0 0 ${w} ${h}`} width={w} height={h}>
-        <rect x="2" y="2" width={w - 4} height={h - 4} fill="none" stroke={ink} strokeWidth="1.2" />
+        {FRAME}
         <rect x="2" y="2" width={w - 4} height="9" fill={accent} />
         <path d={`M${w / 2} 14 L${w / 2 + 8} 30 L${w / 2 - 8} 30 Z`} fill="none" stroke={ink} strokeWidth="1.6" strokeLinejoin="round" />
         <rect x={w / 2 - 0.8} y="20" width="1.6" height="5" fill={ink} />
@@ -141,7 +146,7 @@ function FormatIcon({ id, active }) {
       </svg>);
     case 'forklift-traffic':
       return (<svg viewBox={`0 0 ${w} ${h}`} width={w} height={h}>
-        <rect x="2" y="2" width={w - 4} height={h - 4} fill="none" stroke={ink} strokeWidth="1.2" />
+        {FRAME}
         <rect x="2" y="2" width={w - 4} height="9" fill={active ? '#F36F21' : '#bdb398'} />
         <path d="M16 27 v-7 h6 l3 5 v2 z" fill={ink} />
         <rect x="29" y="14" width="1.8" height="13" fill={ink} />
@@ -180,7 +185,7 @@ function FormatIcon({ id, active }) {
       </svg>);
     case 'biohazard':
       return (<svg viewBox={`0 0 ${w} ${h}`} width={w} height={h}>
-        <rect x="2" y="2" width={w - 4} height={h - 4} fill="none" stroke={ink} strokeWidth="1.2" />
+        {FRAME}
         <rect x="2" y="2" width={w - 4} height="9" fill={accent} />
         <circle cx={w / 2} cy="19" r="3.6" fill="none" stroke={ink} strokeWidth="1.5" />
         <circle cx={w / 2 - 4.6} cy="27" r="3.6" fill="none" stroke={ink} strokeWidth="1.5" />
@@ -189,7 +194,7 @@ function FormatIcon({ id, active }) {
       </svg>);
     case 'laser-radiation':
       return (<svg viewBox={`0 0 ${w} ${h}`} width={w} height={h}>
-        <rect x="2" y="2" width={w - 4} height={h - 4} fill="none" stroke={ink} strokeWidth="1.2" />
+        {FRAME}
         <rect x="2" y="2" width={w - 4} height="9" fill={accent} />
         <path d="M19 24 H38 M19 24 L35 17 M19 24 L35 31 M19 24 L31 14 M19 24 L31 34"
               fill="none" stroke={ink} strokeWidth="1.1" />
@@ -197,7 +202,7 @@ function FormatIcon({ id, active }) {
       </svg>);
     case 'site-access':
       return (<svg viewBox={`0 0 ${w} ${h}`} width={w} height={h}>
-        <rect x="2" y="2" width={w - 4} height={h - 4} fill="none" stroke={ink} strokeWidth="1.2" />
+        {FRAME}
         <rect x="2" y="2" width={w - 4} height="9" fill={active ? '#1057A8' : '#bdb398'} />
         <rect x={w / 2 - 8} y="15" width="16" height="17" rx="2.5" fill={active ? '#1057A8' : '#bdb398'} />
         <path d="M21 29 V18 H25.5 a3.2 3.2 0 0 1 0 6.4 H21" fill="none" stroke="#fff" strokeWidth="1.8" strokeLinejoin="round" />

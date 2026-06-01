@@ -1,16 +1,30 @@
-import { useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { slug } from '../core/design.js';
 import { exportSvg, exportPng, svgToPngBlob } from '../core/export.js';
 
 export function useExportActions({ labelRef, symbolCache, design, docName, setExportOpen }) {
   const [exportMsg, setExportMsg] = useState('');
+  // One shared clear-timer so a new toast cancels the previous one's timeout —
+  // otherwise overlapping messages (the 2.2–4.2s holds below) clear each other
+  // early. `flash` is the transient toast; `persist` is a status that stays until
+  // the next message (but still cancels a pending clear so a stale timer can't
+  // wipe it). Threaded to the other hooks in place of setExportMsg.
+  const timerRef = useRef(null);
+  const flash = useCallback((text, ms = 2600) => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    setExportMsg(text);
+    timerRef.current = setTimeout(() => { timerRef.current = null; setExportMsg(''); }, ms);
+  }, []);
+  const persist = useCallback((text) => {
+    if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null; }
+    setExportMsg(text);
+  }, []);
 
   function doExport(kind, scale) {
     const svg = labelRef.current && labelRef.current.getSvg();
     if (!svg) return;
     if (!symbolCache) {
-      setExportMsg('Loading symbols - try again in a moment');
-      setTimeout(() => setExportMsg(''), 2200);
+      flash('Loading symbols - try again in a moment', 2200);
       return;
     }
     const missing = design.layers.filter(
@@ -24,13 +38,11 @@ export function useExportActions({ labelRef, symbolCache, design, docName, setEx
     setExportOpen(false);
     if (kind === 'svg') {
       exportSvg(svg, name);
-      setExportMsg('Exported SVG' + note);
-      setTimeout(() => setExportMsg(''), hold);
+      flash('Exported SVG' + note, hold);
     } else {
-      setExportMsg('Rendering PNG...');
+      persist('Rendering PNG...');
       exportPng(svg, name, scale, (ok) => {
-        setExportMsg(ok ? `Exported PNG @${scale}x` + note : `PNG too large at ${scale}x - try a smaller scale`);
-        setTimeout(() => setExportMsg(''), ok ? hold : 2600);
+        flash(ok ? `Exported PNG @${scale}x` + note : `PNG too large at ${scale}x - try a smaller scale`, ok ? hold : 2600);
       });
     }
   }
@@ -39,23 +51,21 @@ export function useExportActions({ labelRef, symbolCache, design, docName, setEx
     const svg = labelRef.current && labelRef.current.getSvg();
     if (!svg) return;
     if (!navigator.clipboard || typeof window.ClipboardItem === 'undefined') {
-      setExportMsg('Clipboard not supported here - use Export instead');
-      setTimeout(() => setExportMsg(''), 2800);
+      flash('Clipboard not supported here - use Export instead', 2800);
       return;
     }
     setExportOpen(false);
-    setExportMsg('Copying...');
+    persist('Copying...');
     svgToPngBlob(svg, 2, (b) => {
       if (!b) {
-        setExportMsg('Copy failed - try Export');
-        setTimeout(() => setExportMsg(''), 2600);
+        flash('Copy failed - try Export', 2600);
         return;
       }
       navigator.clipboard.write([new window.ClipboardItem({ 'image/png': b })])
-        .then(() => { setExportMsg('Copied to clipboard'); setTimeout(() => setExportMsg(''), 2200); })
-        .catch(() => { setExportMsg('Copy failed - try Export'); setTimeout(() => setExportMsg(''), 2600); });
+        .then(() => flash('Copied to clipboard', 2200))
+        .catch(() => flash('Copy failed - try Export', 2600));
     });
   }
 
-  return { exportMsg, setExportMsg, doExport, doCopyImage };
+  return { exportMsg, flash, doExport, doCopyImage };
 }

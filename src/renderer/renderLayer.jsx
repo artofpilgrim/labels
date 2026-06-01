@@ -36,6 +36,21 @@ function resolveFill(value, bind, sev) {
   return value;
 }
 
+// Rotate-about-center transform string for a layer (undefined when unrotated).
+// Shared so the canvas render, hit rect, hole mask and on-top stroke pass all
+// pivot identically — a rotated layer's overlay/cutout can't drift from its art.
+function rotateTransform(l) {
+  return l.rotation
+    ? `rotate(${l.rotation} ${l.x + l.w / 2} ${l.y + l.h / 2})`
+    : undefined;
+}
+
+// Absolute SVG points string for a polygon's normalized (0..1) points. Shared
+// with the hole mask so the cutout stays pixel-aligned with the visible shape.
+function polygonPoints(l) {
+  return (l.points || []).map(p => `${l.x + p.x * l.w},${l.y + p.y * l.h}`).join(' ');
+}
+
 // Rounded-rectangle path with per-corner radii. When `strokeWidth` is passed,
 // the path is inset by sw/2 so a stroke drawn on it stays fully inside the
 // layer's w/h (box-sizing: border-box). The path radius is shrunk by sw/2
@@ -208,9 +223,7 @@ function imageFlipTransform(l, transform) {
 // ----------- Layer renderer -----------
 function renderLayer(l, sev, symbolsReady) {
   if (l.hidden) return null;
-  const transform = l.rotation
-    ? `rotate(${l.rotation} ${l.x + l.w / 2} ${l.y + l.h / 2})`
-    : undefined;
+  const transform = rotateTransform(l);
 
   switch (l.type) {
     case 'rect': {
@@ -358,9 +371,7 @@ function renderLayer(l, sev, symbolsReady) {
     case 'polygon': {
       // Points are normalized (0..1) relative to the layer's box so the shape
       // resizes correctly with the handles.
-      const pts = (l.points || []).map(p =>
-        `${l.x + p.x * l.w},${l.y + p.y * l.h}`
-      ).join(' ');
+      const pts = polygonPoints(l);
       return (
         <g transform={transform}>
           <polygon
@@ -393,4 +404,4 @@ function renderLayer(l, sev, symbolsReady) {
   }
 }
 
-export { rectPath, rectStrokeRingPath, renderLayer, resolveFill };
+export { polygonPoints, rectPath, rectStrokeRingPath, renderLayer, resolveFill, rotateTransform };
