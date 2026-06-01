@@ -1487,3 +1487,21 @@ kbd {
   .zoom-slider { display: none; }
   .canvas-grid-ctl .num-input { display: none; }   /* grid-size stepper: advanced, free the space */
 }
+
+/* ---------- Touch: manipulate shapes instead of scrolling ----------
+   The canvas gestures use Pointer Events, so a finger works like a mouse. The
+   label artwork + its handles consume the touch (touch-action:none) so a drag
+   moves/resizes the shape rather than scrolling; the stage padding AROUND the
+   label keeps native scroll, so a drag there pans the view. */
+.label-wrap svg { touch-action: none; }
+.handle, .handle-rotate { touch-action: none; }
+
+/* A 10px handle is unhittable with a finger — grow the visible handle and its
+   transparent grab target on coarse (touch) pointers. */
+@media (pointer: coarse) {
+  .handle,
+  .handle.canvas { width: 16px; height: 16px; margin-left: -8px; margin-top: -8px; }
+  .handle-rotate { width: 20px; height: 20px; margin-left: -10px; margin-top: -10px; }
+  .handle::before,
+  .handle-rotate::before { inset: -12px; }   /* ~40px touch target */
+}

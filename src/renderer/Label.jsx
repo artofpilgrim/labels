@@ -71,8 +71,8 @@ const Label = memo(forwardRef(function Label({ design, symbolsReady, onLayerPoin
       // isolate so layer mix-blend-modes blend only within the label, not with
       // the editor backdrop or the page behind it.
       style={{ display: 'block', isolation: 'isolate' }}
-      onMouseDown={(e) => {
-        // Background click → deselect (only if user clicked the SVG itself, not a layer)
+      onPointerDown={(e) => {
+        // Background press → deselect (only if the user hit the SVG itself, not a layer)
         if (e.target === e.currentTarget && onCanvasPointerDown) onCanvasPointerDown(e);
       }}
     >
@@ -108,7 +108,7 @@ const Label = memo(forwardRef(function Label({ design, symbolsReady, onLayerPoin
               opacity: l.opacity == null ? undefined : l.opacity,
             }}
             clipPath={clip}
-            onMouseDown={(e) => onLayerPointerDown && onLayerPointerDown(l.id, e)}
+            onPointerDown={(e) => onLayerPointerDown && onLayerPointerDown(l.id, e)}
             onContextMenu={(e) => onLayerContextMenu && onLayerContextMenu(l.id, e)}
             onDoubleClick={(e) => onLayerDoubleClick && onLayerDoubleClick(l.id, e)}
           >

@@ -81,8 +81,8 @@ export function useCanvasInteractions({
       setMarquee(r);
     }
     function up(ev) {
-      document.removeEventListener('mousemove', move);
-      document.removeEventListener('mouseup', up);
+      document.removeEventListener('pointermove', move);
+      document.removeEventListener('pointerup', up);
       document.removeEventListener('pointercancel', up);
       window.removeEventListener('blur', up);
       if (moved && ev && typeof ev.clientX === 'number') {
@@ -98,8 +98,8 @@ export function useCanvasInteractions({
       }
       setMarquee(null);
     }
-    document.addEventListener('mousemove', move);
-    document.addEventListener('mouseup', up);
+    document.addEventListener('pointermove', move);
+    document.addEventListener('pointerup', up);
     document.addEventListener('pointercancel', up);
     window.addEventListener('blur', up);
   }
@@ -131,7 +131,9 @@ export function useCanvasInteractions({
       return;
     }
     // Left-press on the empty stage (the padding around the label) → marquee.
-    if (e.button === 0 && e.target === e.currentTarget) startMarquee(e);
+    // Touch/pen drags here pan the view via the stage's native scroll instead
+    // (touch-action stays auto on the padding), so only the mouse marquees.
+    if (e.button === 0 && e.target === e.currentTarget && e.pointerType === 'mouse') startMarquee(e);
   }
 
   function applyPreset(formatId) {
@@ -209,8 +211,8 @@ export function useCanvasInteractions({
       });
     }
     function up() {
-      document.removeEventListener('mousemove', move);
-      document.removeEventListener('mouseup', up);
+      document.removeEventListener('pointermove', move);
+      document.removeEventListener('pointerup', up);
       // Safety net: if the button is released outside the window the document
       // 'mouseup' never fires, so we'd leak `move` and double-bind on the next
       // drag. window 'blur' / 'pointercancel' end the drag cleanly in that case.
@@ -228,8 +230,8 @@ export function useCanvasInteractions({
       // strand this commit (and move() only does guarded arithmetic anyway).
       setTimeout(forceCommit, 0);
     }
-    document.addEventListener('mousemove', move);
-    document.addEventListener('mouseup', up);
+    document.addEventListener('pointermove', move);
+    document.addEventListener('pointerup', up);
     document.addEventListener('pointercancel', up);
     window.addEventListener('blur', up);
   }
@@ -319,16 +321,16 @@ export function useCanvasInteractions({
       setHud({ kind: 'rotate', deg });
     }
     function up() {
-      document.removeEventListener('mousemove', move);
-      document.removeEventListener('mouseup', up);
+      document.removeEventListener('pointermove', move);
+      document.removeEventListener('pointerup', up);
       document.removeEventListener('pointercancel', up);
       window.removeEventListener('blur', up);
       setHud(null);
       inDragRef.current = false;
       setTimeout(forceCommit, 0);
     }
-    document.addEventListener('mousemove', move);
-    document.addEventListener('mouseup', up);
+    document.addEventListener('pointermove', move);
+    document.addEventListener('pointerup', up);
     document.addEventListener('pointercancel', up);
     window.addEventListener('blur', up);
   }
@@ -372,16 +374,16 @@ export function useCanvasInteractions({
       setHud({ kind: 'resize', w: g.w * s, h: g.h * s });
     }
     function up() {
-      document.removeEventListener('mousemove', move);
-      document.removeEventListener('mouseup', up);
+      document.removeEventListener('pointermove', move);
+      document.removeEventListener('pointerup', up);
       document.removeEventListener('pointercancel', up);
       window.removeEventListener('blur', up);
       setHud(null);
       inDragRef.current = false;
       setTimeout(forceCommit, 0);
     }
-    document.addEventListener('mousemove', move);
-    document.addEventListener('mouseup', up);
+    document.addEventListener('pointermove', move);
+    document.addEventListener('pointerup', up);
     document.addEventListener('pointercancel', up);
     window.addEventListener('blur', up);
   }
@@ -421,16 +423,16 @@ export function useCanvasInteractions({
       setHud({ kind: 'rotate', deg });
     }
     function up() {
-      document.removeEventListener('mousemove', move);
-      document.removeEventListener('mouseup', up);
+      document.removeEventListener('pointermove', move);
+      document.removeEventListener('pointerup', up);
       document.removeEventListener('pointercancel', up);
       window.removeEventListener('blur', up);
       setHud(null);
       inDragRef.current = false;
       setTimeout(forceCommit, 0);
     }
-    document.addEventListener('mousemove', move);
-    document.addEventListener('mouseup', up);
+    document.addEventListener('pointermove', move);
+    document.addEventListener('pointerup', up);
     document.addEventListener('pointercancel', up);
     window.addEventListener('blur', up);
   }

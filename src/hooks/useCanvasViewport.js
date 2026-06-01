@@ -192,8 +192,8 @@ export function useCanvasViewport({ design, selBounds }) {
       if (wrap) wrap.style.transform = `translate(${ox}px, ${oy}px)`;
     }
     function up() {
-      document.removeEventListener('mousemove', move);
-      document.removeEventListener('mouseup', up);
+      document.removeEventListener('pointermove', move);
+      document.removeEventListener('pointerup', up);
       document.removeEventListener('pointercancel', up);
       window.removeEventListener('blur', up);
       document.body.style.cursor = '';
@@ -203,8 +203,8 @@ export function useCanvasViewport({ design, selBounds }) {
       if (ox !== ox0 || oy !== oy0) setWrapOffset({ x: ox, y: oy });
       computeRulers();
     }
-    document.addEventListener('mousemove', move);
-    document.addEventListener('mouseup', up);
+    document.addEventListener('pointermove', move);
+    document.addEventListener('pointerup', up);
     document.addEventListener('pointercancel', up);
     window.addEventListener('blur', up);
   }

@@ -63,7 +63,7 @@ export function CanvasArea({
           <div
             className="canvas-stage"
             ref={canvasRef}
-            onMouseDown={onStagePointerDown}
+            onPointerDown={onStagePointerDown}
             onContextMenu={onStageContextMenu}
           >
           <div

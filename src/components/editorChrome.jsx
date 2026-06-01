@@ -138,14 +138,14 @@ function Handles({ box, fit, onHandleDown, kind, rotation = 0, onRotateDown, cor
           key={name}
           className={`handle handle-${name} ${kind}`}
           style={{ left: fx * pw, top: fy * ph }}
-          onMouseDown={e => onHandleDown(e, name)}
+          onPointerDown={e => onHandleDown(e, name)}
         />
       ))}
       {onRotateDown && (
         <>
           <div className="rotate-stem" style={{ left: pw / 2, top: -22 }} />
           <div className="handle-rotate" style={{ left: pw / 2, top: -22 }}
-               onMouseDown={onRotateDown} title="Rotate (hold Shift for 15°)" />
+               onPointerDown={onRotateDown} title="Rotate (hold Shift for 15°)" />
         </>
       )}
     </div>
