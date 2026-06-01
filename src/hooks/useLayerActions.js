@@ -67,8 +67,8 @@ export function useLayerActions({ design, setDesign, selectedIds, setSelectedIds
     });
   }, [design.width, design.height, setDesign]);
 
-  // Add a freehand signature as an ink layer. `strokes` is an array of strokes,
-  // each a list of {x,y} points in the signature pad's pixel space. We tighten to
+  // Add freehand handwriting as an ink layer. `strokes` is an array of strokes,
+  // each a list of {x,y} points in the writing pad's pixel space. We tighten to
   // the strokes' bounding box, normalize the points 0..1 within it (like polygon),
   // size the layer to fit the canvas preserving aspect, and centre it. penWidth is
   // the pad's on-screen pen px, scaled by the same factor so the placed stroke

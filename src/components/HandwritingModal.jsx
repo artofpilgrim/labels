@@ -1,16 +1,17 @@
 import { useEffect, useId, useRef, useState } from 'react';
+import { inkStrokePath } from '../core/ink.js';
 
-// DocuSign-style "sign in a box" capture. You draw with mouse / finger / stylus
-// (Pointer Events, so all three work the same); each pen-down→up is one stroke,
-// and lifting + drawing again adds another (so you can dot an i or sign in
-// pieces). On "Add to label" the raw strokes are handed back as
-// [[{x,y}…], …] in surface-pixel coords; the caller (addInkLayer) tightens them
-// to a bounding box, normalises, sizes and places the ink layer. No smoothing,
-// no recognition — it stays a faithful vector trace so it prints crisp at any
-// scale and recolours/resizes like any other layer.
+// "Write in a box" capture. You draw with mouse / finger / stylus (Pointer
+// Events, so all three work the same); each pen-down→up is one stroke, and
+// lifting + drawing again adds another. On "Add to label" the raw strokes are
+// handed back as [[{x,y}…], …] in surface-pixel coords; the caller (addInkLayer)
+// tightens them to a bounding box, normalises, sizes and places the ink layer.
+// Strokes are previewed as a smoothed curve (inkStrokePath) so what you see while
+// writing matches the natural line that lands on the label — no recognition, no
+// flattening: a faithful vector trace that prints crisp at any scale.
 const PEN = 2.6;   // on-screen pen width; passed back so the placed stroke keeps this weight
 
-export function SignatureModal({ onCancel, onAdd }) {
+export function HandwritingModal({ onCancel, onAdd }) {
   const ref = useRef(null);
   const surfaceRef = useRef(null);
   const drawingRef = useRef(false);
@@ -60,28 +61,26 @@ export function SignatureModal({ onCancel, onAdd }) {
 
   return (
     <div className="modal-backdrop" onMouseDown={onCancel}>
-      <div ref={ref} tabIndex={-1} className="modal sig-modal" role="dialog" aria-modal="true"
+      <div ref={ref} tabIndex={-1} className="modal hw-modal" role="dialog" aria-modal="true"
            aria-labelledby={titleId} onMouseDown={e => e.stopPropagation()}>
-        <h2 id={titleId} className="confirm-title">Add your signature</h2>
-        <p className="confirm-msg">Sign with your mouse, finger, or stylus — it’s added as a layer you can move, resize and recolour.</p>
-        <svg ref={surfaceRef} className="sig-surface"
+        <h2 id={titleId} className="confirm-title">Add handwriting</h2>
+        <p className="confirm-msg">Write or draw with your mouse, finger, or stylus — it’s added as a layer you can move, resize and recolour.</p>
+        <svg ref={surfaceRef} className="hw-surface"
              onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up}>
-          <line className="sig-baseline" x1="5%" y1="76%" x2="95%" y2="76%" />
           {strokes.map((s, i) => (
             s.length === 1
-              ? <circle key={i} className="sig-dot" cx={s[0].x} cy={s[0].y} r={PEN / 2} />
-              : <polyline key={i} className="sig-ink" strokeWidth={PEN}
-                          points={s.map(p => `${p.x},${p.y}`).join(' ')} />
+              ? <circle key={i} className="hw-dot" cx={s[0].x} cy={s[0].y} r={PEN / 2} />
+              : <path key={i} className="hw-ink" strokeWidth={PEN} d={inkStrokePath(s)} />
           ))}
         </svg>
-        <div className="sig-actions">
-          <div className="sig-btns">
+        <div className="hw-actions">
+          <div className="hw-btns">
             <button type="button" className="ghost" disabled={!hasInk}
                     onClick={() => setStrokes(s => s.slice(0, -1))}>Undo</button>
             <button type="button" className="ghost" disabled={!hasInk}
                     onClick={() => setStrokes([])}>Clear</button>
           </div>
-          <div className="sig-btns">
+          <div className="hw-btns">
             <button type="button" className="btn-lg" onClick={onCancel}>Cancel</button>
             <button type="button" className="btn-lg on" disabled={!hasInk}
                     onClick={() => { if (hasInk) onAdd(strokes, PEN); }}>Add to label</button>

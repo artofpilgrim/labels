@@ -254,7 +254,7 @@ function PropertiesPanel({ layer, onChange, cache, canvasW, canvasH }) {
       {layer.type === 'ellipse' && <Section title="Appearance" id="appearance"><PolygonProps layer={layer} onChange={onChange} /></Section>}
       {layer.type === 'image' && <Section title="Symbol" id="appearance"><ImageProps layer={layer} onChange={onChange} cache={cache} /></Section>}
       {layer.type === 'line' && <Section title="Appearance" id="appearance"><LineProps layer={layer} onChange={onChange} /></Section>}
-      {layer.type === 'ink' && <Section title="Signature" id="appearance"><InkProps layer={layer} onChange={onChange} /></Section>}
+      {layer.type === 'ink' && <Section title="Handwriting" id="appearance"><InkProps layer={layer} onChange={onChange} /></Section>}
       {layer.type === 'barcode' && <Section title="Barcode" id="appearance"><BarcodeProps layer={layer} onChange={onChange} /></Section>}
 
       <Section title="Constraints" id="constraints" defaultOpen={false}>

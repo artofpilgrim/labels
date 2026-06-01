@@ -18,7 +18,7 @@ import { CanvasArea } from './CanvasArea.jsx';
 import { ExportPanel } from './ExportPanel.jsx';
 import { LeftPanel } from './LeftPanel.jsx';
 import { LayerStack } from './LayerStack.jsx';
-import { SignatureModal } from './SignatureModal.jsx';
+import { HandwritingModal } from './HandwritingModal.jsx';
 import { SEVERITY } from '../core/constants.js';
 import { toLabel, toScreen } from '../core/coordinates.js';
 import { niceStep } from '../core/geometry.js';
@@ -137,8 +137,8 @@ export function EditorShell({
   const bg = design.layers.find(l => l.syncCanvas === 'fill');
   // Mobile (≤900px): the side panels become slide-over drawers. null | 'left' | 'right'.
   const [mobileDrawer, setMobileDrawer] = useState(null);
-  // The "sign in a box" capture modal (opened from the rail).
-  const [sigOpen, setSigOpen] = useState(false);
+  // The freehand handwriting capture modal (opened from the rail).
+  const [hwOpen, setHwOpen] = useState(false);
   const isMobile = useMediaQuery('(max-width: 900px)');
   // Drawers are a mobile-only concept: drop any open drawer when we grow back to
   // the desktop layout, and let Escape close an open drawer (the capturing
@@ -252,7 +252,7 @@ export function EditorShell({
     { id: 'list', title: 'Add list', kind: 'add', type: 'bullets', icon: 'M2 4h2M6 4h8M2 8h2M6 8h8M2 12h2M6 12h8' },
     { id: 'line', title: 'Add line', kind: 'add', type: 'line', icon: 'M2 8h12' },
     { id: 'barcode', title: 'Add barcode', kind: 'add', type: 'barcode', icon: 'M2.5 3v10M5 3v10M6.5 3v10M9 3v10M10.5 3v10M13.5 3v10' },
-    { id: 'signature', title: 'Add signature', kind: 'signature', icon: 'M2 10.2c1.2 0 1.6-4.4 3-4.4s1 5.2 2.2 5.2 1.6-3.3 3-3.3 1 1.6 2.4 1.6M2.5 13.2h10' },
+    { id: 'handwriting', title: 'Add handwriting', kind: 'handwriting', icon: 'M10.8 2.7 13.3 5.2 5.5 13 3 13.5 3.5 11z M9.6 3.9 12.1 6.4' },
   ];
 
   // ----- Pixel rulers (top + left) -----
@@ -361,7 +361,7 @@ export function EditorShell({
             title={b.title}
             aria-pressed={b.kind === 'panel' ? leftPanel === b.id : undefined}
             onClick={() => {
-              if (b.kind === 'signature') { setSigOpen(true); return; }
+              if (b.kind === 'handwriting') { setHwOpen(true); return; }
               if (b.kind === 'add') { addLayer(b.type); return; }
               setLeftPanel(b.id);
               if (isMobile) setMobileDrawer(d => (d === 'left' && leftPanel === b.id) ? null : 'left');
@@ -506,10 +506,10 @@ export function EditorShell({
         <button className="m-drawer-close" aria-label="Close panel" onClick={() => setMobileDrawer(null)}>✕</button>
       )}
       {helpOpen && <HelpModal onClose={() => setHelpOpen(false)} />}
-      {sigOpen && (
-        <SignatureModal
-          onCancel={() => setSigOpen(false)}
-          onAdd={(strokes, pen) => { addInkLayer(strokes, pen); setSigOpen(false); }}
+      {hwOpen && (
+        <HandwritingModal
+          onCancel={() => setHwOpen(false)}
+          onAdd={(strokes, pen) => { addInkLayer(strokes, pen); setHwOpen(false); }}
         />
       )}
 

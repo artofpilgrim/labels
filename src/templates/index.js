@@ -1207,9 +1207,9 @@ function newLayer(type, W, H) {
         x: cx - 80, y: cy - 80, w: 160, h: 160,
         points: SHAPE_POINTS[type].map(p => ({ x: p.x, y: p.y })), fill: '#1057A8' });
     case 'ink':
-      // Freehand signature. `strokes` is filled in by addInkLayer from a capture;
+      // Freehand handwriting. `strokes` is filled in by addInkLayer from a capture;
       // each stroke's points are normalized 0..1 to this box (like polygon).
-      return L({ name: 'Signature', type: 'ink', x: cx - 120, y: cy - 50, w: 240, h: 100,
+      return L({ name: 'Handwriting', type: 'ink', x: cx - 120, y: cy - 50, w: 240, h: 100,
         strokes: [], stroke: '#000000', strokeWidth: 3 });
     default: return null;
   }
