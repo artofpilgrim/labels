@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import {
   ColorInput,
   CornerRadius,
@@ -131,6 +132,8 @@ export function EditorShell({
 }) {
   // ----- Shared panel blocks (reused across the new 4-zone layout) -----
   const bg = design.layers.find(l => l.syncCanvas === 'fill');
+  // Mobile (≤720px): the side panels become slide-over drawers. null | 'left' | 'right'.
+  const [mobileDrawer, setMobileDrawer] = useState(null);
   // Uniform outward-padding range, keyed off the (stable) unpadded content size
   // so the slider's max doesn't drift as you pad.
   const padMax = Math.max(20, Math.round((Math.min(design.width, design.height) - 2 * (design.padding || 0)) / 2));
@@ -270,7 +273,7 @@ export function EditorShell({
   }
 
   return (
-    <div className={`app${preview ? ' is-preview' : ''}`}>
+    <div className={`app${preview ? ' is-preview' : ''}${mobileDrawer ? ` m-${mobileDrawer}` : ''}`}>
       {/* ---------- Top bar ---------- */}
       <header className="topbar">
         <div
@@ -300,6 +303,13 @@ export function EditorShell({
         </div>
 
         <div className="topbar-actions">
+          <button className="icon-btn tb-mobile-only" title="Layers & properties"
+                  aria-pressed={mobileDrawer === 'right'}
+                  onClick={() => setMobileDrawer(d => (d === 'right' ? null : 'right'))}>
+            <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="2" y="2.5" width="12" height="11" rx="1.5" /><path d="M10 2.5v11" />
+            </svg>
+          </button>
           <div className="tb-group">
             <button className="icon-btn" title="Undo (Ctrl+Z)" onClick={undo}
                     disabled={!canUndo}>↶</button>
@@ -311,7 +321,7 @@ export function EditorShell({
                   onClick={() => setTheme(t => (t === 'dark' ? 'light' : 'dark'))}>
             {theme === 'dark' ? '☀' : '☾'}
           </button>
-          <button className={`btn-lg${preview ? ' on' : ''}`} onClick={togglePreview}>
+          <button className={`btn-lg tb-preview${preview ? ' on' : ''}`} onClick={togglePreview}>
             {preview ? 'Exit preview' : 'Preview'}
           </button>
           <div className="export-wrap">
@@ -333,7 +343,11 @@ export function EditorShell({
             className={`rail-btn${b.kind === 'panel' && leftPanel === b.id ? ' on' : ''}`}
             title={b.title}
             aria-pressed={b.kind === 'panel' ? leftPanel === b.id : undefined}
-            onClick={() => b.kind === 'panel' ? setLeftPanel(b.id) : addLayer(b.type)}>
+            onClick={() => {
+              if (b.kind !== 'panel') { addLayer(b.type); return; }
+              setLeftPanel(b.id);
+              setMobileDrawer(d => (d === 'left' && leftPanel === b.id) ? null : 'left');
+            }}>
             <svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
               <path d={b.icon} />
             </svg>
@@ -469,6 +483,7 @@ export function EditorShell({
       </aside>
 
       {exportMsg && <div className="export-msg toast">{exportMsg}</div>}
+      {mobileDrawer && <div className="m-backdrop" onClick={() => setMobileDrawer(null)} />}
       {helpOpen && <HelpModal onClose={() => setHelpOpen(false)} />}
 
       {ctxMenu && (

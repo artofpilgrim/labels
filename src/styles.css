@@ -1385,3 +1385,72 @@ kbd {
   border-bottom-width: 2px; border-radius: 4px;
   padding: 1px 6px; margin: 0 1px; color: var(--ink);
 }
+
+/* The mobile-only right-panel toggle is hidden until the mobile breakpoint. */
+.tb-mobile-only { display: none; }
+
+/* ============================================================
+   Mobile layout (≤720px): the canvas goes full-width; the left
+   and right panels become slide-over drawers toggled from the
+   rail / topbar; the topbar compacts so it never overflows.
+   ============================================================ */
+@media (max-width: 720px) {
+  .app {
+    grid-template-columns: 46px 1fr;
+    grid-template-rows: 50px 1fr;
+    grid-template-areas:
+      "topbar topbar"
+      "rail   canvas";
+  }
+  .app.is-preview { grid-template-columns: 0 1fr; }
+
+  /* Side panels leave the grid and become fixed slide-over drawers. */
+  .app > .leftpanel,
+  .app > .rightpanel {
+    position: fixed; top: 50px; bottom: 0; z-index: 45;
+    transition: transform .24s cubic-bezier(.2, .7, .2, 1);
+    will-change: transform;
+  }
+  .app > .leftpanel {
+    left: 46px; width: min(82vw, 300px);
+    transform: translateX(calc(-100% - 46px));
+    box-shadow: 8px 0 28px -12px rgba(0, 0, 0, .45);
+  }
+  .app > .rightpanel {
+    right: 0; width: min(90vw, 340px);
+    transform: translateX(100%);
+    box-shadow: -8px 0 28px -12px rgba(0, 0, 0, .45);
+  }
+  .app.m-left  > .leftpanel  { transform: none; }
+  .app.m-right > .rightpanel { transform: none; }
+  .rightpanel .layer-list { max-height: 42vh; }
+
+  /* Dim + tap-to-close backdrop over the canvas (rail + topbar stay live). */
+  .m-backdrop {
+    position: fixed; top: 50px; left: 46px; right: 0; bottom: 0; z-index: 44;
+    background: rgba(8, 9, 11, .42);
+    -webkit-backdrop-filter: blur(1px); backdrop-filter: blur(1px);
+    animation: modal-fade .18s ease both;
+  }
+  /* The right drawer is wide; let its backdrop cover the rail strip too so there
+     is a comfortable tap-to-close zone (the rail isn't needed while it's open). */
+  .app.m-right .m-backdrop { left: 0; }
+
+  /* Compact top bar: drop the brand text + save label, let the doc name flex. */
+  .topbar { gap: 8px; padding: 0 10px; }
+  .topbar .brand { gap: 0; }
+  .topbar .brand-name, .topbar .brand-sub { display: none; }
+  .doc-bar { padding-left: 8px; gap: 6px; }
+  .doc-bar .save-state { display: none; }
+  .doc-name { flex: 1; min-width: 0; max-width: none; font-size: 13px; padding: 6px 8px; }
+  .topbar-actions { gap: 5px; }
+  .tb-mobile-only { display: inline-flex; align-items: center; justify-content: center; }
+  .tb-preview { display: none; }            /* preview is desktop-only chrome */
+  .export-wrap .btn-lg { padding: 7px 10px; }
+
+  .rail { padding: 8px 0; }
+
+  /* Canvas bottom bar: trim so its controls fit a narrow canvas. */
+  .canvas-bottom { gap: 8px; padding: 6px 10px; }
+  .canvas-credit { display: none; }
+}
