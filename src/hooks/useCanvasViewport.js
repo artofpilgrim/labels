@@ -165,7 +165,7 @@ export function useCanvasViewport({ design, selBounds }) {
   // (wrapOffset), giving free panning at any zoom. The translate is mutated on
   // the DOM during the drag (no per-move re-render) and committed to state on up.
   const spaceHeldRef = useRef(false);
-  function startPan(e) {
+  function startPan(e, onTap) {
     e.preventDefault();
     const stage = canvasRef.current;
     const wrap = wrapRef.current;
@@ -180,8 +180,10 @@ export function useCanvasViewport({ design, selBounds }) {
     let ox = ox0, oy = oy0;
     isPanningRef.current = true;
     document.body.style.cursor = 'grabbing';
+    let moved = false;
     function move(ev) {
       const dx = ev.clientX - x0, dy = ev.clientY - y0;
+      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) moved = true;
       const tx = Math.min(Math.max(sl0 - dx, 0), maxX);
       const ty = Math.min(Math.max(st0 - dy, 0), maxY);
       stage.scrollLeft = tx;
@@ -202,6 +204,7 @@ export function useCanvasViewport({ design, selBounds }) {
       // refresh the rulers once now that the drag has settled.
       if (ox !== ox0 || oy !== oy0) setWrapOffset({ x: ox, y: oy });
       computeRulers();
+      if (!moved && onTap) onTap();   // a no-move press is a tap — let the caller deselect
     }
     document.addEventListener('pointermove', move);
     document.addEventListener('pointerup', up);

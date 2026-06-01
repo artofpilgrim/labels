@@ -130,10 +130,12 @@ export function useCanvasInteractions({
       startPan(e);
       return;
     }
-    // Left-press on the empty stage (the padding around the label) → marquee.
-    // Touch/pen drags here pan the view via the stage's native scroll instead
-    // (touch-action stays auto on the padding), so only the mouse marquees.
-    if (e.button === 0 && e.target === e.currentTarget && e.pointerType === 'mouse') startMarquee(e);
+    // Left-press on the empty stage padding: the mouse rubber-bands a selection;
+    // a touch/pen drag pans the view instead (a no-move tap deselects).
+    if (e.button === 0 && e.target === e.currentTarget) {
+      if (e.pointerType === 'mouse') startMarquee(e);
+      else startPan(e, () => setSelectedIds([]));
+    }
   }
 
   function applyPreset(formatId) {
@@ -566,9 +568,14 @@ export function useCanvasInteractions({
         return;
       }
     }
-    // Locked layers (incl. the canvas-fill background) aren't selectable here —
-    // pressing one starts a marquee so you can rubber-band over the artwork.
-    if (layer.locked) { startMarquee(e); return; }
+    // Locked layers (incl. the full-bleed background) aren't selectable here. The
+    // mouse rubber-bands over the artwork; touch/pen pans the view — drag the
+    // background to move around (a no-move tap deselects).
+    if (layer.locked) {
+      if (e.pointerType === 'mouse') startMarquee(e);
+      else startPan(e, () => setSelectedIds([]));
+      return;
+    }
     if (e.shiftKey) {
       // Toggle this layer in/out of the selection; don't start a drag.
       setSelectedIds(ids => ids.includes(layerId) ? ids.filter(i => i !== layerId) : [...ids, layerId]);
@@ -581,11 +588,11 @@ export function useCanvasInteractions({
     else startLayerDrag(e, layer);
   };
   labelHandlers.current.onCanvasPointerDown = (e) => {
-    // Only a left-press rubber-bands a selection. Middle-press must fall through
-    // to the stage's pan (a marquee here would add its own move listener and
-    // preventDefault, fighting the pan); right-press is for the context menu.
+    // Only a left-press acts here (middle falls through to the stage pan; right is
+    // the context menu). Mouse rubber-bands; touch/pen pans the view (tap deselects).
     if (e.button !== 0) return;
-    startMarquee(e);
+    if (e.pointerType === 'mouse') startMarquee(e);
+    else startPan(e, () => setSelectedIds([]));
   };
   // Right-click a layer → select it (if not already) and open the context menu.
   labelHandlers.current.onLayerContextMenu = (layerId, e) => {

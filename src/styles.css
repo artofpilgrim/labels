@@ -1490,10 +1490,11 @@ kbd {
 
 /* ---------- Touch: manipulate shapes instead of scrolling ----------
    The canvas gestures use Pointer Events, so a finger works like a mouse. The
-   label artwork + its handles consume the touch (touch-action:none) so a drag
-   moves/resizes the shape rather than scrolling; the stage padding AROUND the
-   label keeps native scroll, so a drag there pans the view. */
-.label-wrap svg { touch-action: none; }
+   whole stage takes touch-action:none so the browser never scrolls/zooms it
+   itself: a finger-drag on the label artwork or a handle moves/resizes the
+   shape, and a finger-drag on the empty padding or the locked background pans
+   the view explicitly (startPan), while a no-move tap deselects. */
+.canvas-stage, .label-wrap svg { touch-action: none; }
 .handle, .handle-rotate { touch-action: none; }
 
 /* A 10px handle is unhittable with a finger — grow the visible handle and its
