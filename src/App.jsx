@@ -114,7 +114,8 @@ function Studio({ initialDoc, onHome }) {
   // The right panel shows Layers + Properties together (no tabs), so selecting a
   // layer reveals its properties without any tab switch.
   const [leftPanel, setLeftPanel] = useState('templates'); // 'templates' | 'shapes' | 'symbols'
-  // Editable document title in the top bar; restored from + saved to localStorage.
+  // Editable label name in the top bar; persisted to IndexedDB by the open
+  // document's autosave (and reused as the export filename).
   const [docName, setDocName] = useState(() => initialDoc.name);
   const [exportOpen, setExportOpen] = useState(false);      // export popover
   const [helpOpen, setHelpOpen] = useState(false);          // help / workflows dialog

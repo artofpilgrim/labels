@@ -10,7 +10,7 @@ import './landing.css';
 const SIGNALS = ['danger', 'warning', 'caution', 'notice', 'safety'];
 
 const FEATURES = [
-  { tag: '01 / FORMATS', title: 'Templates or blank canvas',
+  { tag: '01 / TEMPLATES', title: 'Templates or blank canvas',
     body: 'ANSI headers, GHS chemical labels, lockout tags, barricade strips and PPE signs — or a blank canvas for stickers, asset tags and shipping labels.' },
   { tag: '02 / PICTOGRAMS', title: 'ISO 7010 + GHS library',
     body: 'Compliant safety symbols — hazard diamonds, mandatory, prohibition, fire and first-aid — or drop in your own artwork.' },
@@ -21,7 +21,7 @@ const FEATURES = [
   { tag: '05 / EXPORT', title: 'Vector & raster out',
     body: 'Crisp SVG, PNG at 1×–4×, or copy straight to the clipboard for email, docs and chat.' },
   { tag: '06 / LOCAL', title: 'Yours, on this device',
-    body: 'Autosaves to your browser with reusable presets. No account, no upload, no tracking.' },
+    body: 'Autosaves to your browser with reusable templates. No account, no upload, no tracking.' },
 ];
 
 // Decorative barcode bars for the hero asset sticker: [x, width] pairs laid out

@@ -202,7 +202,7 @@ function HelpModal({ onClose }) {
             <h3>Build a label</h3>
             <ol className="help-steps">
               <li><b>Pick a severity</b> (Danger, Warning, …) — sets the banner colour and signal word.</li>
-              <li><b>Choose a template</b> under Common Templates — this replaces all layers with a starting layout.</li>
+              <li><b>Choose a template</b> under Templates — this replaces all current layers with a starting layout.</li>
               <li><b>Add elements</b> from the left rail (Text, Rect, List, Line, Barcode), or browse the Shapes and Symbols panels.</li>
               <li><b>Select & edit</b> a layer — drag it on the canvas to move, drag its handles to resize, and tune everything in the Properties panel.</li>
               <li><b>Align &amp; arrange</b> with the floating toolbar; fine-tune with the Dimensions fields.</li>
@@ -248,7 +248,7 @@ function HelpModal({ onClose }) {
             <ul>
               <li><b>Pin to canvas</b> (Constraints) keeps a layer's edges anchored when you resize the canvas.</li>
               <li>A rect's <b>“On top” stroke</b> draws its border above other layers; the background frame always stays topmost.</li>
-              <li>Your design <b>autosaves</b> to this browser, and you can store reusable layouts under <b>Your presets</b>.</li>
+              <li>Your label <b>autosaves</b> to this browser, and you can store reusable layouts under <b>My templates</b>.</li>
               <li><b>Preview</b> (top bar) hides all the editing chrome to show the label on its own.</li>
             </ul>
           </section>

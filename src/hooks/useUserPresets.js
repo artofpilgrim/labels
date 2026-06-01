@@ -30,7 +30,7 @@ export function useUserPresets({
   function persistUserPresets(next) {
     setUserPresets(next);   // optimistic — IndexedDB writes are async
     idb.kvSet('userPresets', next).catch(() => {
-      flash('Could not save preset', 2800);
+      flash('Could not save template', 2800);
     });
   }
 
@@ -56,7 +56,7 @@ export function useUserPresets({
     const p = userPresets.find(x => x.id === id);
     if (!p) return;
     const ok = await confirm({
-      title: 'Update preset?',
+      title: 'Update template?',
       message: `Replace "${p.name}" with the current design? The previous version can't be recovered.`,
       confirmLabel: 'Update',
     });
@@ -78,7 +78,7 @@ export function useUserPresets({
     const p = userPresets.find(x => x.id === id);
     if (!p) return;
     if (!isRenderableDesign(p.design)) {
-      flash('That preset is corrupted and could not be loaded', 3000);
+      flash('That template is corrupted and could not be loaded', 3000);
       return;
     }
     forceCommit();
@@ -98,7 +98,7 @@ export function useUserPresets({
     setActivePresetId(id);
     setSelectedIds([]);
     setWrapOffset({ x: 0, y: 0 });
-    flash('Preset applied - press Ctrl+Z to undo', 3000);
+    flash('Template applied — press Ctrl+Z to undo', 3000);
   }
 
   function deleteUserPreset(id) {

@@ -3,7 +3,7 @@ import { Field } from './ui.jsx';
 export function ExportPanel({ docName, design, doExport, doCopyImage, slug }) {
   const exportBody = (
     <>
-      <Field label="Filename" hint="From the document title — rename it in the top bar.">
+      <Field label="Filename" hint="From the label name — rename it in the top bar.">
         <div className="export-filename">{slug(docName)}</div>
       </Field>
       <Field label="Vector">
