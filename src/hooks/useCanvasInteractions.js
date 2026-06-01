@@ -285,16 +285,24 @@ export function useCanvasInteractions({
       // opposite corner stays put in world space.
       const dxL = rot ? dx * cos + dy * sin : dx;
       const dyL = rot ? -dx * sin + dy * cos : dy;
-      const r = resizeRect(snap, mode, dxL, dyL, mods);
+      // A keep-aspect image is rendered "meet" (fit inside its box), so a free
+      // resize would just letterbox it inside the box instead of scaling the
+      // picture — the handles would appear to do nothing. Lock such images to
+      // their box aspect so every handle visibly scales them, like a rect/ink
+      // layer fills its box. "Stretch" images (preserveAspect === false) fill via
+      // 'none' and keep resizing freely.
+      const lockAspect = layer.type === 'image' && layer.preserveAspect !== false;
+      const m = lockAspect ? { ...mods, shift: true } : mods;
+      const r = resizeRect(snap, mode, dxL, dyL, m);
       let next = r, guides = [];
       // Snap only when Ctrl is held alone — shift/alt have geometric goals
       // (aspect lock, mirror) that conflict with snapping a single edge. Snap
       // math is axis-aligned, so skip it for rotated layers.
-      if (mods.ctrl && !mods.shift && !mods.alt && !rot) {
+      if (m.ctrl && !m.shift && !m.alt && !rot) {
         const s = snapResize(r, mode, snapTargets(design, layer.id), screenThreshold(8, fit));
         next = s; guides = s.guides;
       }
-      if (rot) next = reanchorRotated(snap, next, mode, cos, sin, mods.alt);
+      if (rot) next = reanchorRotated(snap, next, mode, cos, sin, m.alt);
       setSnapGuides(guides);
       setLayer(layer.id, { x: next.x, y: next.y, w: next.w, h: next.h });
       setHud({ kind: 'resize', w: next.w, h: next.h });
