@@ -112,6 +112,7 @@ export function LeftPanel({
   renameDocument,
   deleteDocument,
 }) {
+  const confirm = useConfirm();
   const bg = design.layers.find(l => l.syncCanvas === 'fill');
 
   const filesField = (
@@ -151,8 +152,26 @@ export function LeftPanel({
     </Field>
   );
 
+  // Applying a template replaces every layer. If the canvas already has content
+  // (any layer that isn't the auto-sized background fill), confirm first — this
+  // matches the app's confirm-before-destroy pattern (delete, preset overwrite)
+  // and stops a single click from wiping work. Picking from a blank canvas stays
+  // frictionless. Undo (Ctrl+Z) still recovers it either way.
+  const pickTemplate = async (f) => {
+    const hasContent = design.layers.some(l => l.syncCanvas !== 'fill');
+    if (hasContent) {
+      const ok = await confirm({
+        title: 'Replace with this template?',
+        message: `This swaps all current layers for the "${f.name}" starting set. You can undo with Ctrl+Z.`,
+        confirmLabel: 'Replace',
+      });
+      if (!ok) return;
+    }
+    applyPreset(f.id);
+  };
+
   const presetField = (
-    <Field label="Common templates" hint="Replaces all layers with this format's starting set.">
+    <Field label="Templates" hint="Replaces all current layers with this template's starting set.">
       <div className="format-grid">
         {FORMATS
           .filter(f => !query || f.name.toLowerCase().includes(query.toLowerCase()))
@@ -161,7 +180,7 @@ export function LeftPanel({
               key={f.id}
               className={`format-tile ${design.format === f.id ? 'on' : ''}`}
               aria-pressed={design.format === f.id}
-              onClick={() => applyPreset(f.id)}>
+              onClick={() => pickTemplate(f)}>
               <FormatIcon id={f.id} active={design.format === f.id} />
               <span>{f.name}</span>
             </button>
@@ -189,19 +208,19 @@ export function LeftPanel({
   );
 
   const userPresetsField = (
-    <Field label="Your presets" hint="Saved locally to this browser.">
+    <Field label="My templates" hint="Save the current layout to reuse later. Stored locally in this browser.">
       <Row>
         <input
           className="text-input"
           value={newPresetName}
           onChange={e => setNewPresetName(e.target.value)}
-          onKeyDown={e => { if (e.key === 'Enter') saveCurrentAsPreset(newPresetName || docName); }}
-          placeholder={docName}
+          onKeyDown={e => { if (e.key === 'Enter') saveCurrentAsPreset(newPresetName); }}
+          placeholder="Name this template…"
         />
         <button className="ghost"
-                onClick={() => saveCurrentAsPreset(newPresetName || docName)}
-                disabled={!(newPresetName.trim() || docName.trim())}>
-          Save
+                onClick={() => saveCurrentAsPreset(newPresetName)}
+                disabled={!newPresetName.trim()}>
+          Save as template
         </button>
       </Row>
       {userPresets.length > 0 && (
@@ -210,7 +229,7 @@ export function LeftPanel({
             <div key={p.id}
                  className={`layer-row ${p.id === activePresetId ? 'on' : ''}`}
                  onClick={() => applyUserPreset(p.id)}
-                 title={p.id === activePresetId ? 'Loaded — click to reapply' : 'Apply preset'}>
+                 title={p.id === activePresetId ? 'Loaded — click to reapply' : 'Apply template'}>
               <span className="layer-glyph">
                 <svg width="14" height="14" viewBox="0 0 14 14">
                   <path d="M3 2h6l2 2v8H3z" fill="none" stroke="currentColor" strokeWidth="1.2" />
@@ -218,7 +237,7 @@ export function LeftPanel({
               </span>
               <span className="layer-name">{p.name}</span>
               <span className="layer-meta">{p.design.width}×{p.design.height}</span>
-              <button className="icon-btn" title="Update preset with current design"
+              <button className="icon-btn" title="Update template with current design"
                       onClick={e => { e.stopPropagation(); updateUserPreset(p.id); }}>
                 <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor"
                      strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -226,7 +245,7 @@ export function LeftPanel({
                   <path d="M13.8 2.4V5.2h-2.8" />
                 </svg>
               </button>
-              <button className="icon-btn" title="Delete preset"
+              <button className="icon-btn" title="Delete template"
                       onClick={e => { e.stopPropagation(); deleteUserPreset(p.id); }}>×</button>
             </div>
           ))}

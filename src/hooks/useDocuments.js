@@ -77,7 +77,11 @@ export function useDocuments({
     setSaveState('saving');
     const t = setTimeout(() => {
       saveTimerRef.current = null;
-      persist(Date.now()).then(() => setSaveState('saved'));
+      // persist() resolves true on a durable write, false if it failed (and kept
+      // the doc dirty for retry). Reflect that honestly: a failed write must NOT
+      // read as "✓ Saved". The 'error' state is sticky until the next change
+      // re-fires this effect and a retry succeeds.
+      persist(Date.now()).then(ok => setSaveState(ok ? 'saved' : 'error'));
     }, 500);
     saveTimerRef.current = t;
     return () => clearTimeout(t);
@@ -91,6 +95,23 @@ export function useDocuments({
     if (!isDirty()) return Promise.resolve(false);
     return persist(Date.now());
   }, [cancelSave, persist]);
+
+  // Flush the open document's unsaved edits when the page is hidden or closed.
+  // The autosave only writes after a 500ms debounce, so without this a
+  // reload/close/tab-switch in that window would drop the last change despite the
+  // "autosaves" promise. pagehide covers close/navigation; visibilitychange
+  // (hidden) covers tab-switch and mobile backgrounding, where the async IDB
+  // write reliably completes. flushCurrent no-ops when nothing is dirty.
+  useEffect(() => {
+    const onPageHide = () => { flushCurrent(); };
+    const onVisibility = () => { if (document.visibilityState === 'hidden') flushCurrent(); };
+    window.addEventListener('pagehide', onPageHide);
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      window.removeEventListener('pagehide', onPageHide);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, [flushCurrent]);
 
   // Load a document object into the editor as a fresh baseline (not an edit).
   const applyDoc = useCallback((doc) => {
@@ -148,21 +169,29 @@ export function useDocuments({
   const deleteDocument = useCallback(async (id) => {
     // Cancel any pending autosave for the open doc first, else its timer could
     // fire mid-delete and re-insert (resurrect) the document we just removed.
-    if (id === idRef.current) cancelSave();
+    const wasOpen = id === idRef.current;
+    const prevName = nameRef.current;
+    if (wasOpen) cancelSave();
     await idb.delDoc(id).catch(() => {});
-    if (id === idRef.current) {
+    if (wasOpen) {
+      // Deleting the OPEN label swaps the editor to another label (or a fresh
+      // blank). That's a big, silent change of canvas/name/selection, so say so —
+      // otherwise it reads as the wrong file having been affected.
       const all = (await idb.getAllDocs().catch(() => [])) || [];
       const valid = all.filter(d => d && isRenderableDesign(d.design))
         .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
-      if (valid.length) applyDoc(valid[0]);
-      else {
+      if (valid.length) {
+        applyDoc(valid[0]);
+        flash(`Deleted "${prevName}" — now showing "${valid[0].name}"`, 3000);
+      } else {
         const doc = { id: uid(), name: 'Untitled Label', design: makeDefaultDesign(), updatedAt: Date.now() };
         await idb.putDoc(doc).catch(() => {});
         applyDoc(doc);
+        flash(`Deleted "${prevName}" — started a new blank label`, 3000);
       }
     }
     refresh();
-  }, [cancelSave, applyDoc, makeDefaultDesign, refresh]);
+  }, [cancelSave, applyDoc, makeDefaultDesign, refresh, flash]);
 
-  return { currentDocId, docs, newDocument, openDocument, renameDocument, deleteDocument };
+  return { currentDocId, docs, newDocument, openDocument, renameDocument, deleteDocument, flushCurrent };
 }

@@ -121,8 +121,9 @@ function Studio({ initialDoc, onHome }) {
   const [ctxMenu, setCtxMenu] = useState(null);             // right-click menu { x, y }
   const [theme, setTheme] = useTheme();
   const [query, setQuery] = useState('');                   // template search filter
-  // Save status shown in the top bar; flips to 'saving' on edit, back after autosave.
-  const [saveState, setSaveState] = useState('saved');      // 'saved' | 'saving'
+  // Save status shown in the top bar; flips to 'saving' on edit, back after
+  // autosave, or to 'error' if a write fails (sticky until a retry succeeds).
+  const [saveState, setSaveState] = useState('saved');      // 'saved' | 'saving' | 'error'
   const symbolCache = useSymbolCache();
   const {
     preview,
@@ -233,6 +234,7 @@ function Studio({ initialDoc, onHome }) {
     openDocument,
     renameDocument,
     deleteDocument,
+    flushCurrent,
   } = useDocuments({
     initialDoc,
     design,
@@ -480,7 +482,7 @@ function Studio({ initialDoc, onHome }) {
       openDocument={openDocument}
       renameDocument={renameDocument}
       deleteDocument={deleteDocument}
-      onHome={onHome}
+      onHome={onHome ? (async () => { await flushCurrent(); onHome(); }) : undefined}
     />
     {confirmOpts && <ConfirmDialog opts={confirmOpts} onResolve={resolveConfirm} />}
     </ConfirmContext.Provider>

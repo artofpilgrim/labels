@@ -1120,18 +1120,20 @@ body.scrubbing, body.scrubbing * { cursor: ew-resize !important; user-select: no
   padding-left: 12px; border-left: 1px solid var(--line);
 }
 .doc-name {
-  background: transparent; border: 1px solid transparent;
+  background: transparent; border: 1px solid var(--line);
   border-radius: var(--r); padding: 6px 10px;
   font-size: 14px; font-weight: 600; color: var(--ink);
   max-width: 280px; outline: none;
 }
-.doc-name:hover { border-color: var(--line); }
+.doc-name::placeholder { color: var(--muted); font-weight: 500; }
+.doc-name:hover { border-color: var(--line-strong); }
 .doc-name:focus { border-color: var(--accent); box-shadow: var(--ring); background: var(--white); }
 .save-state {
   font-size: 11px; color: var(--muted);
   display: inline-flex; align-items: center; gap: 4px; white-space: nowrap;
 }
 .save-state.saved { color: var(--success); }
+.save-state.error { color: var(--accent); font-weight: 600; }
 
 .topbar-actions { display: flex; align-items: center; gap: 10px; flex: 0 0 auto; }
 .tb-group { display: flex; align-items: center; gap: 2px; }

@@ -317,8 +317,16 @@ export function EditorShell({
         </div>
 
         <div className="doc-bar">
-          <input className="doc-name" aria-label="Document name" value={docName} onChange={e => setDocName(e.target.value)} spellCheck={false} />
-          <span className={`save-state ${saveState}`}>{saveState === 'saving' ? 'Saving…' : '✓ Saved'}</span>
+          <input className="doc-name" aria-label="Label name"
+                 title="The name of this label — used in your library and the export filename"
+                 placeholder="Untitled Label"
+                 value={docName} onChange={e => setDocName(e.target.value)} spellCheck={false} />
+          <span className={`save-state ${saveState}`}
+                title={saveState === 'error'
+                  ? 'Could not save — your browser storage may be full'
+                  : 'This label saves automatically to your browser'}>
+            {saveState === 'saving' ? 'Saving…' : saveState === 'error' ? '⚠ Not saved' : '✓ Saved'}
+          </span>
         </div>
 
         <div className="topbar-actions">
