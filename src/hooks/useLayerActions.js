@@ -2,6 +2,7 @@ import { useCallback, useRef } from 'react';
 import { layerAABB } from '../core/geometry.js';
 import { moveStackLayers } from '../core/stack.js';
 import { newLayer } from '../templates/index.js';
+import { rdpSimplify } from '../core/ink.js';
 import { uid } from '../uid.js';
 import { readImageFile } from '../components/SymbolPicker.jsx';
 
@@ -74,7 +75,14 @@ export function useLayerActions({ design, setDesign, selectedIds, setSelectedIds
   // the pad's on-screen pen px, scaled by the same factor so the placed stroke
   // keeps the weight it had while drawing.
   const addInkLayer = useCallback((strokes, penWidth = 2.6) => {
-    const all = (strokes || []).filter(s => s && s.length);
+    // Simplify each stroke (RDP, ~1px) in capture space before normalizing. The
+    // capture-time distance threshold already dropped jitter; this removes the
+    // redundant in-between samples a smooth curve doesn't need, so the stored
+    // stroke (autosaved, kept in undo history, and written to exported SVG) stays
+    // small without changing how it looks.
+    const all = (strokes || [])
+      .map(s => (s && s.length ? rdpSimplify(s, 1) : []))
+      .filter(s => s.length);
     const pts = all.flat();
     if (!pts.length) return;
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
@@ -85,10 +93,13 @@ export function useLayerActions({ design, setDesign, selectedIds, setSelectedIds
       if (p.y > maxY) maxY = p.y;
     }
     const bw = Math.max(1, maxX - minX), bh = Math.max(1, maxY - minY);
-    const norm = all.map(s => s.map(p => ({
-      x: +((p.x - minX) / bw).toFixed(4),
-      y: +((p.y - minY) / bh).toFixed(4),
-    })));
+    // Store points compactly as normalized [x, y] pairs (no repeated object keys),
+    // 0..1 within the box — like polygon — so all the transform machinery works
+    // unchanged. inkX/inkY in the renderer read this (and older {x,y}) shape.
+    const norm = all.map(s => s.map(p => [
+      +((p.x - minX) / bw).toFixed(4),
+      +((p.y - minY) / bh).toFixed(4),
+    ]));
     // Fit within ~55% of the canvas, preserving aspect; don't blow up a small doodle past 4×.
     const s = Math.min(design.width * 0.55 / bw, design.height * 0.55 / bh, 4);
     const w = Math.max(8, Math.round(bw * s));

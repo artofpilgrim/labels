@@ -1,7 +1,8 @@
+import { memo } from 'react';
 import { FONTS } from '../core/constants.js';
 import { buildLinearBarcode, qrModules } from '../barcode.js';
 import { pictoHref } from '../symbols.js';
-import { inkStrokePath } from '../core/ink.js';
+import { inkStrokePath, inkX, inkY } from '../core/ink.js';
 
 // Normalize a bullets item — accept either a legacy string (saved presets,
 // localStorage from older versions) or the {id, text} shape used now.
@@ -221,6 +222,31 @@ function imageFlipTransform(l, transform) {
   return transform ? `${transform} ${flip}` : flip;
 }
 
+// Freehand handwriting. Each stroke's points are normalized (0..1) to the layer
+// box — like polygon — so it resizes and rotates with the handles, and are drawn
+// as a smoothed curve (inkStrokePath) rather than a raw polyline so the line
+// reads as natural handwriting. Memoized: the path only rebuilds when this layer
+// (or the severity) changes, so dragging/editing OTHER layers doesn't recompute
+// every handwriting stroke. A single-point stroke (a tap) renders as a dot.
+const InkLayer = memo(function InkLayer({ l, sev }) {
+  const transform = rotateTransform(l);
+  const inkStroke = resolveFill(l.stroke || '#000000', l.bindSeverity, sev);
+  const sw = l.strokeWidth || 3;
+  return (
+    <g transform={transform}>
+      {(l.strokes || []).map((stk, i) => {
+        if (stk.length === 1) {
+          return <circle key={i} cx={l.x + inkX(stk[0]) * l.w} cy={l.y + inkY(stk[0]) * l.h}
+                         r={Math.max(0.5, sw / 2)} fill={inkStroke} />;
+        }
+        const abs = stk.map(p => ({ x: l.x + inkX(p) * l.w, y: l.y + inkY(p) * l.h }));
+        return <path key={i} d={inkStrokePath(abs)} fill="none" stroke={inkStroke}
+                     strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round" />;
+      })}
+    </g>
+  );
+});
+
 // ----------- Layer renderer -----------
 function renderLayer(l, sev, symbolsReady) {
   if (l.hidden) return null;
@@ -398,28 +424,8 @@ function renderLayer(l, sev, symbolsReady) {
         </g>
       );
     }
-    case 'ink': {
-      // Freehand handwriting: each stroke's points are normalized (0..1) to the
-      // layer box — like polygon — so it resizes and rotates with the handles.
-      // Strokes are drawn as a smoothed curve (inkStrokePath) rather than a raw
-      // polyline so the line reads as natural handwriting, not faceted segments.
-      // A single-point stroke (a tap) renders as a round dot.
-      const inkStroke = resolveFill(l.stroke || '#000000', l.bindSeverity, sev);
-      const sw = l.strokeWidth || 3;
-      return (
-        <g transform={transform}>
-          {(l.strokes || []).map((stk, i) => {
-            if (stk.length === 1) {
-              return <circle key={i} cx={l.x + stk[0].x * l.w} cy={l.y + stk[0].y * l.h}
-                             r={Math.max(0.5, sw / 2)} fill={inkStroke} />;
-            }
-            const abs = stk.map(p => ({ x: l.x + p.x * l.w, y: l.y + p.y * l.h }));
-            return <path key={i} d={inkStrokePath(abs)} fill="none" stroke={inkStroke}
-                         strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round" />;
-          })}
-        </g>
-      );
-    }
+    case 'ink':
+      return <InkLayer l={l} sev={sev} />;
     case 'barcode':
       return renderBarcode(l, transform);
     default:
