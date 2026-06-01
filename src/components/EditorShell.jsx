@@ -126,10 +126,14 @@ export function EditorShell({
   openDocument,
   renameDocument,
   deleteDocument,
-  onHome
+  onHome,
+  padCanvas
 }) {
   // ----- Shared panel blocks (reused across the new 4-zone layout) -----
   const bg = design.layers.find(l => l.syncCanvas === 'fill');
+  // Uniform outward-padding range, keyed off the (stable) unpadded content size
+  // so the slider's max doesn't drift as you pad.
+  const padMax = Math.max(20, Math.round((Math.min(design.width, design.height) - 2 * (design.padding || 0)) / 2));
 
   const dimensionsBody = (
     <>
@@ -138,10 +142,15 @@ export function EditorShell({
         <NumberInput live={false} value={design.height} onChange={v => setCanvasSize(design.width, v)} min={40} max={4000} suffix="H" />
       </Row>
       <Row>
+        <Slider label="Padding" ariaLabel="Canvas padding" value={design.padding || 0}
+                onChange={padCanvas} min={0} max={padMax} step={1} />
+      </Row>
+      <Row>
         <button className="ghost" onClick={() => {
           // applyUserPreset stores format:'custom' which isn't in FORMATS — guard.
           const f = FORMATS.find(x => x.id === design.format);
           if (!f) return;
+          padCanvas(0);                       // drop any outward padding first so the reset can't desync
           setCanvasSize(f.default[0], f.default[1]);
           setWrapOffset({ x: 0, y: 0 });
         }}>Reset</button>
@@ -176,8 +185,14 @@ export function EditorShell({
                   <ColorInput value={bg.stroke || '#000000'} onChange={v => setLayer(bg.id, { stroke: v, strokeWidth: bg.strokeWidth || 2 })} />
                 </Row>
                 <Row>
-                  <Slider ariaLabel="Border width" value={bg.strokeWidth || 0} onChange={v => setLayer(bg.id, { strokeWidth: v })} min={0} max={40} step={0.5} />
+                  <Slider label="Width" ariaLabel="Border width" value={bg.strokeWidth || 0} onChange={v => setLayer(bg.id, { strokeWidth: v })} min={0} max={40} step={0.5} />
                 </Row>
+                {(bg.strokeWidth || 0) > 0 && (
+                  <Row>
+                    <Slider label="Inset" ariaLabel="Border inset" value={bg.strokeInset || 0}
+                            onChange={v => setLayer(bg.id, { strokeInset: v })} min={0} max={maxR} step={0.5} />
+                  </Row>
+                )}
               </Field>
               <Field label="Corner radius">
                 <CornerRadius value={bg.radius || 0} onChange={v => setLayer(bg.id, { radius: v })} max={maxR}

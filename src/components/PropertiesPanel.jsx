@@ -442,7 +442,11 @@ function RectProps({ layer, onChange }) {
       </Field>
       <Field label="Stroke">
         <ColorInput value={layer.stroke || '#000000'} onChange={v => onChange({ stroke: v, strokeWidth: layer.strokeWidth || 2 })} />
-        <Row><Slider ariaLabel="Stroke width" value={layer.strokeWidth || 0} onChange={v => onChange({ strokeWidth: v })} min={0} max={40} step={0.5} /></Row>
+        <Row><Slider label="Width" ariaLabel="Stroke width" value={layer.strokeWidth || 0} onChange={v => onChange({ strokeWidth: v })} min={0} max={40} step={0.5} /></Row>
+        {(layer.strokeWidth || 0) > 0 && (
+          <Row><Slider label="Inset" ariaLabel="Stroke inset" value={layer.strokeInset || 0}
+                       onChange={v => onChange({ strokeInset: v })} min={0} max={maxR} step={0.5} /></Row>
+        )}
         <Row>
           <Seg
             value={layer.strokeOnTop ? 'top' : 'normal'}

@@ -44,8 +44,13 @@ const Label = memo(forwardRef(function Label({ design, symbolsReady, onLayerPoin
   // the stroke width to rectPath insets by sw/2 and shrinks the radius to match.
   const clipSW = (bg && bg.strokeOnTop && (bg.strokeWidth || 0) > 0 && bg.stroke && bg.stroke !== 'none')
     ? bg.strokeWidth : 0;
+  // When the frame is inset, tuck clipToCanvas bands under its INNER edge so they
+  // never spill into the blank margin outside the frame. rectPath insets by
+  // (param / 2), so 2·inset + strokeWidth lands the clip at the frame's inner
+  // edge (inset + sw/2 in from the canvas edge) and shrinks the radius to match.
+  const bgInset = clipSW > 0 ? Math.max(0, bg.strokeInset || 0) : 0;
   const canvasClipD = bg
-    ? rectPath(0, 0, design.width, design.height, bg.radius, clipSW, bg.corner)
+    ? rectPath(0, 0, design.width, design.height, bg.radius, 2 * bgInset + clipSW, bg.corner)
     : null;
 
   // Layers flagged `hole` knock a transparent cutout through the whole label via
@@ -147,7 +152,7 @@ const Label = memo(forwardRef(function Label({ design, symbolsReady, onLayerPoin
         .map(l => (
           <path
             key={`top-${l.id}`}
-            d={rectStrokeRingPath(l, l.strokeWidth)}
+            d={rectStrokeRingPath(l, l.strokeWidth, l.strokeInset)}
             fill={resolveFill(l.stroke || 'none', l.bindSeverity, sev)}
             fillRule="evenodd"
             clipPath={(l.clipToCanvas && canvasClipD) ? `url(#${canvasClipId})` : undefined}

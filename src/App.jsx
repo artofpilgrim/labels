@@ -70,6 +70,30 @@ function Studio({ initialDoc, onHome }) {
     });
   }, [setDesign]);
 
+  // Extrude the whole label outward by uniform padding on every side: grow the
+  // canvas (and the synced background) and shift ALL content by the same delta so
+  // the interior layout is untouched — just more breathing room around it. Unlike
+  // setCanvasSize this is a uniform translate, not a per-edge pin reflow. `padding`
+  // is stored so the slider has a value and each change applies the delta.
+  const padCanvas = useCallback((nextPad) => {
+    setDesign(d => {
+      const cur = d.padding || 0;
+      const delta = Math.max(0, Math.round(nextPad)) - cur;
+      if (delta === 0) return d;
+      const nw = d.width + 2 * delta, nh = d.height + 2 * delta;
+      if (nw < 40 || nh < 40) return d;
+      return {
+        ...d,
+        width: nw,
+        height: nh,
+        padding: cur + delta,
+        layers: d.layers.map(l => l.syncCanvas === 'fill'
+          ? { ...l, x: 0, y: 0, w: nw, h: nh }
+          : { ...l, x: l.x + delta, y: l.y + delta }),
+      };
+    });
+  }, [setDesign]);
+
   const {
     selectedIds,
     setSelectedIds,
@@ -357,6 +381,7 @@ function Studio({ initialDoc, onHome }) {
       applyUserPreset={applyUserPreset}
       deleteUserPreset={deleteUserPreset}
       setCanvasSize={setCanvasSize}
+      padCanvas={padCanvas}
       setWrapOffset={setWrapOffset}
       setLayer={setLayer}
       setLayers={setLayers}
