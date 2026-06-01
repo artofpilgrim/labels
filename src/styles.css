@@ -20,6 +20,7 @@
   --r-lg: 10px;           /* cards / panels */
   --shadow: 0 1px 2px rgba(16, 24, 40, .06), 0 1px 3px rgba(16, 24, 40, .1);
   --ring: 0 0 0 3px rgba(220, 38, 38, .14);
+  --ring-fill: rgba(220, 38, 38, .14);   /* flat fill of the focus-ring tint (ruler band) */
 }
 
 /* Dark editor chrome. Only the editor reskins — the label artwork on the canvas
@@ -38,6 +39,7 @@
   --success: #22c55e;
   --shadow: 0 1px 2px rgba(0, 0, 0, .5), 0 2px 8px rgba(0, 0, 0, .45);
   --ring: 0 0 0 3px rgba(220, 38, 38, .28);
+  --ring-fill: rgba(220, 38, 38, .28);
 }
 [data-theme="dark"] .canvas-area {
   background-image: radial-gradient(circle, rgba(255, 255, 255, 0.06) 1px, transparent 1px);
@@ -571,7 +573,7 @@ body.space-pan .overlay * { pointer-events: none !important; }
   margin-left: -5.5px; margin-top: -5.5px;
 }
 .handle.canvas:hover { border-color: var(--ink); }
-.handle.layer:hover  { background: #fde8e8; }
+.handle.layer:hover  { background: var(--accent-soft); }
 
 .handle-rotate {
   position: absolute;
@@ -582,7 +584,7 @@ body.space-pan .overlay * { pointer-events: none !important; }
   z-index: 6; cursor: grab;
   pointer-events: auto;
 }
-.handle-rotate:hover { background: #fde8e8; }
+.handle-rotate:hover { background: var(--accent-soft); }
 .handle-rotate:active { cursor: grabbing; }
 .rotate-stem {
   position: absolute;
@@ -1211,12 +1213,12 @@ body.scrubbing, body.scrubbing * { cursor: ew-resize !important; user-select: no
 }
 .sel-thin {
   position: absolute; box-sizing: border-box;
-  outline: 1px solid rgba(220, 38, 38, .55);
+  outline: 1px solid color-mix(in srgb, var(--sel) 55%, transparent);
   pointer-events: none;
 }
 .marquee {
   position: absolute; box-sizing: border-box;
-  background: rgba(220, 38, 38, .08);
+  background: color-mix(in srgb, var(--sel) 8%, transparent);
   border: 1px solid var(--sel);
   pointer-events: none; z-index: 8;
 }

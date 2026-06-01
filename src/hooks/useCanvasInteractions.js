@@ -223,8 +223,10 @@ export function useCanvasInteractions({
       // A press that never moved is a click — let the caller collapse a group
       // selection down to just the clicked layer.
       if (!moved && onClickNoMove) onClickNoMove();
-      // Commit the post-drag state as a single history step. setTimeout(0)
-      // lets the final mousemove's state update flush first.
+      // Commit the post-drag state as a single history step. setTimeout(0) lets
+      // the final mousemove's state update flush first. up() is bound to mouseup
+      // /pointercancel/blur independently of move(), so a throwing move() can't
+      // strand this commit (and move() only does guarded arithmetic anyway).
       setTimeout(forceCommit, 0);
     }
     document.addEventListener('mousemove', move);

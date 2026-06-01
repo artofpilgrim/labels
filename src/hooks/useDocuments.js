@@ -66,7 +66,13 @@ export function useDocuments({
   }, [setExportMsg]);
 
   // Debounced autosave of the open document. Skips no-op opens/mounts (not dirty)
-  // so viewing a label never re-stamps it.
+  // so viewing a label never re-stamps it. Intentionally NOT guarded against the
+  // mid-drag re-runs: setSaveState('saving') is idempotent (React bails when the
+  // value is unchanged, so a drag costs one re-render, not one per frame), and a
+  // naive `if (inDragRef.current) return` would be unsafe here — forceCommit
+  // reuses the same `design` reference, so clearing the drag flag would not
+  // re-fire this effect and the post-drag write would be dropped. The per-change
+  // timer reschedule below IS the debounce: only the trailing write lands.
   useEffect(() => {
     if (!isDirty()) return;
     setSaveState('saving');

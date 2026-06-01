@@ -1,7 +1,11 @@
 // ----------- Format icon -----------
 function FormatIcon({ id, active }) {
   const w = 48, h = 36;
-  const ink = '#1a1814';
+  // Tile outlines/marks track the theme so thumbnails stay legible on dark tiles.
+  // inkOnLight stays fixed-dark for marks that sit on a baked-light inner shape
+  // (the plate, the GHS white diamond), which don't invert with the theme.
+  const ink = 'var(--ink)';
+  const inkOnLight = '#1a1814';
   const accent = active ? '#C8102E' : '#bdb398';
   switch (id) {
     case 'ansi-header':
@@ -25,9 +29,9 @@ function FormatIcon({ id, active }) {
     case 'plate':
       return (<svg viewBox={`0 0 ${w} ${h}`} width={w} height={h}>
         <path d={`M${w / 2} 4 L${w - 4} ${h - 4} L4 ${h - 4} Z`}
-              fill={active ? '#F9A800' : '#e6dcc0'} stroke={ink} strokeWidth="1.6" strokeLinejoin="round" />
-        <rect x={w / 2 - 1} y={h / 2 - 5} width="2" height="7" fill={ink} />
-        <circle cx={w / 2} cy={h / 2 + 5} r="1.2" fill={ink} />
+              fill={active ? '#F9A800' : '#e6dcc0'} stroke={inkOnLight} strokeWidth="1.6" strokeLinejoin="round" />
+        <rect x={w / 2 - 1} y={h / 2 - 5} width="2" height="7" fill={inkOnLight} />
+        <circle cx={w / 2} cy={h / 2 + 5} r="1.2" fill={inkOnLight} />
       </svg>);
     case 'stop':
       return (<svg viewBox={`0 0 ${w} ${h}`} width={w} height={h}>
@@ -61,9 +65,9 @@ function FormatIcon({ id, active }) {
     case 'ghs-label':
       return (<svg viewBox={`0 0 ${w} ${h}`} width={w} height={h}>
         <rect x={w / 2 - 10} y={h / 2 - 10} width="20" height="20" transform={`rotate(45 ${w / 2} ${h / 2})`}
-              fill="#fff" stroke={active ? '#C8102E' : ink} strokeWidth="2.4" strokeLinejoin="round" />
-        <rect x={w / 2 - 1} y={h / 2 - 6} width="2" height="6" fill={ink} />
-        <circle cx={w / 2} cy={h / 2 + 5} r="1.2" fill={ink} />
+              fill="#fff" stroke={active ? '#C8102E' : inkOnLight} strokeWidth="2.4" strokeLinejoin="round" />
+        <rect x={w / 2 - 1} y={h / 2 - 6} width="2" height="6" fill={inkOnLight} />
+        <circle cx={w / 2} cy={h / 2 + 5} r="1.2" fill={inkOnLight} />
       </svg>);
     case 'ppe':
       return (<svg viewBox={`0 0 ${w} ${h}`} width={w} height={h}>

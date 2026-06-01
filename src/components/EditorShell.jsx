@@ -229,7 +229,7 @@ export function EditorShell({
     const minor = step / 5;
     const fmt = step >= 1 ? (p => Math.round(p)) : (p => p.toFixed(1));
     const tickColor = 'var(--line-strong)';
-    const band = 'rgba(220, 38, 38, .14)';
+    const band = 'var(--ring-fill)';
 
     const i0t = Math.ceil(toLabel(0 - originX, fit) / minor);
     const i1t = Math.floor(toLabel(topW - originX, fit) / minor);

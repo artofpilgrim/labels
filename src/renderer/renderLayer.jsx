@@ -359,7 +359,7 @@ function renderLayer(l, sev, symbolsReady) {
           <polygon
             points={pts}
             fill={resolveFill(l.fill, l.bindSeverity, sev)}
-            stroke={l.stroke || 'none'}
+            stroke={resolveFill(l.stroke || 'none', l.bindSeverity, sev)}
             strokeWidth={l.strokeWidth || 0}
             strokeLinejoin="miter"
           />
@@ -373,7 +373,7 @@ function renderLayer(l, sev, symbolsReady) {
             cx={l.x + l.w / 2} cy={l.y + l.h / 2}
             rx={l.w / 2} ry={l.h / 2}
             fill={resolveFill(l.fill, l.bindSeverity, sev)}
-            stroke={l.stroke || 'none'}
+            stroke={resolveFill(l.stroke || 'none', l.bindSeverity, sev)}
             strokeWidth={l.strokeWidth || 0}
           />
         </g>
