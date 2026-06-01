@@ -639,13 +639,16 @@ body.space-pan .overlay * { pointer-events: none !important; }
   width: 100%;
   flex: 1;
 }
+/* `auto` (not a fixed 24px) so the label column fits its text — short labels
+   like "All"/"TL" stay tight, while longer ones ("Width", "Inset", "Padding")
+   no longer overflow onto the slider track. */
 .slider.has-label {
-  grid-template-columns: 24px 1fr 56px;
+  grid-template-columns: auto 1fr 56px;
 }
 /* A trailing unit (e.g. rotation's °) needs its own grid column, else it wraps
    to a new implicit row at the far left. */
 .slider.has-unit { grid-template-columns: 1fr 48px auto; }
-.slider.has-label.has-unit { grid-template-columns: 24px 1fr 48px auto; }
+.slider.has-label.has-unit { grid-template-columns: auto 1fr 48px auto; }
 .slider:last-child { margin-bottom: 0; }
 .slider-label {
   font-family: var(--font);
@@ -653,6 +656,7 @@ body.space-pan .overlay * { pointer-events: none !important; }
   letter-spacing: 1px;
   color: var(--muted);
   text-transform: uppercase;
+  white-space: nowrap;
 }
 .slider-range {
   -webkit-appearance: none;
