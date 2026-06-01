@@ -3,6 +3,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { EditorShell } from './components/EditorShell.jsx';
 import { SwatchContext } from './components/swatches.js';
 import { useCustomSwatches } from './hooks/useCustomSwatches.js';
+import { ConfirmContext, ConfirmDialog } from './components/confirm.jsx';
 import { PRESETS } from './templates/index.js';
 import { slug } from './core/design.js';
 import { applyPins } from './core/geometry.js';
@@ -153,6 +154,21 @@ function Studio({ initialDoc, onHome }) {
     setExportOpen,
   });
 
+  // App-styled confirm() replacement (delete label, overwrite preset, link
+  // corners). confirm(opts) → Promise<boolean>; the dialog renders at the root.
+  const confirmResolveRef = useRef(null);
+  const [confirmOpts, setConfirmOpts] = useState(null);
+  const confirm = useCallback((opts) => new Promise((resolve) => {
+    confirmResolveRef.current = resolve;
+    setConfirmOpts(opts);
+  }), []);
+  const resolveConfirm = useCallback((result) => {
+    const r = confirmResolveRef.current;
+    confirmResolveRef.current = null;
+    setConfirmOpts(null);
+    if (r) r(result);
+  }, []);
+
   // Active alignment guides shown while Ctrl-dragging. Each guide:
   // { orient: 'v' | 'h', value: number }  — value in label coordinates.
   const [snapGuides, setSnapGuides] = useState([]);
@@ -192,6 +208,7 @@ function Studio({ initialDoc, onHome }) {
     setSelectedIds,
     setWrapOffset,
     flash,
+    confirm,
   });
 
   // ----- Undo / Redo -----
@@ -353,6 +370,7 @@ function Studio({ initialDoc, onHome }) {
 
   return (
     <SwatchContext.Provider value={swatchApi}>
+    <ConfirmContext.Provider value={confirm}>
     <EditorShell
       design={design}
       setDesign={setDesign}
@@ -462,6 +480,8 @@ function Studio({ initialDoc, onHome }) {
       deleteDocument={deleteDocument}
       onHome={onHome}
     />
+    {confirmOpts && <ConfirmDialog opts={confirmOpts} onResolve={resolveConfirm} />}
+    </ConfirmContext.Provider>
     </SwatchContext.Provider>
   );
 

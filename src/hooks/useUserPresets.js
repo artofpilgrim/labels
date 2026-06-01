@@ -11,6 +11,7 @@ export function useUserPresets({
   setSelectedIds,
   setWrapOffset,
   flash,
+  confirm,
 }) {
   const [userPresets, setUserPresets] = useState([]);
   const [newPresetName, setNewPresetName] = useState('');
@@ -51,10 +52,15 @@ export function useUserPresets({
     setNewPresetName('');
   }
 
-  function updateUserPreset(id) {
+  async function updateUserPreset(id) {
     const p = userPresets.find(x => x.id === id);
     if (!p) return;
-    if (!window.confirm(`Update preset "${p.name}" with the current design?`)) return;
+    const ok = await confirm({
+      title: 'Update preset?',
+      message: `Replace "${p.name}" with the current design? The previous version can't be recovered.`,
+      confirmLabel: 'Update',
+    });
+    if (!ok) return;
     persistUserPresets(userPresets.map(x => x.id === id ? {
       ...x,
       design: {

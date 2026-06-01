@@ -1331,6 +1331,20 @@ body.scrubbing, body.scrubbing * { cursor: ew-resize !important; user-select: no
 .modal-head .icon-btn { border-color: transparent; flex: none; }
 .modal-body { padding: 4px 22px 18px; overflow-y: auto; }
 
+/* ---------- Confirm dialog (app-styled window.confirm replacement) ---------- */
+.confirm-modal {
+  width: min(380px, 94vw);
+  padding: 20px 22px 18px;
+  animation: modal-rise .2s cubic-bezier(.2, .7, .2, 1) both;
+}
+.confirm-title {
+  margin: 0; font-family: var(--font);
+  font-size: 16px; font-weight: 800; letter-spacing: -0.01em; color: var(--ink);
+}
+.confirm-msg { margin: 9px 0 0; font-size: 13px; line-height: 1.5; color: var(--muted); }
+.confirm-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; }
+.confirm-actions .btn-lg { min-width: 84px; justify-content: center; }
+
 .help-section { padding: 18px 0; border-bottom: 1px solid var(--line); }
 .help-section:last-child { border-bottom: 0; }
 .help-section h3 {

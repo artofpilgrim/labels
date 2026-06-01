@@ -1,4 +1,5 @@
 import { Seg, Slider } from './ui.jsx';
+import { useConfirm } from './confirm.jsx';
 
 // Four-edge toggle for layer anchors. Visualized as a small rectangle with
 // a clickable dash on each side; an active edge gets a solid bar.
@@ -82,6 +83,7 @@ function CornerStyleBtn({ corner, style, onToggle }) {
 }
 
 function CornerRadius({ value, onChange, max, corner, onCorner }) {
+  const confirm = useConfirm();
   const linked = typeof value === 'number' || value == null;
   const cap = Math.max(0, max);
   const v = linked
@@ -105,13 +107,17 @@ function CornerRadius({ value, onChange, max, corner, onCorner }) {
     const allSame = s.tl === s.tr && s.tr === s.br && s.br === s.bl;
     onCorner(allSame ? (s.tl === 'chamfer' ? 'chamfer' : null) : s);
   }
-  function toggleLink() {
+  async function toggleLink() {
     if (linked) {
       onChange({ ...v });                       // split sizes
     } else {
       const allSame = v.tl === v.tr && v.tr === v.br && v.br === v.bl;
       if (!allSame) {
-        const ok = window.confirm('Link corners will reset all four to the top-left value. Continue?');
+        const ok = await confirm({
+          title: 'Link corners?',
+          message: 'All four corners will be reset to the top-left value.',
+          confirmLabel: 'Link',
+        });
         if (!ok) return;
       }
       onChange(Math.round(v.tl));               // collapse size to top-left

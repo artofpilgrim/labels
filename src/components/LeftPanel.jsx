@@ -7,6 +7,7 @@ import { Field, Row } from './ui.jsx';
 import { FormatIcon } from './FormatIcon.jsx';
 import { SymbolPicker } from './SymbolPicker.jsx';
 import { SHAPES } from './editorChrome.jsx';
+import { useConfirm } from './confirm.jsx';
 
 // "5m ago" / "2h ago" / "3d ago" / a date — last-edited stamp for the library.
 function relTime(ts) {
@@ -40,6 +41,7 @@ function DocThumb({ docId, updatedAt, symbolsReady }) {
 // open; double-click the name (or the pencil) to rename inline; × deletes.
 function DocumentRow({ doc, current, symbolsReady, onOpen, onRename, onDelete }) {
   const [renaming, setRenaming] = useState(false);
+  const confirm = useConfirm();
   return (
     <div className={`doc-row ${current ? 'on' : ''}`}
          onClick={() => { if (!renaming) onOpen(doc.id); }}
@@ -69,7 +71,10 @@ function DocumentRow({ doc, current, symbolsReady, onOpen, onRename, onDelete })
           </svg>
         </button>
         <button className="icon-btn doc-del" title="Delete"
-                onClick={e => { e.stopPropagation(); if (window.confirm(`Delete "${doc.name}"? This can't be undone.`)) onDelete(doc.id); }}>×</button>
+                onClick={async e => {
+                  e.stopPropagation();
+                  if (await confirm({ title: 'Delete label?', message: `"${doc.name}" will be permanently deleted. This can't be undone.`, confirmLabel: 'Delete', danger: true })) onDelete(doc.id);
+                }}>×</button>
       </div>
     </div>
   );
